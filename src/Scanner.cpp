@@ -9,8 +9,7 @@ namespace ash
 		inline static bool isAlpha(char c)
 		{
 			return (c >= 'a' && c <= 'z') ||
-				(c >= 'A' && c <= 'Z') ||
-				c == '_';
+				(c >= 'A' && c <= 'Z');
 		}
 
 		inline static bool isNumeric(char c)
@@ -71,7 +70,9 @@ namespace ash
 
 	Token Scanner::identifierToken()
 	{
-		while (util::isAlphaNumeric(peek())) advance();
+		advance();
+		while (util::isAlphaNumeric(peek()) || peek() == '_') advance();
+		if (*current == '!') advance();
 		return makeToken(identifierType());
 	}
 
@@ -110,7 +111,7 @@ namespace ash
 		if (isAtEnd()) return makeToken(TokenType::EOF);
 
 		char c = advance();
-		if (util::isAlpha(c)) return identifierToken();
+		if (util::isAlpha(c) || c == '_') return identifierToken();
 		if (util::isNumeric(c)) return numberToken();
 
 		switch(c)
@@ -181,7 +182,7 @@ namespace ash
 
 	TokenType Scanner::checkKeyword(int tokenStart, int length, const char* rest, TokenType type)
 	{
-		if (current - start == tokenStart + length && memcmp(start + tokenStart, rest, length) == 0) return type;
+		if (current - start == tokenStart + (size_t)length && memcmp(start + tokenStart, rest, length) == 0) return type;
 		return TokenType::IDENTIFIER;
 	}
 
