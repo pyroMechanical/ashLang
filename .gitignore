@@ -2,9 +2,9 @@
 **/Release
 **/x64
 **/CMakeFiles
-pkscript/CMakeCache.txt
-pkscript/cmake_install.cmake
-/.vs
+**/CMakeCache.txt
+**/cmake_install.cmake
+**/.vs
 *.sln
 *.vcxproj
 *.vcxproj.filters
