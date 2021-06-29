@@ -2,6 +2,7 @@
 #include "Value.h"
 #include "Chunk.h"
 
+#include <string>
 namespace ash
 {
 	enum ObjType

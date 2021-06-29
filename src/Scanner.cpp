@@ -116,10 +116,10 @@ namespace ash
 
 		switch(c)
 		{
-		case '(': return makeToken(TokenType::LEFT_PAREN);
-		case ')': return makeToken(TokenType::RIGHT_PAREN);
-		case '{': return makeToken(TokenType::LEFT_BRACE);
-		case '}': return makeToken(TokenType::RIGHT_BRACE);
+		case '(': return makeToken(TokenType::PAREN);
+		case ')': return makeToken(TokenType::CLOSE_PAREN);
+		case '{': return makeToken(TokenType::BRACE);
+		case '}': return makeToken(TokenType::CLOSE_BRACE);
 		case ';': return makeToken(TokenType::SEMICOLON);
 		case ':': return makeToken(TokenType::COLON);
 		case ',': return makeToken(TokenType::COMMA);

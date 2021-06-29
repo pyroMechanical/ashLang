@@ -4,44 +4,98 @@
 
 namespace ash
 {
-	void Chunk::WriteABC(uint8_t op, uint8_t A, uint16_t B, uint16_t C, int line)
+	void Chunk::WriteAB(uint8_t op, uint8_t A, uint8_t B, int line)
 	{
-		assert(op < 64); //op is 6 bytes
-		assert(B < 512); //B is 9 bytes
-		assert(C < 512); // C is 9 bytes
+
 		if (lines.size() != 0 && line == lines.back().first)
 			lines.back().second++;
 		else
 			lines.emplace_back(std::pair<int, int>(line, 1));
 
-		uint32_t result = op;
-		result == (result << 8) + A;
-		result == (result << 9) + B;
-		result == (result << 9) + C;
-
-		opcode.push_back(result);
+		opcode.push_back(op);
+		opcode.push_back(A);
+		opcode.push_back(B);
 	}
 
-	void Chunk::WriteABx(uint8_t op, uint8_t A, uint32_t Bx, int line)
+	void Chunk::WriteABC(uint8_t op, uint8_t A, uint8_t B, uint8_t C, int line)
 	{
-		assert(op < 64); //op is 6 bytes
-		assert(Bx < 262144); //Bx is 18 byte
+		
 		if (lines.size() != 0 && line == lines.back().first)
 			lines.back().second++;
 		else
 			lines.emplace_back(std::pair<int, int>(line, 1));
 
-		uint32_t result = op;
-		result == (result << 8) + A;
-		result == (result << 18) + Bx;
-
-		opcode.push_back(result);
+		opcode.push_back(op);
+		opcode.push_back(A);
+		opcode.push_back(B);
+		opcode.push_back(C);
 	}
 
-	uint32_t Chunk::AddConstant(float value)
+	void Chunk::WriteI8(uint8_t A, int8_t constant)
 	{
-		constants.push_back(value);
-		return constants.size() - 1;
+		WriteI64(A, (int64_t)constant);
+	}
+	void Chunk::WriteI16(uint8_t A, int16_t constant)
+	{
+		WriteI64(A, (int64_t)constant);
+	}
+	void Chunk::WriteI32(uint8_t A, int32_t constant)
+	{
+		WriteI64(A, (int64_t)constant);
+	}
+	void Chunk::WriteFloat(uint8_t A, float constant)
+	{
+		WriteU32(A, *reinterpret_cast<uint32_t*>(&constant));
+	}
+	void Chunk::WriteI64(uint8_t A, int64_t constant)
+	{
+		WriteU64(A, static_cast<uint64_t>(constant));
+	}
+	void Chunk::WriteDouble(uint8_t A, double constant)
+	{
+		WriteU64(A, *reinterpret_cast<uint64_t*>(&constant));
+	}
+	void Chunk::WriteU8(uint8_t A, uint8_t constant)
+	{
+		WriteU32(A, static_cast<uint32_t>(constant));
+	}
+	void Chunk::WriteU16(uint8_t A, uint16_t constant)
+	{
+		WriteU32(A, static_cast<uint32_t>(constant));
+	}
+	void Chunk::WriteU32(uint8_t A, uint32_t constant)
+	{
+		uint8_t temp = (uint8_t)(constant >> 24);
+		opcode.push_back(OP_CONST);
+		opcode.push_back(A);
+		opcode.push_back(temp);
+		temp = (uint8_t)(constant >> 16);
+		opcode.push_back(temp);
+		temp = (uint8_t)(constant >> 8);
+		opcode.push_back(temp);
+		temp = (uint8_t)constant;
+		opcode.push_back(temp);
+	}
+	void Chunk::WriteU64(uint8_t A, uint64_t constant)
+	{
+		uint8_t temp = (uint8_t)(constant >> 56);
+		opcode.push_back(OP_CONST_LONG);
+		opcode.push_back(A);
+		opcode.push_back(temp);
+		temp = (uint8_t)(constant >> 48);
+		opcode.push_back(temp);
+		temp = (uint8_t)(constant >> 40);
+		opcode.push_back(temp);
+		temp = (uint8_t)(constant >> 32);
+		opcode.push_back(temp);
+		temp = (uint8_t)(constant >> 24);
+		opcode.push_back(temp);
+		temp = (uint8_t)(constant >> 16);
+		opcode.push_back(temp);
+		temp = (uint8_t)(constant >> 8);
+		opcode.push_back(temp);
+		temp = (uint8_t)constant;
+		opcode.push_back(temp);
 	}
 
 	int Chunk::GetLine(size_t offset)
