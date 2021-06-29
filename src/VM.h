@@ -4,12 +4,13 @@
 #include "Value.h"
 #include "Chunk.h"
 
+#include <array>
 #include <list>
 #include <unordered_map>
 
 namespace ash
 {
-	enum InterpretResult
+	enum class InterpretResult
 	{
 		INTERPRET_OK,
 		INTERPRET_COMPILE_ERROR,
@@ -20,17 +21,17 @@ namespace ash
 	{
 	private:
 		Chunk* chunk;
-		uint32_t* ip;
-		std::vector<Value> registers;
-		std::list<Object> objects;
-		std::unordered_map<std::string, Value> globals;
-		std::unordered_map<std::string, StringObject*> strings;
+		uint8_t* ip;
+		std::array<uint64_t, 256> R;
+		std::vector<uint8_t> stack;
 
 	public:
 		VM();
 		~VM();
 
 		InterpretResult interpret(std::string source);
+
+		InterpretResult interpret(Chunk* chunk);
 
 		InterpretResult run();
 	};
