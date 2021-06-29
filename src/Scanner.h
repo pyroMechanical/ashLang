@@ -14,6 +14,7 @@ namespace ash
 		LESS, LESS_EQUAL,
 		GREATER, GREATER_EQUAL,
 		//Types
+		TYPE, //never used in scanner, type tokens can only be resolved when parsing
 		AUTO, ANY, MULTI,
 		IDENTIFIER, DEF,
 		//Literals
@@ -24,7 +25,7 @@ namespace ash
 		RETURN, ELSE,
 		AND, OR,
 
-		ERROR, EOF
+		ERROR, EOF_
 	};
 
 	struct Token
@@ -56,8 +57,6 @@ namespace ash
 		Token numberToken();
 		Token stringToken();
 
-		Token scanToken();
-
 		TokenType checkKeyword(int start, int length, const char* rest, TokenType type);
 		TokenType identifierType();
 
@@ -65,5 +64,7 @@ namespace ash
 		Scanner(const char* source)
 			:start(source), current(source), line(1) {}
 		~Scanner() = default;
+
+		Token scanToken();
 	};
 }

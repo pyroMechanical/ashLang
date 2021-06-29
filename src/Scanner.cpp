@@ -108,7 +108,7 @@ namespace ash
 	{
 		skipWhitespace();
 		start = current;
-		if (isAtEnd()) return makeToken(TokenType::EOF);
+		if (isAtEnd()) return makeToken(TokenType::EOF_);
 
 		char c = advance();
 		if (util::isAlpha(c) || c == '_') return identifierToken();
@@ -116,10 +116,12 @@ namespace ash
 
 		switch(c)
 		{
-		case '(': return makeToken(TokenType::LEFT_PAREN);
-		case ')': return makeToken(TokenType::RIGHT_PAREN);
-		case '{': return makeToken(TokenType::LEFT_BRACE);
-		case '}': return makeToken(TokenType::RIGHT_BRACE);
+		case '(': return makeToken(TokenType::PAREN);
+		case ')': return makeToken(TokenType::CLOSE_PAREN);
+		case '{': return makeToken(TokenType::BRACE);
+		case '}': return makeToken(TokenType::CLOSE_BRACE); 
+		case '[': return makeToken(TokenType::BRACKET);
+		case ']': return makeToken(TokenType::CLOSE_BRACKET);
 		case ';': return makeToken(TokenType::SEMICOLON);
 		case ':': return makeToken(TokenType::COLON);
 		case ',': return makeToken(TokenType::COMMA);
