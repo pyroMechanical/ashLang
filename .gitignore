@@ -1,11 +1,16 @@
-**/Debug
-**/Release
-**/x64
 **/CMakeFiles
 **/CMakeCache.txt
 **/cmake_install.cmake
+
+# IDE-specific files.
+**/Debug
+**/Release
+**/x64
 **/.vs
 *.sln
 *.vcxproj
 *.vcxproj.filters
 *.vcxproj.user
+.vscode/
+.history/
+*.code-workspace
