@@ -347,8 +347,7 @@ namespace ash
 					uint8_t B = util::read_byte(ip);
 					uint8_t C = util::read_byte(ip);
 
-					R[C] = R[A] != 0;
-					R[C] &= R[B] != 0;
+					R[C] = R[A] & R[B];
 					break;
 				}
 				case OP_OR:
@@ -357,8 +356,7 @@ namespace ash
 					uint8_t B = util::read_byte(ip);
 					uint8_t C = util::read_byte(ip);
 
-					R[C] = R[A] != 0;
-					R[C] |= R[B] != 0;
+					R[C] = R[A] | R[B];
 					break;
 				}
 				case OP_RETURN: 
@@ -370,7 +368,7 @@ namespace ash
 					std::cout << "float: " << *reinterpret_cast<float*>(&R[0]) << std::endl;
 					std::cout << "double: " << *reinterpret_cast<double*>(&R[0]) << std::endl;
 
-					return INTERPRET_OK;
+					return InterpretResult::INTERPRET_OK;
 				}
 			}
 		}
