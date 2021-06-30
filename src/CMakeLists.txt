@@ -6,6 +6,6 @@ set(CMAKE_CXX_STANDARD 11)
 
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-file(GLOB_RECURSE sources RELATIVE ${PROJECT_SOURCE_DIR} "*.cpp" "*.h")
+file(GLOB sources RELATIVE ${PROJECT_SOURCE_DIR} "*.cpp" "*.h")
 
 add_executable(ashlang ${sources})
