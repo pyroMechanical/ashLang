@@ -1,7 +1,5 @@
 #pragma once
 
-#include "Object.h"
-#include "Value.h"
 #include "Chunk.h"
 
 #include <array>

@@ -1,5 +1,4 @@
 #pragma once
-#include "Value.h"
 
 #include <vector>
 #include <stdint.h>
@@ -10,7 +9,6 @@ namespace ash
 	private:
 		std::vector<uint8_t> opcode;
 		std::vector<std::pair<int, int>> lines;
-		std::vector<Value> constants;
 	public:
 		Chunk() = default;
 		~Chunk() = default;
@@ -41,6 +39,8 @@ namespace ash
 		OP_MOVE, // A, B
 		OP_CONST, // A, 4 byte constant
 		OP_CONST_LONG, // A, 8 byte constant
+		OP_STORE, // A, B; stack.push(R[B]), based on Flags(A)
+		OP_LOAD, // A, B; R[B]: stack.pop(), based on Flags(A)
 			/*signed integers are sign-extended, so 
 				one addition/subtraction operation works for both*/
 		OP_INT_EQUAL, //A, B, C; R[C]: R[A] = R[B]
@@ -83,49 +83,15 @@ namespace ash
 		OP_OR, //A, B, C; R[C]: R[A] or R[B]
 		OP_CALL, 
 		OP_RETURN,
-		//OP_,
-		//OP_,
-		//OP_,
-		//OP_,
-		//OP_,
-		//OP_,
-		//OP_,
-		//OP_,
-		//OP_,
-		//OP_,
-		//OP_,
-		//OP_,
-		//OP_,
-		//OP_,
-		//OP_,
-		//OP_,
-		//OP_,
-		//OP_,
-		//OP_,
-		//OP_,
-		//OP_,
-		//OP_,
-		//OP_,
-		//OP_,
-		//OP_,
-		//OP_,
-		//OP_,
-		//OP_,
-		//OP_,
-		//OP_,
-		//OP_,
-		//OP_,
-		//OP_,
-		//OP_,
-		//OP_,
-		//OP_,
-		//OP_,
-		//OP_,
-		//OP_,
-		//OP_,
-		//OP_,
-		//OP_,
-		//OP_,
-		//OP_
+	};
+
+	enum StackTransferFlags : uint8_t
+	{
+		FLAG_BYTE = 0x01,
+		FLAG_SHORT = 0x02,
+		FLAG_HALF = 0x04,
+		FLAG_LONG = 0x08,
+		FLAG_MAX_BYTES = 0x0F,
+		FLAG_READ_SINT = 0x80
 	};
 }

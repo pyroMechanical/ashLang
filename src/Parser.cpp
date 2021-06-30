@@ -73,7 +73,7 @@ namespace ash
 		return true;
 	}
 
-	ParseRule rules[] = {
+	/*ParseRule rules[] = {
 		{grouping,   call,       Precedence::CALL},  //[PAREN]
 		{nullptr, nullptr,       Precedence::NONE},  //[CLOSE_PAREN]
 		{nullptr, nullptr,       Precedence::NONE},  //[BRACE]
@@ -97,5 +97,5 @@ namespace ash
 		{nullptr, nullptr,       Precedence::NONE},	 //[GREATER_EQUAL]
 		{nullptr, nullptr,       Precedence::NONE},	 //[TYPE]
 		{nullptr, nullptr,       Precedence::NONE},	 //[IDENTIFIER]
-	};
+	};*/
 }

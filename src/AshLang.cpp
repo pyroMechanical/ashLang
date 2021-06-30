@@ -10,10 +10,9 @@ using namespace ash;
     {
         VM vm;
         Chunk chunk;
-        chunk.WriteI64(1, -5);
-        chunk.WriteDouble(3, -25.5);
-        chunk.WriteAB(OP_INT_TO_DOUBLE, 1, 1, 0);
-        chunk.WriteABC(OP_DOUBLE_DIV, 3, 1, 0, 0);
+        chunk.WriteDouble(1, 17.5);
+        chunk.WriteAB(OP_STORE, FLAG_LONG, 1, 0);
+        chunk.WriteAB(OP_LOAD, FLAG_LONG, 0, 0);
         chunk.WriteOp(OP_RETURN);
         Disassembler d;
         d.disassembleChunk(&chunk, "test chunk");

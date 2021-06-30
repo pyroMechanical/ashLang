@@ -79,6 +79,39 @@ namespace ash
 					R[A] = value;
 					break;
 				}
+				case OP_STORE:
+				{
+					uint8_t flags = util::read_byte(ip) & FLAG_MAX_BYTES;
+					uint8_t B = util::read_byte(ip);
+					for (uint8_t i = 1; i <= flags; i++)
+					{
+						stack.push_back( (uint8_t) ( R[B] >> ( (flags * 8) - (i * 8) ) ) );
+					}
+
+					break;
+				}
+				case OP_LOAD:
+				{
+					uint8_t flags = util::read_byte(ip);
+					bool s_int = flags & FLAG_READ_SINT;
+					flags &= FLAG_MAX_BYTES;
+					uint8_t B = util::read_byte(ip);
+					uint64_t temp = 0;
+					if (s_int)
+					{
+						for (uint8_t i = 1; i <= 8 - flags; i++)
+						{
+							temp = (temp << 8) + 0xFF;
+						}
+					}
+					for (uint8_t i = 1; i <= flags; i++)
+					{
+						temp += ((uint64_t)stack.back()) << ((i-1) * 8);
+						stack.pop_back();
+					}
+					R[B] = temp;
+					break;
+				}
 				case OP_INT_ADD:
 				{
 					uint8_t A = util::read_byte(ip);

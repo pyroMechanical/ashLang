@@ -13,6 +13,7 @@ namespace ash
 		size_t ABCInstruction(const char* name, size_t offset);
 		size_t ConstantInstruction(const char* name, size_t offset, uint8_t bytes);
 		size_t SimpleInstruction(const char* name, size_t offset);
+		size_t StackInstruction(const char* name, size_t offset);
 	public:
 		Disassembler() = default;
 		~Disassembler() = default;

@@ -30,6 +30,8 @@ namespace ash
 		case OP_MOVE: return ABInstruction("OP_MOVE", offset);
 		case OP_CONST: return ConstantInstruction("OP_CONST", offset, 4);
 		case OP_CONST_LONG: return ConstantInstruction("OP_CONST_LONG", offset, 8);
+		case OP_STORE: return StackInstruction("OP_STORE", offset);
+		case OP_LOAD: return StackInstruction("OP_LOAD", offset);
 		case OP_INT_EQUAL: return ABCInstruction("OP_INT_EQUAL", offset);
 		case OP_INT_ADD: return ABCInstruction("OP_INT_ADD", offset);
 		case OP_INT_SUB: return ABCInstruction("OP_INT_SUB", offset);
@@ -78,6 +80,20 @@ namespace ash
 		uint8_t B = chunk->at(offset + 2);
 
 		std::cout << std::setfill('0') << name  << " " << std::setw(3) << +A << " " << std::setw(3) << +B << std::endl;
+
+		return offset + 3;
+	}
+
+	size_t Disassembler::StackInstruction(const char* name, size_t offset)
+	{
+		uint8_t flags = chunk->at(offset + 1);
+		uint8_t B = chunk->at(offset + 2);
+
+		std::cout << name << " SUBCODE_";
+		if (flags & FLAG_READ_SINT)
+			std::cout << "SIGNED_";
+		std::cout << (flags & FLAG_MAX_BYTES) << "_BIT ";
+		std::cout << std::setfill('0') << " " << std::setw(3) << +B << std::endl;
 
 		return offset + 3;
 	}
