@@ -1,4 +1,4 @@
-#include "Scanner.h"
+#include "Parser.h"
 #include "Chunk.h"
 #include <vector>
 
@@ -18,10 +18,12 @@ namespace ash
 	{
 		std::vector<Local> locals;
 		int scopeDepth;
-		Chunk* currentChunk;
+		Chunk* currentChunk = nullptr;
+	public:
+		Compiler()
+			:scopeDepth(0) {}
 
-		Compiler(Chunk* chunk)
-			:currentChunk(chunk), scopeDepth(0) {}
+		bool compile(const char* source);
 	};
 
 }

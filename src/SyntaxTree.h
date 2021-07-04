@@ -22,12 +22,10 @@ namespace ash
 		node* root;
 		std::vector<node*> branch;
 
-		SyntaxTree() {};
-
-		void setRoot(node* node)
+		SyntaxTree(node* root)
+			:root(root)
 		{
-			root = node;
-		}
+		};
 
 		std::vector<node*> currentBranch() const { return branch; }
 

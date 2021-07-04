@@ -1,4 +1,5 @@
 #include "VM.h"
+#include "Compiler.h"
 
 #include <iostream>
 #include <bitset>
@@ -41,7 +42,10 @@ namespace ash
 
 	InterpretResult VM::interpret(std::string source)
 	{
-		//ip = 
+		Compiler compiler;
+
+		compiler.compile(source.c_str());
+
 		InterpretResult result = run();
 
 		return result;

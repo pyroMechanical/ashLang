@@ -4,6 +4,48 @@
 
 namespace ash
 {
+
+	Parser::Parser(const char* source)
+	:scanner(source)
+	{
+		
+#define FN(fn) (std::bind(&fn, this, std::placeholders::_1))
+		hadError = false;
+		panicMode = false;
+
+		rules = {
+		{FN(Parser::grouping), FN(Parser::call), Precedence::CALL},    //[PAREN]
+		{nullptr,                       nullptr, Precedence::NONE},    //[CLOSE_PAREN]
+		{nullptr,                       nullptr, Precedence::NONE},    //[BRACE]
+		{nullptr,                       nullptr, Precedence::NONE},    //[CLOSE_BRACE]
+		{FN(Parser::grouping),          nullptr, Precedence::NONE},    //[BRACKET]
+		{nullptr,                       nullptr, Precedence::NONE},    //[CLOSE_BRACKET]
+		{nullptr,                       nullptr, Precedence::NONE},    //[COMMA]
+		{nullptr,                       nullptr, Precedence::NONE},    //[DOT]
+		{FN(Parser::unary),  FN(Parser::binary), Precedence::TERM},    //[MINUS]
+		{nullptr,            FN(Parser::binary), Precedence::TERM},    //[PLUS]
+		{nullptr,                       nullptr, Precedence::NONE},    //[COLON]
+		{nullptr,                       nullptr, Precedence::NONE},	   //[SEMICOLON]
+		{nullptr,            FN(Parser::binary), Precedence::FACTOR},  //[SLASH]
+		{nullptr,            FN(Parser::binary), Precedence::FACTOR},  //[STAR]
+		{FN(Parser::unary),             nullptr, Precedence::NONE},	   //[BANG]
+		{nullptr,                       nullptr, Precedence::NONE},	   //[BANG_EQUAL]
+		{nullptr,                       nullptr, Precedence::NONE},	   //[EQUAL]
+		{nullptr,                       nullptr, Precedence::NONE},	   //[LESS]
+		{nullptr,                       nullptr, Precedence::NONE},	   //[LESS_EQUAL]
+		{nullptr,                       nullptr, Precedence::NONE},	   //[GREATER]
+		{nullptr,                       nullptr, Precedence::NONE},	   //[GREATER_EQUAL]
+		{nullptr,                       nullptr, Precedence::NONE},	   //[TYPE]
+		{nullptr,                       nullptr, Precedence::NONE},	   //[IDENTIFIER]
+		};
+
+		advance();
+		while (!match(TokenType::EOF_))
+		{
+			declaration();
+		}
+	}
+
 	void Parser::errorAt(Token* token, const char* message)
 	{
 		if (panicMode) return;
@@ -73,29 +115,58 @@ namespace ash
 		return true;
 	}
 
-	/*ParseRule rules[] = {
-		{grouping,   call,       Precedence::CALL},  //[PAREN]
-		{nullptr, nullptr,       Precedence::NONE},  //[CLOSE_PAREN]
-		{nullptr, nullptr,       Precedence::NONE},  //[BRACE]
-		{nullptr, nullptr,       Precedence::NONE},  //[CLOSE_BRACE]
-		{nullptr, nullptr,       Precedence::NONE},  //[BRACKET]
-		{nullptr, nullptr,       Precedence::NONE},  //[CLOSE_BRACKET]
-		{nullptr, nullptr,       Precedence::NONE},  //[COMMA]
-		{nullptr, nullptr,       Precedence::NONE},  //[DOT]
-		{unary,    binary,       Precedence::TERM},  //[MINUS]
-		{nullptr,  binary,       Precedence::TERM},  //[PLUS] 
-		{nullptr, nullptr,       Precedence::NONE},  //[COLON]     
-		{nullptr, nullptr,       Precedence::NONE},	 //[SEMICOLON]
-		{nullptr,  binary,     Precedence::FACTOR},	 //[SLASH]
-		{nullptr,  binary,     Precedence::FACTOR},	 //[STAR]
-		{unary,   nullptr,       Precedence::NONE},	 //[BANG]
-		{nullptr, nullptr,       Precedence::NONE},	 //[BANG_EQUAL]
-		{nullptr, nullptr,       Precedence::NONE},	 //[EQUAL]
-		{nullptr, nullptr,       Precedence::NONE},	 //[LESS]
-		{nullptr, nullptr,       Precedence::NONE},	 //[LESS_EQUAL]
-		{nullptr, nullptr,       Precedence::NONE},	 //[GREATER]
-		{nullptr, nullptr,       Precedence::NONE},	 //[GREATER_EQUAL]
-		{nullptr, nullptr,       Precedence::NONE},	 //[TYPE]
-		{nullptr, nullptr,       Precedence::NONE},	 //[IDENTIFIER]
-	};*/
+	void Parser::binary(bool canAssign)
+	{
+
+	}
+
+	void Parser::call(bool canAssign)
+	{
+
+	}
+
+	void Parser::grouping(bool canAssign)
+	{
+
+	}
+
+	void Parser::literal(bool canAssign)
+	{
+
+	}
+
+	void Parser::unary(bool canAssign)
+	{
+		
+	}
+
+	void Parser::declaration()
+	{
+		if (match(TokenType::DEF))
+		{
+			typeDefinition();
+		}
+		else if (match(TokenType::IDENTIFIER))
+		{
+			if (match(TokenType::IDENTIFIER))
+			{
+				if (match(TokenType::PAREN))
+				{
+					functionDeclaration();
+				}
+				else if (match(TokenType::COLON))
+				{
+					variableDeclaration();
+				}
+			}
+			else
+			{
+				statement();
+			}
+		}
+		else
+		{
+			statement();
+		}
+	}
 }

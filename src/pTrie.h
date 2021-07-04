@@ -19,7 +19,7 @@ namespace ash
 		return __popcnt64(bitpos & bitmap);
 	}
 
-	enum class node_type {root_node, branch_node, leaf_node};
+	enum class node_type { root_node, branch_node, leaf_node };
 
 	class node
 	{

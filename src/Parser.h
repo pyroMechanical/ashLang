@@ -3,15 +3,17 @@
 #include "Scanner.h"
 #include "SyntaxTree.h"
 
+#include <functional>
+
 namespace ash
 {
 	enum class Precedence
 	{
 		NONE,
 		ASSIGNMENT, // :
-		OR, // or
-		AND, // and
 		EQUALITY, // =, !=
+		OR, // |
+		AND, // &
 		COMPARISON, // <, >, <=, >=
 		TERM, // +, -
 		FACTOR, // *, /
@@ -20,10 +22,12 @@ namespace ash
 		PRIMARY
 	};
 
+	class Parser;
+
 	struct ParseRule
 	{
-		void (*prefix)(bool);
-		void (*infix)(bool);
+		std::function<void(bool)> prefix;
+		std::function<void(bool)> infix;
 		Precedence precedence;
 	};
 
@@ -35,8 +39,10 @@ namespace ash
 		bool hadError;
 		bool panicMode;
 		Scanner scanner;
-		SyntaxTree tree;
 		node* currentNode;
+		SyntaxTree tree = nullptr;
+
+		std::vector<ParseRule> rules;
 
 		void errorAt(Token* token, const char* message);
 		void error(const char* message);
@@ -46,6 +52,18 @@ namespace ash
 		bool check(TokenType type);
 		bool match(TokenType type);
 		
+	public:
+		Parser(const char* source);
+
+		void expression();
+		void statement();
+		void declaration();
+		void typeDefinition();
+		void functionDeclaration();
+		void variableDeclaration();
+		static ParseRule* getRule(TokenType type);
+		static void ParsePrecedence(Precedence precedence);
+
 		void binary(bool assign);
 		void call(bool assign);
 		void grouping(bool assign);
@@ -54,14 +72,6 @@ namespace ash
 		void number(bool assign);
 		void string(bool assign);
 		void namedVariable(Token name, bool assign);
-
-	public:
-		Parser(const char* source)
-			:scanner(source)
-		{
-			hadError = false;
-			panicMode = false;
-		}
 
 		SyntaxTree parse();
 	};
