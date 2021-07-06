@@ -142,31 +142,6 @@ namespace ash
 
 	void Parser::declaration()
 	{
-		if (match(TokenType::DEF))
-		{
-			typeDefinition();
-		}
-		else if (match(TokenType::IDENTIFIER))
-		{
-			if (match(TokenType::IDENTIFIER))
-			{
-				if (match(TokenType::PAREN))
-				{
-					functionDeclaration();
-				}
-				else if (match(TokenType::COLON))
-				{
-					variableDeclaration();
-				}
-			}
-			else
-			{
-				statement();
-			}
-		}
-		else
-		{
-			statement();
-		}
+		
 	}
 }
