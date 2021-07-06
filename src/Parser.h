@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Scanner.h"
-#include "SyntaxTree.h"
+#include "ParseTree.h"
 
 #include <functional>
 
@@ -11,13 +11,13 @@ namespace ash
 	{
 		NONE,
 		ASSIGNMENT, // :
+		OR, // ||
+		AND, // &&
 		EQUALITY, // =, !=
-		OR, // |
-		AND, // &
 		COMPARISON, // <, >, <=, >=
 		TERM, // +, -
 		FACTOR, // *, /
-		UNARY, //~, !, -
+		UNARY, // !, -
 		CALL, // ., ()
 		PRIMARY
 	};
@@ -34,14 +34,13 @@ namespace ash
 	class Parser
 	{
 	private:
+		Token next;
 		Token current;
 		Token previous;
 		bool hadError;
 		bool panicMode;
 		Scanner scanner;
-		node* currentNode;
-		SyntaxTree tree = nullptr;
-
+		
 		std::vector<ParseRule> rules;
 
 		void errorAt(Token* token, const char* message);
@@ -73,6 +72,6 @@ namespace ash
 		void string(bool assign);
 		void namedVariable(Token name, bool assign);
 
-		SyntaxTree parse();
+		ProgramNode parse();
 	};
 }
