@@ -83,13 +83,18 @@ namespace ash
 	{
 		previous = current;
 
-
 		for (;;)
 		{
 			current = scanner.scanToken();
 			if (current.type != TokenType::ERROR) break;
 			errorAtCurrent(current.start);
 		}
+
+		if (previous.type == TokenType::DEF && current.type == TokenType::IDENTIFIER)
+			current.type = TokenType::TYPE;
+
+		if (current.type == TokenType::IDENTIFIER && next.type == TokenType::IDENTIFIER)
+			current.type = TokenType::TYPE;
 	}
 
 	void Parser::consume(TokenType type, const char* message)
@@ -127,7 +132,8 @@ namespace ash
 
 	void Parser::grouping(bool canAssign)
 	{
-
+		expression();
+		consume(TokenType::CLOSE_PAREN, "Expected ')' after expresion.");
 	}
 
 	void Parser::literal(bool canAssign)
@@ -144,29 +150,42 @@ namespace ash
 	{
 		if (match(TokenType::DEF))
 		{
+			
 			typeDefinition();
 		}
-		else if (match(TokenType::IDENTIFIER))
+		//todo: modules
+		else if (match(TokenType::TYPE))
 		{
-			if (match(TokenType::IDENTIFIER))
+			
+			if (previous.start == "unsigned")
+			{
+				
+				
+			}
+			
+			consume(TokenType::IDENTIFIER, "expected identifier after type!");
+			
 			{
 				if (match(TokenType::PAREN))
 				{
+					
 					functionDeclaration();
 				}
 				else if (match(TokenType::COLON))
 				{
+					
 					variableDeclaration();
 				}
-			}
-			else
-			{
-				statement();
 			}
 		}
 		else
 		{
 			statement();
 		}
+	}
+
+	ParseTree Parser::parse()
+	{
+		
 	}
 }

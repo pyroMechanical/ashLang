@@ -13,17 +13,18 @@ namespace ash
 		BANG, BANG_EQUAL, EQUAL,
 		LESS, LESS_EQUAL,
 		GREATER, GREATER_EQUAL,
-		//Types
-		TYPE, //never used in scanner, type tokens can only be resolved when parsing
+		//types
+		TYPE, //not used in the scanner; the parser will use lookahead to resolve types from identifier tokens
 		AUTO, ANY, MULTI,
 		IDENTIFIER, DEF,
 		//Literals
 		TRUE, FALSE, NULL_,
-		FLOAT, INT, STRING,
+		FLOAT, DOUBLE, CHAR, INT, STRING,
 		//Keywords
 		IF, WHILE, FOR,
 		RETURN, ELSE,
 		AND, OR,
+		BREAK, 
 
 		ERROR, EOF_
 	};
