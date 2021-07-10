@@ -25,7 +25,7 @@ namespace ash
 
 	inline bool Scanner::isAtEnd()
 	{
-		return current == '\0';
+		return *current == '\0';
 	}
 
 	inline char Scanner::advance()
@@ -70,7 +70,7 @@ namespace ash
 
 	Token Scanner::identifierToken()
 	{
-		advance();
+		//advance();
 		while (util::isAlphaNumeric(peek()) || peek() == '_') advance();
 		if (*current == '!') advance();
 		return makeToken(identifierType());
@@ -131,6 +131,7 @@ namespace ash
 		case '/': return makeToken(TokenType::SLASH);
 		case '*': return makeToken(TokenType::STAR);
 		case '=': return makeToken(TokenType::EQUAL);
+		case '\n': return makeToken(TokenType::NEWLINE);
 		case '!': return makeToken(match('=') ? TokenType::BANG_EQUAL : TokenType::BANG);
 		case '<': return makeToken(match('=') ? TokenType::LESS_EQUAL : TokenType::LESS);
 		case '>': return makeToken(match('=') ? TokenType::GREATER_EQUAL : TokenType::GREATER);
@@ -147,8 +148,6 @@ namespace ash
 			char c = peek();
 			switch (c)
 			{
-				case '\n':
-					line++;
 				case ' ':
 				case '\r':
 				case '\t':
@@ -227,6 +226,8 @@ namespace ash
 		case 'o': return checkKeyword(1, 1, "r", TokenType::OR);
 		case 'r': return checkKeyword(1, 5, "eturn", TokenType::RETURN);
 		case 't': return checkKeyword(1, 3, "rue", TokenType::TRUE);
+		case 'w': return checkKeyword(1, 4, "hile", TokenType::WHILE);
 		}
+		return TokenType::IDENTIFIER;
 	}
 }

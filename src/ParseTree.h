@@ -1,77 +1,222 @@
 #pragma once
 #include "Scanner.h"
 
+#include <string>
+#include <iostream>
 #include <memory>
 #include <vector>
+
 namespace ash
 {
-	struct ParseNode
+	namespace util
 	{
-		virtual void print() = 0;
-		virtual void type() = 0;
+		static void spaces(int amount)
+		{
+			std::cout << std::string(amount*2, ' ');
+		}
+
+		static std::string tokenstring(Token token)
+		{
+			std::string out = std::string(token.start);
+			out.resize(token.length);
+			return out;
+		}
+	}
+
+	enum class NodeType
+	{
+		Program,
+		Library,
+		Import,
+		Declaration,
+		TypeDeclaration,
+		FunctionDeclaration,
+		VariableDeclaration,
+		Statement,
+		ForStatement,
+		IfStatement,
+		ReturnStatement,
+		WhileStatement,
+		Block,
+		Expression
 	};
 
-	struct ProgramNode : public ParseNode
+	struct BlockNode;
+	struct ExpressionNode;
+	struct StatementNode;
+
+	struct parameter
 	{
-		//std::unique_ptr<LibraryNode> library;
-		//std::vector<std::unique_ptr<ImportNode>> imports;
-		std::vector<std::unique_ptr<DeclarationNode>> declarations;
+		Token type;
+		Token identifier;
+	};
+
+	struct ParseNode
+	{
+		virtual NodeType nodeType() = 0;
+
+		ParseNode() = default;
+
+		virtual ~ParseNode() = default;
+
+		virtual void print(int depth) = 0;
+
+		ParseNode& operator= (ParseNode&&) = default;
 	};
 
 	struct LibraryNode : public ParseNode
 	{
 		Token libraryIdentifier;
+
+		virtual NodeType nodeType() override { return NodeType::Library; }
+
+		virtual void print(int depth) override
+		{
+			util::spaces(depth);
+			std::cout << "Library" << std::endl;
+			util::spaces(depth);
+			std::cout << "Identifier: " << util::tokenstring(libraryIdentifier);
+		}
 	};
 
 	struct ImportNode : public ParseNode
 	{
 		std::vector<Token> usingList;
 		Token fromIdentifier;
+
+		virtual NodeType nodeType() override { return NodeType::Import; }
+
+		virtual void print(int depth) override
+		{
+			util::spaces(depth);
+			std::cout << "Import" << std::endl;
+			util::spaces(depth);
+			std::cout << "Using: ";
+			bool repeat = false;
+			for (const auto& token : usingList)
+			{
+				if (repeat) std::cout << ", ";
+				std::cout << util::tokenstring(token);
+				repeat = true;
+			}
+			std::cout << " From: " << util::tokenstring(fromIdentifier) << std::endl;
+		}
 	};
 
 	struct DeclarationNode : public ParseNode
 	{
-	
+		virtual NodeType nodeType() override { return NodeType::Declaration; }
+		virtual void print(int depth) override {};
 	};
 
 	struct TypeDeclarationNode : public DeclarationNode
 	{
 		Token typeDefined;
 		std::vector<parameter> fields;
+
+		virtual NodeType nodeType() override { return NodeType::TypeDeclaration; }
+
+		virtual void print(int depth) override
+		{
+			util::spaces(depth);
+			std::cout << "Type Declaration" << std::endl;
+			util::spaces(depth);
+			std::cout << "Type: " << util::tokenstring(typeDefined) << std::endl;
+			util::spaces(depth);
+			std::cout << "Fields: ";
+			bool repeat = false;
+			for (const auto& parameter : fields)
+			{
+				if(repeat) std::cout << ", ";
+				std::cout << util::tokenstring(parameter.type) << " " << util::tokenstring(parameter.identifier);
+				repeat = true;
+			}
+			std::cout << std::endl;
+		}
 	};
 
-	struct FunctionDeclarationNode : public DeclarationNode
+	struct ExpressionNode : public ParseNode
 	{
-		Token type;
-		Token identifier;
-		std::vector<parameter> parameters;
-		std::unique_ptr<BlockNode> body;
-	};
+		enum class ExpressionType
+		{
+			Assignment,
+			Binary,
+			Unary,
+			Call,
+			FunctionCall,
+			FieldCall,
+			Primary,
+		};
 
-	struct VariableDeclarationNode : public DeclarationNode
-	{
-		Token type;
-		Token identifier;
-		std::unique_ptr<ExpressionNode> value;
+		virtual NodeType nodeType() override { return NodeType::Expression; }
+		virtual ExpressionType expressionType() = 0;
+
+		virtual void print(int depth) override {};
 	};
 
 	struct StatementNode : public DeclarationNode
 	{
-	
+		virtual NodeType nodeType() override { return NodeType::Statement; }
+
+		virtual void print(int depth) override {};
 	};
+
+
 
 	struct ExpressionStatement : public StatementNode
 	{
 		std::unique_ptr<ExpressionNode> expression;
+
+		virtual void print(int depth) override
+		{
+			util::spaces(depth);
+			std::cout << "Expression Statement" << std::endl;
+			util::spaces(depth);
+			std::cout << "Expression: " << std::endl;
+			if (expression != nullptr)
+				expression->print(depth + 1);
+		}
 	};
 
 	struct ForStatementNode : public StatementNode
 	{
-		std::unique_ptr<VariableDeclarationNode> declaration;
-		std::unique_ptr<ExpressionNode> expression; //if no declaration, then this
+		std::unique_ptr<ParseNode> declaration; //can only be VariableDeclarationNode or ExpressionNode
 		std::unique_ptr<ExpressionNode> conditional;
 		std::unique_ptr<ExpressionNode> increment;
 		std::unique_ptr<StatementNode> statement;
+
+		virtual NodeType nodeType() override { return NodeType::ForStatement; }
+
+		virtual void print(int depth) override
+		{
+			util::spaces(depth);
+			std::cout << "For Statement" << std::endl;
+
+			if (declaration != nullptr)
+			{
+				util::spaces(depth);
+				std::cout << "Setup: " << std::endl;
+				declaration->print(depth + 1);
+			}
+			if (conditional != nullptr)
+			{
+				util::spaces(depth);
+				std::cout << "Condition: " << std::endl;
+				conditional->print(depth + 1);
+			}
+			if (increment != nullptr)
+			{
+				util::spaces(depth);
+				std::cout << "Increment: " << std::endl;
+				increment->print(depth + 1);
+			}
+			if (statement != nullptr)
+			{
+				util::spaces(depth);
+				std::cout << "Statement: " << std::endl;
+				statement->print(depth + 1);
+			}
+		}
 	};
 
 	struct IfStatementNode : public StatementNode
@@ -79,111 +224,293 @@ namespace ash
 		std::unique_ptr<ExpressionNode> condition;
 		std::unique_ptr<StatementNode> thenStatement;
 		std::unique_ptr<StatementNode> elseStatement;
+
+		virtual NodeType nodeType() override { return NodeType::IfStatement; }
+
+		virtual void print(int depth) override
+		{
+			util::spaces(depth);
+			std::cout << "If Statement" << std::endl;
+			if (condition)
+			{
+				util::spaces(depth);
+				std::cout << "Condition: " << std::endl;
+				condition->print(depth + 1);
+			}
+			if (thenStatement)
+			{
+				util::spaces(depth);
+				std::cout << "Then: " << std::endl;
+				thenStatement->print(depth + 1);
+			}
+			if (elseStatement)
+			{
+				util::spaces(depth);
+				std::cout << "Else: " << std::endl;
+				elseStatement->print(depth + 1);
+			}
+		}
 	};
 
 	struct ReturnStatementNode : public StatementNode
 	{
 		std::unique_ptr<ExpressionNode> returnValue;
+
+		virtual NodeType nodeType() override { return NodeType::ReturnStatement; }
+
+		virtual void print(int depth) override
+		{
+			util::spaces(depth);
+			std::cout << "Return Statement" << std::endl;
+			if (returnValue)
+			{
+				util::spaces(depth);
+				std::cout << "Value: " << std::endl;
+				returnValue->print(depth + 1);
+			}
+		}
 	};
 
 	struct WhileStatementNode : public StatementNode
 	{
 		std::unique_ptr<ExpressionNode> condition;
 		std::unique_ptr<StatementNode> doStatement;
+
+		virtual NodeType nodeType() override { return NodeType::WhileStatement; }
+
+		virtual void print(int depth) override
+		{
+			util::spaces(depth);
+			std::cout << "While Statement" << std::endl;
+			if (condition)
+			{
+				util::spaces(depth);
+				std::cout << "Condition: " << std::endl;
+				condition->print(depth + 1);
+			}
+			if (doStatement)
+			{
+				util::spaces(depth);
+				std::cout << "Do: " << std::endl;
+				doStatement->print(depth + 1);
+			}
+		}
 	};
 
 	struct BlockNode : public StatementNode
 	{
 		std::vector<std::unique_ptr<DeclarationNode>> declarations;
+
+		virtual NodeType nodeType() override { return NodeType::Block; }
+
+		virtual void print(int depth) override
+		{
+			util::spaces(depth);
+			std::cout << "Block" << std::endl;
+			for (const auto& declaration : declarations)
+			{
+				declaration->print(depth + 1);
+			}
+		}
 	};
 
-	struct ExpressionNode : public ParseNode
+	struct FunctionDeclarationNode : public DeclarationNode
 	{
-		std::unique_ptr<PseudoAssignmentNode> assignment;
-	};
-
-
-	struct PseudoAssignmentNode : public ParseNode
-	{
-	};
-
-	struct AssignmentNode : public PseudoAssignmentNode
-	{
-		std::unique_ptr<CallNode> call;
-		Token assignedIdentifier;
-		std::unique_ptr<PseudoAssignmentNode> assignment;
-	};
-
-	struct OrNode : public PseudoAssignmentNode
-	{
-		std::unique_ptr<AndNode> left;
-		std::unique_ptr<AndNode> right;
-	};
-
-	struct AndNode :public ParseNode
-	{
-		std::unique_ptr<EqualityNode> left;
-		std::unique_ptr<EqualityNode> right;
-	};
-
-	struct EqualityNode : public ParseNode
-	{
-		std::unique_ptr<ComparisonNode> left;
-		bool not; // true: != false: =
-		std::unique_ptr<ComparisonNode> right;
-	};
-
-	struct ComparisonNode : public ParseNode
-	{
-		std::unique_ptr<TermNode> left;
-		Token op;
-		std::unique_ptr<TermNode> right;
-	};
-
-	struct TermNode : public ParseNode
-	{
-		std::unique_ptr<FactorNode> left;
-		bool sub; // true: - false: +
-		std::unique_ptr<FactorNode> right;
-	};
-
-	struct FactorNode : public ParseNode
-	{
-		std::unique_ptr<PseudoUnaryNode> left;
-		bool div; // true: / false: *
-		std::unique_ptr<PseudoUnaryNode> right;
-	};
-
-	struct PseudoUnaryNode : public ParseNode
-	{
-	};
-
-	struct UnaryNode : public PseudoUnaryNode
-	{
-		Token op;
-		std::unique_ptr<UnaryNode> unary;
-	};
-
-	struct CallNode : public PseudoUnaryNode
-	{
-		Token primary;
-	};
-
-	struct FunctionCallNode : public CallNode
-	{
-		std::vector<ExpressionNode> arguments;
-		std::unique_ptr<CallNode> nextCall;
-	};
-
-	struct FieldCallNode : public CallNode
-	{
-		Token field;
-		std::unique_ptr<CallNode> nextCall;
-	};
-
-	struct parameter
-	{
+		bool usign = false;
 		Token type;
 		Token identifier;
+		std::vector<parameter> parameters;
+		std::unique_ptr<BlockNode> body;
+
+		virtual NodeType nodeType() override { return NodeType::FunctionDeclaration; }
+
+		virtual void print(int depth) override
+		{
+			util::spaces(depth);
+			std::cout << "Function Declaration" << std::endl;
+			util::spaces(depth);
+			std::cout << "Function: " << util::tokenstring(type) << " " << util::tokenstring(identifier) << std::endl;
+			util::spaces(depth);
+			std::cout << "Parameters: ";
+			bool repeat = false;
+			for (const auto& parameter : parameters)
+			{
+				if (repeat) std::cout << ", ";
+				std::cout << util::tokenstring(parameter.type) << " " << util::tokenstring(parameter.identifier);
+				repeat = true;
+			}
+			std::cout << std::endl;
+			util::spaces(depth);
+			std::cout << "Body: " << std::endl;
+			body->print(depth + 1);
+		}
 	};
+
+
+
+	struct VariableDeclarationNode : public DeclarationNode
+	{
+		bool usign = false;
+		Token type;
+		Token identifier;
+		std::unique_ptr<ExpressionNode> value;
+
+		virtual NodeType nodeType() override { return NodeType::VariableDeclaration; }
+
+		virtual VariableDeclarationNode& operator= (const VariableDeclarationNode&) = default;
+
+		virtual void print(int depth) override
+		{
+			util::spaces(depth);
+			std::cout << "Variable Declaration" << std::endl;
+			util::spaces(depth);
+			std::cout << "Variable: " << util::tokenstring(type) << " " << util::tokenstring(identifier) << std::endl;
+			if (value)
+			{
+				util::spaces(depth);
+				std::cout << "Value: " << std::endl;
+				value->print(depth + 1);
+			}
+		}
+	};
+
+	struct ProgramNode : public ParseNode
+	{
+		//std::unique_ptr<LibraryNode> library;
+		//std::vector<std::unique_ptr<ImportNode>> imports;
+		std::vector<std::unique_ptr<DeclarationNode>> declarations;
+
+		ProgramNode() = default;
+
+		virtual NodeType nodeType() override { return NodeType::Program; }
+
+		virtual void print(int depth) override
+		{
+			/*library->print(0);
+			for (const auto& _import : imports)
+			{
+				_import->print(0);
+			}*/
+
+			for (const auto& declaration : declarations)
+			{
+				declaration->print(0);
+			}
+		}
+	};
+
+
+
+	struct CallNode : public ExpressionNode
+	{
+		Token primary;
+
+		virtual ExpressionType expressionType() override { return ExpressionType::Call; }
+
+		virtual void print(int depth) override
+		{
+			util::spaces(depth);
+			std::cout << "Literal: " << util::tokenstring(primary) << std::endl;
+		}
+	};
+
+	struct BinaryNode : public ExpressionNode
+	{
+		std::unique_ptr<ExpressionNode> left;
+		Token op;
+		std::unique_ptr<ExpressionNode> right;
+		virtual ExpressionType expressionType() override { return ExpressionType::Binary; }
+
+		virtual void print(int depth) override
+		{
+			util::spaces(depth);
+			std::cout << "Binary Expression" << std::endl;
+			left->print(depth + 1);
+			util::spaces(depth);
+			std::cout << "Operator: " << util::tokenstring(op) << std::endl;
+			right->print(depth + 1);
+		}
+	};
+
+	struct AssignmentNode : public ExpressionNode
+	{
+		Token identifier;
+		std::unique_ptr<ExpressionNode> value;
+		virtual ExpressionType expressionType() override { return ExpressionType::Assignment; }
+
+		virtual void print(int depth) override
+		{
+			util::spaces(depth);
+			std::cout << "Assignment Expression" << std::endl;
+			util::spaces(depth);
+			std::cout << "Identifier: " << util::tokenstring(identifier) << std::endl;
+			if (value)
+			{
+				util::spaces(depth);
+				std::cout << "Value: " << std::endl;
+				value->print(depth + 1);
+			}
+		}
+	};
+
+	struct UnaryNode : public ExpressionNode
+	{
+		Token op;
+		std::unique_ptr<ExpressionNode> unary; //Unary or Call
+
+		virtual ExpressionType expressionType() override { return ExpressionType::Unary; }
+
+		virtual void print(int depth) override
+		{
+			util::spaces(depth);
+			std::cout << "Unary Expression" << std::endl;
+			util::spaces(depth);
+			std::cout << "Operator: " << util::tokenstring(op);
+			unary->print(depth + 1);
+		}
+	};
+
+	struct FunctionCallNode : public ExpressionNode
+	{
+		std::unique_ptr<ExpressionNode> left;
+		std::vector<std::unique_ptr<ExpressionNode>> arguments;
+
+		virtual ExpressionType expressionType() override { return ExpressionType::FunctionCall; }
+		
+		virtual void print(int depth) override
+		{
+			util::spaces(depth);
+			std::cout << "Function Call" << std::endl;
+			util::spaces(depth);
+			std::cout << "Called: " << std::endl;
+			left->print(depth + 1);
+			util::spaces(depth);
+			std::cout << "Arguments: " << std::endl;
+			for (const auto& args : arguments)
+			{
+				args->print(depth + 1);
+			}
+		}
+	};
+
+	struct FieldCallNode : public ExpressionNode
+	{
+		std::unique_ptr<ExpressionNode> left;
+		Token field;
+
+		virtual ExpressionType expressionType() override { return ExpressionType::FieldCall; }
+
+		virtual void print(int depth) override
+		{
+			util::spaces(depth);
+			std::cout << "Function Call" << std::endl;
+			util::spaces(depth);
+			std::cout << "Called: " << std::endl;
+			left->print(depth + 1);
+			util::spaces(depth);
+			std::cout << "Field: " << util::tokenstring(field) << std::endl;
+		}
+	};
+
+
 }

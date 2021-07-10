@@ -3,7 +3,7 @@
 
 namespace ash
 {
-	enum class TokenType
+	enum class TokenType : int
 	{
 		PAREN, CLOSE_PAREN,
 		BRACE, CLOSE_BRACE,
@@ -13,7 +13,6 @@ namespace ash
 		BANG, BANG_EQUAL, EQUAL,
 		LESS, LESS_EQUAL,
 		GREATER, GREATER_EQUAL,
-		//types
 		TYPE, //not used in the scanner; the parser will use lookahead to resolve types from identifier tokens
 		AUTO, ANY, MULTI,
 		IDENTIFIER, DEF,
@@ -25,13 +24,15 @@ namespace ash
 		RETURN, ELSE,
 		AND, OR,
 		BREAK, 
+		//special token for resolving newline semicolons
+		NEWLINE,
 
 		ERROR, EOF_
 	};
 
 	struct Token
 	{
-		TokenType type;
+		TokenType type = TokenType::ERROR;
 		const char* start;
 		int length;
 		int line;

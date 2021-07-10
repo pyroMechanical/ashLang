@@ -7,6 +7,10 @@ namespace ash
 	{
 		Parser parser(source);
 
+		auto ast = parser.parse();
+
+		ast->print(0);
+
 		return false;
 	}
 

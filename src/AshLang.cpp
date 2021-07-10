@@ -20,6 +20,7 @@ using namespace ash;
         //InterpretResult result = vm.interpret(&chunk);
         std::string source;
         std::getline(std::cin, source);
+        source.append("\n");
         InterpretResult result = vm.interpret(source);
         //if(result != InterpretResult::INTERPRET_OK)
         //{

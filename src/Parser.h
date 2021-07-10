@@ -26,8 +26,8 @@ namespace ash
 
 	struct ParseRule
 	{
-		std::function<void(bool)> prefix;
-		std::function<void(bool)> infix;
+		std::function<std::unique_ptr<ExpressionNode>(bool)> prefix;
+		std::function<std::unique_ptr<ExpressionNode>(std::unique_ptr<ExpressionNode>, bool)> infix;
 		Precedence precedence;
 	};
 
@@ -50,28 +50,28 @@ namespace ash
 		void consume(TokenType type, const char* message);
 		bool check(TokenType type);
 		bool match(TokenType type);
+
+		void resolveNewlines();
 		
 	public:
 		Parser(const char* source);
 
-		void expression();
-		void statement();
-		void declaration();
-		void typeDefinition();
-		void functionDeclaration();
-		void variableDeclaration();
-		static ParseRule* getRule(TokenType type);
-		static void ParsePrecedence(Precedence precedence);
+		std::unique_ptr<ExpressionNode> expression();
+		std::unique_ptr<StatementNode> statement();
+		std::unique_ptr<DeclarationNode> declaration();
+		std::vector<parameter> getParameters();
+		std::unique_ptr<BlockNode> block();
+		ParseRule* getRule(TokenType type);
 
-		void binary(bool assign);
-		void call(bool assign);
-		void grouping(bool assign);
-		void literal(bool assign);
-		void unary(bool assign);
-		void number(bool assign);
-		void string(bool assign);
-		void namedVariable(Token name, bool assign);
 
-		ProgramNode parse();
+		std::unique_ptr<ExpressionNode> ParsePrecedence(Precedence precedence);
+		std::unique_ptr<ExpressionNode> binary(std::unique_ptr<ExpressionNode> node, bool assign);
+		std::unique_ptr<ExpressionNode> call(std::unique_ptr<ExpressionNode> node, bool assign);
+		std::unique_ptr<ExpressionNode> grouping(bool assign);
+		std::unique_ptr<ExpressionNode> variable(bool assign);
+		std::unique_ptr<ExpressionNode> literal(bool assign);
+		std::unique_ptr<ExpressionNode> unary(bool assign);
+
+		std::unique_ptr<ProgramNode> parse();
 	};
 }

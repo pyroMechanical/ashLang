@@ -46,9 +46,11 @@ namespace ash
 
 		compiler.compile(source.c_str());
 
-		InterpretResult result = run();
+		//InterpretResult result = run();
 
-		return result;
+		//return result;
+
+		return InterpretResult::INTERPRET_COMPILE_ERROR;
 	}
 
 	InterpretResult VM::interpret(Chunk* chunk)
