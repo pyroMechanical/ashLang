@@ -5,9 +5,16 @@
 #include <iostream>
 #include <memory>
 #include <vector>
+#include <unordered_map>
 
 namespace ash
 {
+
+	enum class category
+	{
+		Module, Function, Variable, Type
+	};
+
 	namespace util
 	{
 		static void spaces(int amount)
@@ -21,7 +28,27 @@ namespace ash
 			out.resize(token.length);
 			return out;
 		}
+
+		static std::string categoryToString(category cat)
+		{
+			switch (cat)
+			{
+			case category::Module: return "Module";
+			case category::Function: return "Function";
+			case category::Variable: return "Variable";
+			case category::Type: return "Type";
+			}
+		}
 	}
+
+
+
+	struct Symbol
+	{
+		std::string name;
+		category cat;
+		Token type;
+	};
 
 	enum class NodeType
 	{
@@ -38,7 +65,11 @@ namespace ash
 		ReturnStatement,
 		WhileStatement,
 		Block,
-		Expression
+		Expression,
+
+		//Scope nodes
+
+		Scope
 	};
 
 	struct BlockNode;
@@ -62,6 +93,20 @@ namespace ash
 		virtual void print(int depth) = 0;
 
 		ParseNode& operator= (ParseNode&&) = default;
+	};
+
+	struct ScopeNode : public ParseNode
+	{
+		std::shared_ptr<ScopeNode> parentScope;
+		std::unordered_map<std::string, Symbol> symbols;
+		std::unordered_map<std::string, std::vector<parameter>> functionParameters;
+		std::unordered_map<std::string, std::vector<parameter>> typeParameters;
+
+		virtual NodeType nodeType() override { return NodeType::Scope; }
+
+		virtual void print(int depth) override
+		{
+		}
 	};
 
 	struct LibraryNode : public ParseNode
@@ -142,7 +187,6 @@ namespace ash
 			Assignment,
 			Binary,
 			Unary,
-			Call,
 			FunctionCall,
 			FieldCall,
 			Primary,
@@ -160,8 +204,6 @@ namespace ash
 
 		virtual void print(int depth) override {};
 	};
-
-
 
 	struct ExpressionStatement : public StatementNode
 	{
@@ -301,6 +343,8 @@ namespace ash
 	{
 		std::vector<std::unique_ptr<DeclarationNode>> declarations;
 
+		std::shared_ptr<ScopeNode> scope;
+
 		virtual NodeType nodeType() override { return NodeType::Block; }
 
 		virtual void print(int depth) override
@@ -380,6 +424,8 @@ namespace ash
 		//std::vector<std::unique_ptr<ImportNode>> imports;
 		std::vector<std::unique_ptr<DeclarationNode>> declarations;
 
+		std::shared_ptr<ScopeNode> globalScope;
+
 		ProgramNode() = default;
 
 		virtual NodeType nodeType() override { return NodeType::Program; }
@@ -405,7 +451,7 @@ namespace ash
 	{
 		Token primary;
 
-		virtual ExpressionType expressionType() override { return ExpressionType::Call; }
+		virtual ExpressionType expressionType() override { return ExpressionType::Primary; }
 
 		virtual void print(int depth) override
 		{

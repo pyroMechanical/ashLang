@@ -108,7 +108,6 @@ namespace ash
 		{
 			TokenType::CLOSE_PAREN,
 			TokenType::CLOSE_BRACKET,
-			TokenType::CLOSE_BRACE,
 			TokenType::IDENTIFIER,
 			TokenType::TRUE,
 			TokenType::FALSE,
@@ -357,7 +356,8 @@ namespace ash
 		}
 		else
 		{
-			return statement();
+			std::unique_ptr<StatementNode> stmt = statement();
+			return stmt;
 		}
 	}
 
@@ -457,6 +457,8 @@ namespace ash
 			node->condition = expression();
 			consume(TokenType::CLOSE_PAREN, "expected')' after expression.");
 			node->doStatement = statement();
+
+			return node;
 		}
 		else if (match(TokenType::BRACE))
 		{
@@ -537,9 +539,7 @@ namespace ash
 		library.libraryIdentifier = previous;
 		node.library = library;
 		*/
-
-
-
+		
 		while (!match(TokenType::EOF_))
 		{
 			node->declarations.push_back(declaration());

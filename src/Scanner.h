@@ -58,6 +58,7 @@ namespace ash
 		Token identifierToken();
 		Token numberToken();
 		Token stringToken();
+		Token charToken();
 
 		TokenType checkKeyword(int start, int length, const char* rest, TokenType type);
 		TokenType identifierType();

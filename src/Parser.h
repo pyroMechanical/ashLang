@@ -22,8 +22,6 @@ namespace ash
 		PRIMARY
 	};
 
-	class Parser;
-
 	struct ParseRule
 	{
 		std::function<std::unique_ptr<ExpressionNode>(bool)> prefix;

@@ -85,8 +85,13 @@ namespace ash
 			advance();
 
 			while (util::isNumeric(peek())) advance();
-
-			return makeToken(TokenType::FLOAT);
+			if(peek() == 'f')
+			{
+				advance();
+				return makeToken(TokenType::FLOAT);
+			}
+			return makeToken(TokenType::DOUBLE);
+			
 		}
 		return makeToken(TokenType::INT);
 	}
@@ -102,6 +107,15 @@ namespace ash
 		if (isAtEnd()) return errorToken("Unterminated string.");
 		advance();
 		return makeToken(TokenType::STRING);
+	}
+
+	Token Scanner::charToken()
+	{
+		if (peek() == '\\') advance();
+		advance();
+		if (peek() != '\'') return errorToken("Unterminated char.");
+		advance();
+		return makeToken(TokenType::CHAR);
 	}
 
 	Token Scanner::scanToken()
@@ -136,6 +150,7 @@ namespace ash
 		case '<': return makeToken(match('=') ? TokenType::LESS_EQUAL : TokenType::LESS);
 		case '>': return makeToken(match('=') ? TokenType::GREATER_EQUAL : TokenType::GREATER);
 		case '"': return stringToken();
+		case '\'': return charToken();
 		}
 
 		return errorToken("Unexpected character.");
