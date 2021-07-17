@@ -66,7 +66,7 @@ namespace ash
 		std::unique_ptr<ExpressionNode> binary(std::unique_ptr<ExpressionNode> node, bool assign);
 		std::unique_ptr<ExpressionNode> call(std::unique_ptr<ExpressionNode> node, bool assign);
 		std::unique_ptr<ExpressionNode> grouping(bool assign);
-		std::unique_ptr<ExpressionNode> variable(bool assign);
+		std::unique_ptr<ExpressionNode> assignment(std::unique_ptr<ExpressionNode> node, bool assign);
 		std::unique_ptr<ExpressionNode> literal(bool assign);
 		std::unique_ptr<ExpressionNode> unary(bool assign);
 

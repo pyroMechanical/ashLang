@@ -1,5 +1,7 @@
 #include "Semantics.h"
 
+#include <unordered_set>
+
 namespace ash
 {
 
@@ -38,6 +40,16 @@ namespace ash
 				std::string("uint"),
 				std::string("ulong")
 			};
+
+			std::string typestring = util::tokenstring(type);
+			for (const auto& string : basicTypes)
+			{
+				if (typestring == string)
+				{
+					return true;
+				}
+			}
+			return false;
 		}
 
 		static Token resolveBasicTypes(Token lhs, Token rhs)
@@ -120,10 +132,12 @@ namespace ash
 			auto scope = util::getScope((ParseNode*)declaration.get(), currentScope);
 			enterNode((ParseNode*)declaration.get(), scope);
 		}
+
+		return ast;
 		
 	}
 
-	void enterNode(ParseNode* node, std::shared_ptr<ScopeNode> currentScope)
+	void Semantics::enterNode(ParseNode* node, std::shared_ptr<ScopeNode> currentScope)
 	{
 		switch (node->nodeType())
 		{
@@ -146,6 +160,23 @@ namespace ash
 				if (currentScope->symbols.find(typeName) == currentScope->symbols.end())
 				{
 					currentScope->symbols.emplace(typeName, s);
+					std::unordered_set<std::string> typeFields;
+
+					for (const auto& field : typeNode->fields)
+					{
+						auto id = util::tokenstring(field.identifier);
+
+						if (typeFields.find(id) == typeFields.end())
+						{
+							typeFields.emplace(id);
+						}
+
+						else 
+						{
+							//Error: field already included!
+						}
+					}
+
 					currentScope->typeParameters.emplace(typeName, typeNode->fields);
 				}
 				else
@@ -213,14 +244,19 @@ namespace ash
 
 				if(varNode->value)
 				{
-					
+					auto valueType = expressionTypeInfo((ExpressionNode*)varNode->value.get(), currentScope);
+
+					if (util::tokenstring(valueType) != util::tokenstring(varNode->type))
+					{
+						std::cout << "Error: value is of type " << util::tokenstring(valueType) << ", assigned to variable of type " << util::tokenstring(varNode->type) << std::endl;
+					}
 				}
 				break;
 			}
 		}
 	}
 
-	Token expressionTypeInfo(ExpressionNode* node, std::shared_ptr<ScopeNode> currentScope)
+	Token Semantics::expressionTypeInfo(ExpressionNode* node, std::shared_ptr<ScopeNode> currentScope)
 	{
 		switch(node->expressionType())
 		{
@@ -250,10 +286,10 @@ namespace ash
 						if (!s)
 						{
 							std::cout << "Symbol " << name << " has not yet been declared.";
-							return { TokenType::ERROR, callNode->primary.start,callNode->primary.length, callNode->primary.line };
+							//return { TokenType::ERROR, callNode->primary.start,callNode->primary.length, callNode->primary.line };
 						}
-
-						return s->type;
+						if (s)
+							return s->type;
 					}
 					case TokenType::TRUE:
 					case TokenType::FALSE:
@@ -273,9 +309,139 @@ namespace ash
 			case ExpressionNode::ExpressionType::Binary:
 			{
 				BinaryNode* binaryNode = (BinaryNode*)node;
+				Token exprType;
 				Token leftType = expressionTypeInfo((ExpressionNode*)binaryNode->left.get(), currentScope);
 				Token rightType = expressionTypeInfo((ExpressionNode*)binaryNode->right.get(), currentScope);
 
+				if (util::isBasic(leftType) && util::isBasic(rightType))
+				{
+					exprType =  util::resolveBasicTypes(leftType, rightType);
+				}
+				else
+				{
+					if (util::tokenstring(leftType) == util::tokenstring(rightType))
+					{
+						exprType =  leftType;
+					}
+
+					else exprType = { TokenType::ERROR, nullptr, 0, leftType.line };
+				}
+
+				switch (binaryNode->op.type)
+				{
+					case TokenType::EQUAL:
+					case TokenType::BANG_EQUAL:
+					case TokenType::LESS:
+					case TokenType::LESS_EQUAL:
+					case TokenType::GREATER:
+					case TokenType::GREATER_EQUAL:
+					case TokenType::AND:
+					case TokenType::OR:
+					{
+						if (exprType.type != TokenType::ERROR)
+						{
+							return { TokenType::TYPE, "bool", 4, leftType.line };
+						}
+						else return exprType;
+					}
+					case TokenType::PLUS:
+					case TokenType::MINUS:
+					case TokenType::STAR:
+					case TokenType::SLASH:
+					{
+						return exprType;
+					}
+				}
+			}
+			case ExpressionNode::ExpressionType::Assignment:
+			{
+				AssignmentNode* assignmentNode = (AssignmentNode*)node;
+				Symbol* s = nullptr;
+				bool found = false;
+				auto scope = currentScope;
+				bool fieldCall = false;
+				std::string name;
+				std::string fullName = assignmentNode->resolveIdentifier();
+				//TODO: check if name is a field call, and if it is, 
+				// find the base variable first, then work down the list of fields
+				if (fullName == "")
+				{
+					std::cout << "Can only assign to a named variable!" << std::endl;
+					//Error
+				}
+				if (fullName.find(".") != std::string::npos)
+				{
+					name = std::string(fullName, 0, fullName.find(".") - 1);
+					fieldCall = true;
+					
+				}
+				else
+				{
+					name = fullName;
+					fieldCall = false;
+				}
+				while (!found && scope != nullptr)
+				{
+					auto it = scope->symbols.find(name);
+					if (it == scope->symbols.end())
+					{
+						scope = scope->parentScope;
+					}
+					else
+					{
+						s = &it->second;
+					}
+				}
+				if (!s)
+				{
+					std::cout << "Symbol " << name << " has not yet been declared.";
+					//return { TokenType::ERROR, assignmentNode->identifier.start,assignmentNode->identifier.length, assignmentNode->identifier.line };
+				}
+
+				if (fieldCall)
+				{
+					//TODO: determine type of the field being referenced
+				}
+
+				Token valueType = expressionTypeInfo((ExpressionNode*)assignmentNode->value.get(), currentScope);
+
+				if (util::tokenstring(valueType) != util::tokenstring(s->type))
+				{
+					//Error: attempted to assign invalid type to identifier
+				}
+
+				return s->type;
+			}
+			case ExpressionNode::ExpressionType::FieldCall:
+			{
+				FieldCallNode* fieldCallNode = (FieldCallNode*)node;
+
+				Token parentType = expressionTypeInfo((ExpressionNode*)fieldCallNode->left.get(), currentScope);
+
+				auto scope = currentScope;
+				bool found = false;
+				std::string typeID = util::tokenstring(parentType);
+				while (!found && scope != nullptr)
+				{
+					if (scope->symbols.find(typeID) == scope->symbols.end())
+					{
+						scope = scope->parentScope;
+					}
+					else
+					{
+						std::vector<parameter> fields = scope->typeParameters.at(typeID);
+
+						for (const auto& field : fields)
+						{
+							if (util::tokenstring(field.identifier) == util::tokenstring(fieldCallNode->field))
+							{
+								return field.type;
+							}
+						}
+						//error: type valid, but does not contain field!
+					}
+				}
+				//Error: type not found!
 			}
 		}
 	}

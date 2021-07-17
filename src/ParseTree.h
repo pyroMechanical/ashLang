@@ -38,6 +38,8 @@ namespace ash
 			case category::Variable: return "Variable";
 			case category::Type: return "Type";
 			}
+			std::cout << "Category not recognized!";
+			return "";
 		}
 	}
 
@@ -106,6 +108,44 @@ namespace ash
 
 		virtual void print(int depth) override
 		{
+			int nextDepth = depth - 1;
+			if (nextDepth < 0) nextDepth = 0;
+
+			if (parentScope)
+				parentScope->print(nextDepth);
+
+			for (const auto& symbol : symbols)
+			{
+				util::spaces(depth);
+				std::cout << "[ " << util::categoryToString(symbol.second.cat) << " " << util::tokenstring(symbol.second.type) << " " << symbol.first;
+				if (symbol.second.cat == category::Function)
+				{
+					auto& params = functionParameters.at(symbol.first);
+					std::cout << "(";
+					bool first = true;
+					for (const auto& param : params)
+					{
+						if (!first) std::cout << ", ";
+						std::cout << util::tokenstring(param.type) << " " << util::tokenstring(param.identifier);
+						first = false;
+					}
+					std::cout << ")";
+				}
+				else if (symbol.second.cat == category::Type)
+				{
+					auto& params = typeParameters.at(symbol.first);
+					std::cout << "{";
+					bool first = true;
+					for (const auto& param : params)
+					{
+						if (!first) std::cout << ", ";
+						std::cout << util::tokenstring(param.type) << " " << util::tokenstring(param.identifier);
+						first = false;
+					}
+					std::cout << "}";
+				}
+				std::cout << " ]" << std::endl;
+			}
 		}
 	};
 
@@ -355,6 +395,9 @@ namespace ash
 			{
 				declaration->print(depth + 1);
 			}
+
+			if(scope)
+				scope->print(depth + 1);
 		}
 	};
 
@@ -442,6 +485,8 @@ namespace ash
 			{
 				declaration->print(0);
 			}
+			if (globalScope)
+				globalScope->print(0);
 		}
 	};
 
@@ -480,7 +525,7 @@ namespace ash
 
 	struct AssignmentNode : public ExpressionNode
 	{
-		Token identifier;
+		std::unique_ptr<ExpressionNode> identifier;
 		std::unique_ptr<ExpressionNode> value;
 		virtual ExpressionType expressionType() override { return ExpressionType::Assignment; }
 
@@ -488,13 +533,60 @@ namespace ash
 		{
 			util::spaces(depth);
 			std::cout << "Assignment Expression" << std::endl;
-			util::spaces(depth);
-			std::cout << "Identifier: " << util::tokenstring(identifier) << std::endl;
+			if (identifier)
+			{
+				util::spaces(depth);
+				std::cout << "Identifier: " << std::endl;
+				identifier->print(depth + 1);
+			}
 			if (value)
 			{
 				util::spaces(depth);
 				std::cout << "Value: " << std::endl;
 				value->print(depth + 1);
+			}
+		}
+
+		std::string resolveIdentifier()
+		{
+			switch (identifier->expressionType())
+			{
+				case ExpressionNode::ExpressionType::Primary:
+				{
+					CallNode* node = (CallNode*)identifier.get();
+					return util::tokenstring(node->primary);
+				}
+				case ExpressionNode::ExpressionType::FieldCall:
+				{
+					FieldCallNode* node = (FieldCallNode*)identifier.get();
+					std::string result = "." + util::tokenstring(node->field);
+					bool complete = false;
+					while (!complete)
+					{
+						if (node->left->expressionType() != ExpressionNode::ExpressionType::FieldCall
+							&& node->left->expressionType() != ExpressionNode::ExpressionType::Primary)
+						{
+							return "";
+						}
+						else if (node->left->expressionType() == ExpressionNode::ExpressionType::FieldCall)
+						{
+							node = (FieldCallNode*)node->left.get();
+							result = "." + util::tokenstring(node->field) + result;
+						}
+						else if (node->left->expressionType() == ExpressionNode::ExpressionType::Primary)
+						{
+							CallNode* primaryNode = (CallNode*)node->left.get();
+							result = util::tokenstring(primaryNode->primary) + result;
+							complete = true;
+						}
+					}
+
+					return result;
+				}
+				default:
+				{
+					return "";
+				}
 			}
 		}
 	};
@@ -549,7 +641,7 @@ namespace ash
 		virtual void print(int depth) override
 		{
 			util::spaces(depth);
-			std::cout << "Function Call" << std::endl;
+			std::cout << "Field Call" << std::endl;
 			util::spaces(depth);
 			std::cout << "Called: " << std::endl;
 			left->print(depth + 1);

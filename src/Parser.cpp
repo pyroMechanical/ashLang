@@ -22,14 +22,14 @@ namespace ash
 		{FN(Parser::grouping),          nullptr, Precedence::NONE},    //[BRACKET]
 		{nullptr,                       nullptr, Precedence::NONE},    //[CLOSE_BRACKET]
 		{nullptr,                       nullptr, Precedence::NONE},    //[COMMA]
-		{nullptr,                       nullptr, Precedence::NONE},    //[DOT]
+		{nullptr,             FN2(Parser::call), Precedence::CALL},    //[DOT]
 		{FN(Parser::unary), FN2(Parser::binary), Precedence::TERM},    //[MINUS]
 		{nullptr,           FN2(Parser::binary), Precedence::TERM},    //[PLUS]
-		{nullptr,                       nullptr, Precedence::NONE},    //[COLON]
+		{nullptr,           FN2(Parser::assignment), Precedence::ASSIGNMENT},    //[COLON]
 		{nullptr,                       nullptr, Precedence::NONE},	   //[SEMICOLON]
 		{nullptr,           FN2(Parser::binary), Precedence::FACTOR},  //[SLASH]
 		{nullptr,           FN2(Parser::binary), Precedence::FACTOR},  //[STAR]
-		{FN(Parser::unary), FN2(Parser::binary), Precedence::NONE},    //[BANG]
+		{FN(Parser::unary),             nullptr, Precedence::NONE},    //[BANG]
 		{nullptr,           FN2(Parser::binary), Precedence::EQUALITY},    //[BANG_EQUAL]
 		{nullptr,           FN2(Parser::binary), Precedence::EQUALITY},    //[EQUAL]
 		{nullptr,           FN2(Parser::binary), Precedence::COMPARISON},    //[LESS]
@@ -40,7 +40,7 @@ namespace ash
 		{nullptr,                       nullptr, Precedence::NONE},	   //[AUTO]
 		{nullptr,                       nullptr, Precedence::NONE},	   //[ANY]
 		{nullptr,                       nullptr, Precedence::NONE},	   //[MULTI]
-		{FN(Parser::variable),          nullptr, Precedence::NONE},	   //[IDENTIFIER]
+		{FN(Parser::literal),           nullptr, Precedence::NONE},	   //[IDENTIFIER]
 		{nullptr,                       nullptr, Precedence::NONE},	   //[DEF]
 		{FN(Parser::literal),           nullptr, Precedence::NONE},	   //[TRUE]
 		{FN(Parser::literal),           nullptr, Precedence::NONE},	   //[FALSE]
@@ -236,39 +236,48 @@ namespace ash
 		return node;
 	}
 
-	std::unique_ptr<ExpressionNode> Parser::variable(bool canAssign)
+	std::unique_ptr<ExpressionNode> Parser::assignment(std::unique_ptr<ExpressionNode> lhs, bool canAssign)
 	{
 		std::unique_ptr<AssignmentNode> node = std::make_unique<AssignmentNode>();
-
-		node->identifier = previous;
-
-		if(canAssign && match(TokenType::COLON))
-		{
-			node->value = expression();
-		}
-
+		node->identifier = std::move(lhs);
+		node->value = expression();
 		return node;
 	}
 
 	std::unique_ptr<ExpressionNode> Parser::call(std::unique_ptr<ExpressionNode> lhs, bool canAssign)
 	{
 		//TODO: field calls
-		std::unique_ptr<FunctionCallNode> node = std::make_unique<FunctionCallNode>();
-		node->left = std::move(lhs);
-		if (!check(TokenType::CLOSE_PAREN))
+		if (previous.type == TokenType::PAREN)
 		{
-			while (!check(TokenType::CLOSE_PAREN))
+			std::unique_ptr<FunctionCallNode> node = std::make_unique<FunctionCallNode>();
+			node->left = std::move(lhs);
+			if (!match(TokenType::CLOSE_PAREN))
 			{
-				node->arguments.push_back(expression());
-				if (!check(TokenType::CLOSE_PAREN))
+				while (!check(TokenType::CLOSE_PAREN))
 				{
-					consume(TokenType::COMMA, "expected ',' between arguments.");
+					node->arguments.push_back(expression());
+					if (!check(TokenType::CLOSE_PAREN))
+					{
+						consume(TokenType::COMMA, "expected ',' between arguments.");
+					}
 				}
+				consume(TokenType::CLOSE_PAREN, "expected ')' after final argument.");
 			}
-			consume(TokenType::CLOSE_PAREN, "expected ')' after final argument.");
-		}
 
-		return node;
+			return node;
+		}
+		else if (previous.type == TokenType::DOT)
+		{
+			std::unique_ptr<FieldCallNode> node = std::make_unique<FieldCallNode>();
+			node->left = std::move(lhs);
+			if (check(TokenType::IDENTIFIER))
+			{
+				node->field = current;
+			}
+			consume(TokenType::IDENTIFIER, "expected type field after '.'");
+
+			return node;
+		}
 	}
 
 	std::unique_ptr<ExpressionNode> Parser::grouping(bool canAssign)
@@ -304,9 +313,20 @@ namespace ash
 			consume(TokenType::TYPE, "expected type after 'def.'");
 			node->typeDefined = previous;
 			consume(TokenType::BRACE, "expected '{' before type definition.");
-			node->fields = getParameters();
-			consume(TokenType::CLOSE_BRACE, "expected '}' after type definition.");
 
+			std::vector<parameter> fields;
+			while (check(TokenType::TYPE) || check(TokenType::IDENTIFIER) || check(TokenType::SEMICOLON))
+			{
+				parameter param;
+				consume(TokenType::TYPE, "Expected type before identifier.");
+				param.type = previous;
+				consume(TokenType::IDENTIFIER, "Expected identifier after type.");
+				param.identifier = previous;
+				fields.push_back(param);
+				if (!match(TokenType::SEMICOLON)) break;
+			}
+			consume(TokenType::CLOSE_BRACE, "expected '}' after type definition.");
+			node->fields = fields;
 			return node;
 		}
 		//todo: modules
@@ -332,7 +352,7 @@ namespace ash
 					node->type = type;
 					node->identifier = identifier;
 					node->parameters = getParameters();
-					consume(TokenType::IDENTIFIER, "expected ')' after function parameters.");
+					consume(TokenType::CLOSE_PAREN, "expected ')' after function parameters.");
 					consume(TokenType::BRACE, "expected '{' before block.");
 					node->body = block();
 
