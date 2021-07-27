@@ -11,6 +11,11 @@ namespace ash
 		{
 			std::shared_ptr<ScopeNode> currentScope;
 
+			if(!node)
+			{
+				return scope;
+			}
+
 			if(node->nodeType() == NodeType::Block)
 			{
 				currentScope = std::make_shared<ScopeNode>();
@@ -253,6 +258,56 @@ namespace ash
 				}
 				break;
 			}
+
+			case NodeType::ForStatement:
+			{
+				ForStatementNode* forNode = (ForStatementNode*)node;
+				std::shared_ptr<ScopeNode> forScope = currentScope;
+				if(forNode->statement) forScope = util::getScope(forNode->statement.get(), currentScope);
+				if (forNode->declaration) enterNode(forNode->declaration.get(), forScope);
+				if (forNode->conditional) enterNode(forNode->conditional.get(), forScope);
+				if (forNode->increment) enterNode(forNode->increment.get(), forScope);
+				if (forNode->statement) enterNode(forNode->statement.get(), forScope);
+				break;
+			}
+			case NodeType::IfStatement:
+			{
+				IfStatementNode* ifNode = (IfStatementNode*)node;
+				std::shared_ptr<ScopeNode> thenScope = currentScope;
+				std::shared_ptr<ScopeNode> elseScope = currentScope;
+				if (ifNode->thenStatement) thenScope = util::getScope(ifNode->thenStatement.get(), currentScope);
+				if (ifNode->elseStatement) elseScope = util::getScope(ifNode->elseStatement.get(), currentScope);
+				if (ifNode->condition) enterNode(ifNode->condition.get(), currentScope);
+				if (ifNode->thenStatement) enterNode(ifNode->thenStatement.get(), thenScope);
+				if (ifNode->elseStatement) enterNode(ifNode->elseStatement.get(), elseScope);
+				break;
+			}
+			case NodeType::ReturnStatement:
+			{
+				ReturnStatementNode* returnNode = (ReturnStatementNode*)node;
+				if (returnNode->returnValue) enterNode(returnNode->returnValue.get(), currentScope);
+				break;
+			}
+			case NodeType::WhileStatement:
+			{
+				WhileStatementNode* whileNode = (WhileStatementNode*)node;
+				std::shared_ptr<ScopeNode> whileScope = currentScope;
+				if (whileNode->doStatement) whileScope = util::getScope(whileNode->doStatement.get(), currentScope);
+				if (whileNode->condition) enterNode(whileNode->condition.get(), whileScope);
+				if (whileNode->doStatement) enterNode(whileNode->doStatement.get(), whileScope);
+				break;
+			}
+			case NodeType::ExpressionStatement:
+			{
+				ExpressionStatement* exprNode = (ExpressionStatement*)node;
+				if (exprNode->expression) enterNode(exprNode->expression.get(), currentScope);
+				break;
+			}
+			case NodeType::Expression:
+			{
+				expressionTypeInfo((ExpressionNode*)node, currentScope);
+				break;
+			}
 		}
 	}
 
@@ -281,6 +336,7 @@ namespace ash
 							else
 							{
 								s = &it->second;
+								found = true;
 							}
 						}
 						if (!s)
@@ -390,27 +446,39 @@ namespace ash
 					else
 					{
 						s = &it->second;
+						found = true;
 					}
 				}
 				if (!s)
 				{
 					std::cout << "Symbol " << name << " has not yet been declared.";
-					//return { TokenType::ERROR, assignmentNode->identifier.start,assignmentNode->identifier.length, assignmentNode->identifier.line };
+					//return { TokenType::ERROR, };
 				}
-
-				if (fieldCall)
+				else
 				{
-					//TODO: determine type of the field being referenced
+					auto assignedType = s->type;
+					auto minimmScope = currentScope;
+
+					if (fieldCall)
+					{
+						size_t lastPos = 0;
+						while(lastPos < fullName.length())
+						{
+							
+						}
+
+						//TODO: determine type of the field being referenced
+					}
+
+					Token valueType = expressionTypeInfo((ExpressionNode*)assignmentNode->value.get(), currentScope);
+
+					if (util::tokenstring(valueType) != util::tokenstring(assignedType))
+					{
+						//Error: attempted to assign invalid type to identifier
+					}
+					
+					return s->type;
 				}
-
-				Token valueType = expressionTypeInfo((ExpressionNode*)assignmentNode->value.get(), currentScope);
-
-				if (util::tokenstring(valueType) != util::tokenstring(s->type))
-				{
-					//Error: attempted to assign invalid type to identifier
-				}
-
-				return s->type;
 			}
 			case ExpressionNode::ExpressionType::FieldCall:
 			{

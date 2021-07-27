@@ -67,6 +67,7 @@ namespace ash
 		ReturnStatement,
 		WhileStatement,
 		Block,
+		ExpressionStatement,
 		Expression,
 
 		//Scope nodes
@@ -248,6 +249,8 @@ namespace ash
 	struct ExpressionStatement : public StatementNode
 	{
 		std::unique_ptr<ExpressionNode> expression;
+
+		virtual NodeType nodeType() override { return NodeType::ExpressionStatement; }
 
 		virtual void print(int depth) override
 		{
@@ -505,6 +508,25 @@ namespace ash
 		}
 	};
 
+	struct FieldCallNode : public ExpressionNode
+	{
+		std::unique_ptr<ExpressionNode> left;
+		Token field;
+
+		virtual ExpressionType expressionType() override { return ExpressionType::FieldCall; }
+
+		virtual void print(int depth) override
+		{
+			util::spaces(depth);
+			std::cout << "Field Call" << std::endl;
+			util::spaces(depth);
+			std::cout << "Called: " << std::endl;
+			left->print(depth + 1);
+			util::spaces(depth);
+			std::cout << "Field: " << util::tokenstring(field) << std::endl;
+		}
+	};
+
 	struct BinaryNode : public ExpressionNode
 	{
 		std::unique_ptr<ExpressionNode> left;
@@ -522,6 +544,7 @@ namespace ash
 			right->print(depth + 1);
 		}
 	};
+
 
 	struct AssignmentNode : public ExpressionNode
 	{
@@ -630,25 +653,5 @@ namespace ash
 			}
 		}
 	};
-
-	struct FieldCallNode : public ExpressionNode
-	{
-		std::unique_ptr<ExpressionNode> left;
-		Token field;
-
-		virtual ExpressionType expressionType() override { return ExpressionType::FieldCall; }
-
-		virtual void print(int depth) override
-		{
-			util::spaces(depth);
-			std::cout << "Field Call" << std::endl;
-			util::spaces(depth);
-			std::cout << "Called: " << std::endl;
-			left->print(depth + 1);
-			util::spaces(depth);
-			std::cout << "Field: " << util::tokenstring(field) << std::endl;
-		}
-	};
-
 
 }
