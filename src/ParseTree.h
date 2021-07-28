@@ -472,13 +472,17 @@ namespace ash
 
 		std::shared_ptr<ScopeNode> globalScope;
 
+		bool hadError = false;
+
 		ProgramNode() = default;
 
 		virtual NodeType nodeType() override { return NodeType::Program; }
 
 		virtual void print(int depth) override
 		{
-			/*library->print(0);
+			/*
+			if(library)
+				library->print(0);
 			for (const auto& _import : imports)
 			{
 				_import->print(0);

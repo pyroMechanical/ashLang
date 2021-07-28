@@ -124,8 +124,11 @@ namespace ash
 		std::vector<TokenType> ValidNext =
 		{
 			TokenType::PAREN,
+			TokenType::CLOSE_BRACE,
 			TokenType::FOR,
 			TokenType::IF,
+			TokenType::TYPE,
+			TokenType::IDENTIFIER,
 			TokenType::ELSE,
 			TokenType::WHILE,
 			TokenType::TRUE,
@@ -172,6 +175,8 @@ namespace ash
 
 				if (current.type == TokenType::IDENTIFIER && next.type == TokenType::IDENTIFIER)
 					current.type = TokenType::TYPE;
+
+				resolveNewlines();
 			}
 		}
 	}

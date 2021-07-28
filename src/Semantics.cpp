@@ -132,17 +132,18 @@ namespace ash
 	{
 		std::shared_ptr<ScopeNode> currentScope = ast->globalScope = std::make_shared<ScopeNode>();
 
+		bool hadError = false;
 		for(const auto& declaration: ast->declarations)
 		{
 			auto scope = util::getScope((ParseNode*)declaration.get(), currentScope);
-			enterNode((ParseNode*)declaration.get(), scope);
+			hadError |= enterNode((ParseNode*)declaration.get(), scope);
 		}
-
+		std::cout << "Error?: " << hadError << std::endl;
+		ast->hadError = hadError;
 		return ast;
-		
 	}
 
-	void Semantics::enterNode(ParseNode* node, std::shared_ptr<ScopeNode> currentScope)
+	bool Semantics::enterNode(ParseNode* node, std::shared_ptr<ScopeNode> currentScope)
 	{
 		switch (node->nodeType())
 		{
@@ -150,18 +151,20 @@ namespace ash
 			{
 				BlockNode* blockNode = (BlockNode*)node;
 				blockNode->scope = currentScope;
+				bool hadError = false;
 				for(const auto& declaration : blockNode->declarations)
 				{
 					auto scope = util::getScope((ParseNode*)declaration.get(), currentScope);
-					enterNode((ParseNode*)declaration.get(), scope);
+					hadError |= enterNode((ParseNode*)declaration.get(), scope);
 				}
-				break;
+				return hadError;
 			}
 			case NodeType::TypeDeclaration:
 			{
 				TypeDeclarationNode* typeNode = (TypeDeclarationNode*)node;
 				std::string typeName = util::tokenstring(typeNode->typeDefined);
 				Symbol s = { typeName, category::Type, typeNode->typeDefined };
+				bool hadError = false;
 				if (currentScope->symbols.find(typeName) == currentScope->symbols.end())
 				{
 					currentScope->symbols.emplace(typeName, s);
@@ -179,6 +182,7 @@ namespace ash
 						else 
 						{
 							//Error: field already included!
+							hadError = true;
 						}
 					}
 
@@ -189,14 +193,16 @@ namespace ash
 					std::cout << "Symbol " << typeName << " already defined!" << std::endl;
 					Symbol defined = currentScope->symbols.at(typeName);
 					std::cout << "Name: " << defined.name << " Category: " << util::categoryToString(defined.cat) << " Type: " << util::tokenstring(defined.type) << std::endl;
+					hadError = true;
 				}
-				break;
+				return hadError;
 			}
 			case NodeType::FunctionDeclaration:
 			{
 				FunctionDeclarationNode* funcNode = (FunctionDeclarationNode*)node;
 				std::string funcName = util::tokenstring(funcNode->identifier);
 				Symbol s = { funcName, category::Function, funcNode->type };
+				bool hadError = false;
 				if (currentScope->symbols.find(funcName) == currentScope->symbols.end())
 				{
 					currentScope->symbols.emplace(funcName, s);
@@ -208,6 +214,7 @@ namespace ash
 					std::cout << "Symbol " << funcName << " already defined!" << std::endl;
 					Symbol defined = currentScope->symbols.at(funcName);
 					std::cout << "Name: " << defined.name << " Category: " << util::categoryToString(defined.cat) << " Type: " << util::tokenstring(defined.type) << std::endl;
+					hadError = true;
 				}
 				auto blockScope = std::make_shared<ScopeNode>();
 				blockScope->parentScope = currentScope;
@@ -224,11 +231,12 @@ namespace ash
 						std::cout << "Symbol " << paramName << " already defined!" << std::endl;
 						Symbol defined = blockScope->symbols.at(paramName);
 						std::cout << "Name: " << defined.name << " Category: " << util::categoryToString(defined.cat) << " Type: " << util::tokenstring(defined.type) << std::endl;
+						hadError = true;
 					}
 				}
 
-				enterNode((ParseNode*)funcNode->body.get(), blockScope);
-				break;
+				hadError |= enterNode((ParseNode*)funcNode->body.get(), blockScope);
+				return hadError;
 			}
 
 			case NodeType::VariableDeclaration:
@@ -236,6 +244,7 @@ namespace ash
 				VariableDeclarationNode* varNode = (VariableDeclarationNode*)node;
 				std::string varName = util::tokenstring(varNode->identifier);
 				Symbol s = { varName, category::Variable, varNode->type };
+				bool hadError = false;
 				if (currentScope->symbols.find(varName) == currentScope->symbols.end())
 				{
 					currentScope->symbols.emplace(varName, s);
@@ -245,6 +254,7 @@ namespace ash
 					std::cout << "Symbol " << varName << " already defined!" << std::endl;
 					Symbol defined = currentScope->symbols.at(varName);
 					std::cout << "Name: " << defined.name << " Category: " << util::categoryToString(defined.cat) << " Type: " << util::tokenstring(defined.type) << std::endl;
+					hadError = true;
 				}
 
 				if(varNode->value)
@@ -254,21 +264,23 @@ namespace ash
 					if (util::tokenstring(valueType) != util::tokenstring(varNode->type))
 					{
 						std::cout << "Error: value is of type " << util::tokenstring(valueType) << ", assigned to variable of type " << util::tokenstring(varNode->type) << std::endl;
+						hadError = true;
 					}
 				}
-				break;
+				return hadError;
 			}
 
 			case NodeType::ForStatement:
 			{
 				ForStatementNode* forNode = (ForStatementNode*)node;
 				std::shared_ptr<ScopeNode> forScope = currentScope;
+				bool hadError = false;
 				if(forNode->statement) forScope = util::getScope(forNode->statement.get(), currentScope);
-				if (forNode->declaration) enterNode(forNode->declaration.get(), forScope);
-				if (forNode->conditional) enterNode(forNode->conditional.get(), forScope);
-				if (forNode->increment) enterNode(forNode->increment.get(), forScope);
-				if (forNode->statement) enterNode(forNode->statement.get(), forScope);
-				break;
+				if (forNode->declaration) hadError |= enterNode(forNode->declaration.get(), forScope);
+				if (forNode->conditional) hadError |= enterNode(forNode->conditional.get(), forScope);
+				if (forNode->increment) hadError |= enterNode(forNode->increment.get(), forScope);
+				if (forNode->statement) hadError |= enterNode(forNode->statement.get(), forScope);
+				return hadError;
 			}
 			case NodeType::IfStatement:
 			{
@@ -277,41 +289,46 @@ namespace ash
 				std::shared_ptr<ScopeNode> elseScope = currentScope;
 				if (ifNode->thenStatement) thenScope = util::getScope(ifNode->thenStatement.get(), currentScope);
 				if (ifNode->elseStatement) elseScope = util::getScope(ifNode->elseStatement.get(), currentScope);
-				if (ifNode->condition) enterNode(ifNode->condition.get(), currentScope);
-				if (ifNode->thenStatement) enterNode(ifNode->thenStatement.get(), thenScope);
-				if (ifNode->elseStatement) enterNode(ifNode->elseStatement.get(), elseScope);
-				break;
+				bool hadError = false;
+				if (ifNode->condition) hadError |= enterNode(ifNode->condition.get(), currentScope);
+				if (ifNode->thenStatement) hadError |= enterNode(ifNode->thenStatement.get(), thenScope);
+				if (ifNode->elseStatement) hadError |= enterNode(ifNode->elseStatement.get(), elseScope);
+				return hadError;
 			}
 			case NodeType::ReturnStatement:
 			{
 				ReturnStatementNode* returnNode = (ReturnStatementNode*)node;
-				if (returnNode->returnValue) enterNode(returnNode->returnValue.get(), currentScope);
-				break;
+				bool hadError = false;
+				if (returnNode->returnValue) hadError |= enterNode(returnNode->returnValue.get(), currentScope);
+				return hadError;
 			}
 			case NodeType::WhileStatement:
 			{
 				WhileStatementNode* whileNode = (WhileStatementNode*)node;
 				std::shared_ptr<ScopeNode> whileScope = currentScope;
+				bool hadError = false;
 				if (whileNode->doStatement) whileScope = util::getScope(whileNode->doStatement.get(), currentScope);
-				if (whileNode->condition) enterNode(whileNode->condition.get(), whileScope);
-				if (whileNode->doStatement) enterNode(whileNode->doStatement.get(), whileScope);
-				break;
+				if (whileNode->condition) hadError |= enterNode(whileNode->condition.get(), whileScope);
+				if (whileNode->doStatement) hadError |= enterNode(whileNode->doStatement.get(), whileScope);
+				return hadError;
 			}
 			case NodeType::ExpressionStatement:
 			{
 				ExpressionStatement* exprNode = (ExpressionStatement*)node;
-				if (exprNode->expression) enterNode(exprNode->expression.get(), currentScope);
-				break;
+				bool hadError = false;
+				if (exprNode->expression) hadError |= enterNode(exprNode->expression.get(), currentScope);
+				return hadError;
 			}
 			case NodeType::Expression:
 			{
-				expressionTypeInfo((ExpressionNode*)node, currentScope);
-				break;
+				Token exprType = expressionTypeInfo((ExpressionNode*)node, currentScope);
+				if (exprType.type == TokenType::ERROR) return true;
+				else return false;
 			}
 		}
 	}
 
-	Token Semantics::expressionTypeInfo(ExpressionNode* node, std::shared_ptr<ScopeNode> currentScope)
+	Token Semantics::expressionTypeInfo(ExpressionNode* node, std::shared_ptr<ScopeNode> currentScope, Token expected)
 	{
 		switch(node->expressionType())
 		{
@@ -345,22 +362,90 @@ namespace ash
 							//return { TokenType::ERROR, callNode->primary.start,callNode->primary.length, callNode->primary.line };
 						}
 						if (s)
+						{
+							if (expected.type != TokenType::ERROR)
+							{
+								if (util::tokenstring(s->type) != util::tokenstring(expected))
+								{
+									return { TokenType::ERROR, s->type.start, s->type.length, s->type.line };
+								}
+							}
 							return s->type;
+						}
 					}
 					case TokenType::TRUE:
 					case TokenType::FALSE:
+					{
+						if (expected.type != TokenType::ERROR)
+						{
+							if ("bool" != util::tokenstring(expected))
+							{
+								return { TokenType::ERROR, callNode->primary.start, callNode->primary.length, callNode->primary.line };
+							}
+						}
+
 						return { TokenType::TYPE, "bool", 4, callNode->primary.line };
-					case TokenType::NULL_:	return { TokenType::TYPE, "nulltype", 8, callNode->primary.line };
-					case TokenType::FLOAT:	return { TokenType::TYPE, "float", 5, callNode->primary.line };
-					case TokenType::DOUBLE: return { TokenType::TYPE, "double", 6, callNode->primary.line };
-					case TokenType::INT: return { TokenType::TYPE, "int", 3, callNode->primary.line };
+					}
+						
+					case TokenType::NULL_:
+					{
+						return { TokenType::TYPE, "nulltype", 8, callNode->primary.line };
+					}
+					case TokenType::FLOAT: 
+					{
+						if (expected.type != TokenType::ERROR)
+						{
+							if ("float" != util::tokenstring(expected))
+							{
+								return { TokenType::ERROR, callNode->primary.start, callNode->primary.length, callNode->primary.line };
+							}
+						}
+						return { TokenType::TYPE, "float", 5, callNode->primary.line }; 
+					}
+					case TokenType::DOUBLE:
+					{
+						if (expected.type != TokenType::ERROR)
+						{
+							if ("double" != util::tokenstring(expected))
+							{
+								return { TokenType::ERROR, callNode->primary.start, callNode->primary.length, callNode->primary.line };
+							}
+						}
+						return { TokenType::TYPE, "double", 6, callNode->primary.line }; 
+					}
+					case TokenType::INT:
+					{
+						if (expected.type != TokenType::ERROR)
+						{
+							if ("byte" != util::tokenstring(expected) &&
+								"ubyte" != util::tokenstring(expected) && 
+								"short" != util::tokenstring(expected) && 
+								"ushort" != util::tokenstring(expected) && 
+								"int" != util::tokenstring(expected) && 
+								"uint" != util::tokenstring(expected) && 
+								"long" != util::tokenstring(expected) && 
+								"ulong" != util::tokenstring(expected)
+								)
+							{
+								return { TokenType::ERROR, callNode->primary.start, callNode->primary.length, callNode->primary.line };
+							}
+						}
+						return { TokenType::TYPE, "int", 3, callNode->primary.line };
+					}
 					case TokenType::CHAR: return { TokenType::TYPE, "char", 4, callNode->primary.line };
 				}
 			}
 			case ExpressionNode::ExpressionType::Unary:
 			{
 				UnaryNode* unaryNode = (UnaryNode*)node;
-				return expressionTypeInfo((ExpressionNode*)unaryNode->unary.get(), currentScope);
+				Token unaryValue = expressionTypeInfo((ExpressionNode*)unaryNode->unary.get(), currentScope);
+				if (expected.type != TokenType::ERROR)
+				{
+					if (util::tokenstring(unaryValue) != util::tokenstring(expected))
+					{
+						return { TokenType::ERROR, unaryValue.start, unaryValue.length, unaryValue.line };
+					}
+				}
 			}
 			case ExpressionNode::ExpressionType::Binary:
 			{
@@ -396,6 +481,13 @@ namespace ash
 					{
 						if (exprType.type != TokenType::ERROR)
 						{
+							if (expected.type != TokenType::ERROR)
+							{
+								if ("bool" != util::tokenstring(expected))
+								{
+									return { TokenType::ERROR, leftType.start, leftType.length, leftType.line };
+								}
+							}
 							return { TokenType::TYPE, "bool", 4, leftType.line };
 						}
 						else return exprType;
@@ -405,7 +497,17 @@ namespace ash
 					case TokenType::STAR:
 					case TokenType::SLASH:
 					{
-						return exprType;
+						if (exprType.type != TokenType::ERROR)
+						{
+							if (expected.type != TokenType::ERROR)
+							{
+								if ("bool" != util::tokenstring(expected))
+								{
+									return { TokenType::ERROR, leftType.start, leftType.length, leftType.line };
+								}
+							}
+							return exprType;
+						}
 					}
 				}
 			}
@@ -427,9 +529,8 @@ namespace ash
 				}
 				if (fullName.find(".") != std::string::npos)
 				{
-					name = std::string(fullName, 0, fullName.find(".") - 1);
+					name = std::string(fullName, 0, fullName.find("."));
 					fieldCall = true;
-					
 				}
 				else
 				{
@@ -457,27 +558,53 @@ namespace ash
 				else
 				{
 					auto assignedType = s->type;
-					auto minimmScope = currentScope;
+					auto minimumScope = currentScope;
 
 					if (fieldCall)
 					{
-						size_t lastPos = 0;
-						while(lastPos < fullName.length())
+						size_t lastPos = fullName.find(".") + 1;
+						std::string fieldName;
+						while (lastPos != 0 && minimumScope != nullptr)
 						{
-							
+							size_t pos = fullName.find(".", lastPos);
+							size_t len = pos - lastPos;
+							fieldName = fullName.substr(lastPos, len);
+							lastPos = pos + 1;
+							auto it = minimumScope->typeParameters.find(util::tokenstring(assignedType));
+							if (it == minimumScope->typeParameters.end())
+							{
+								minimumScope = minimumScope->parentScope;
+							}
+							else
+							{
+								auto fields = it->second;
+								bool typeExists = false;
+								for (const auto& field : fields)
+								{
+									if (util::tokenstring(field.identifier) == fieldName)
+									{
+										assignedType = field.type;
+										typeExists = true;
+									}
+								}
+								if (!typeExists)
+								{
+									return { TokenType::ERROR, assignedType.start, assignedType.length, assignedType.line };
+								}
+							}
 						}
-
-						//TODO: determine type of the field being referenced
 					}
 
-					Token valueType = expressionTypeInfo((ExpressionNode*)assignmentNode->value.get(), currentScope);
+					Token valueType = expressionTypeInfo((ExpressionNode*)assignmentNode->value.get(), currentScope, expected);
+
+					if (valueType.type == TokenType::ERROR) std::cout << "Error: expression type does not match assigned type!" << std::endl;
 
 					if (util::tokenstring(valueType) != util::tokenstring(assignedType))
 					{
-						//Error: attempted to assign invalid type to identifier
+						return { TokenType::ERROR, valueType.start, valueType.length, valueType.line };
 					}
 					
-					return s->type;
+					return assignedType;
 				}
 			}
 			case ExpressionNode::ExpressionType::FieldCall:
