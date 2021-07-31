@@ -9,8 +9,8 @@ namespace ash
 		BRACE, CLOSE_BRACE,
 		BRACKET, CLOSE_BRACKET,
 		COMMA, DOT, MINUS, PLUS,
-		COLON, SEMICOLON, SLASH, STAR,
-		BANG, BANG_EQUAL, EQUAL,
+		EQUAL, SEMICOLON, SLASH, STAR,
+		BANG, BANG_EQUAL, EQUAL_EQUAL,
 		LESS, LESS_EQUAL,
 		GREATER, GREATER_EQUAL,
 		TYPE, //not used in the scanner; the parser will use lookahead to resolve types from identifier tokens

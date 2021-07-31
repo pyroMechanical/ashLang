@@ -137,14 +137,13 @@ namespace ash
 		case '[': return makeToken(TokenType::BRACKET);
 		case ']': return makeToken(TokenType::CLOSE_BRACKET);
 		case ';': return makeToken(TokenType::SEMICOLON);
-		case ':': return makeToken(TokenType::COLON);
 		case ',': return makeToken(TokenType::COMMA);
 		case '.': return makeToken(TokenType::DOT);
 		case '-': return makeToken(TokenType::MINUS);
 		case '+': return makeToken(TokenType::PLUS);
 		case '/': return makeToken(TokenType::SLASH);
 		case '*': return makeToken(TokenType::STAR);
-		case '=': return makeToken(TokenType::EQUAL);
+		case '=': return makeToken(match('=') ? TokenType::EQUAL_EQUAL : TokenType::EQUAL);
 		case '\n': return makeToken(TokenType::NEWLINE);
 		case '!': return makeToken(match('=') ? TokenType::BANG_EQUAL : TokenType::BANG);
 		case '<': return makeToken(match('=') ? TokenType::LESS_EQUAL : TokenType::LESS);

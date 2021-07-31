@@ -138,6 +138,11 @@ namespace ash
 			auto scope = util::getScope((ParseNode*)declaration.get(), currentScope);
 			hadError |= enterNode((ParseNode*)declaration.get(), scope);
 		}
+		for (const auto& declaration : ast->declarations)
+		{
+			auto scope = util::getScope((ParseNode*)declaration.get(), currentScope);
+			hadError |= functionValidator((ParseNode*)declaration.get());
+		}
 		std::cout << "Error?: " << hadError << std::endl;
 		ast->hadError = hadError;
 		return ast;
@@ -328,6 +333,99 @@ namespace ash
 		}
 	}
 
+	bool Semantics::functionValidator(ParseNode* node, bool inFunction)
+	{
+		switch (node->nodeType())
+		{
+			case NodeType::FunctionDeclaration:
+			{
+				FunctionDeclarationNode* funcNode = (FunctionDeclarationNode*)node;
+				bool blockHasError = functionValidator(funcNode->body.get(), true);
+				bool allBranchesReturn = false;
+				if (util::tokenstring(funcNode->type).c_str() != "void")
+					allBranchesReturn = hasReturnPath(funcNode->body.get(), nullptr, funcNode->type);
+				else allBranchesReturn = true;
+				return !allBranchesReturn || blockHasError;
+			}
+			case NodeType::ForStatement:
+			{
+				ForStatementNode* forNode = (ForStatementNode*)node;
+				return functionValidator(forNode->statement.get(), inFunction);
+			}
+			case NodeType::WhileStatement:
+			{
+				WhileStatementNode* whileNode = (WhileStatementNode*)node;
+				return functionValidator(whileNode->doStatement.get(), inFunction);
+			}
+			case NodeType::IfStatement:
+			{
+				IfStatementNode* ifNode = (IfStatementNode*)node;
+				bool hasError = functionValidator(ifNode->thenStatement.get(), inFunction);
+				if (ifNode->elseStatement)
+					hasError |= functionValidator(ifNode->elseStatement.get(), inFunction);
+				return hasError;
+			}
+			case NodeType::ReturnStatement:
+			{
+				return !inFunction;
+			}
+			case NodeType::Block:
+			{
+				BlockNode* blockNode = (BlockNode*)node;
+				bool hasError = false;
+				for (const auto& declaration : blockNode->declarations)
+				{
+					hasError |= functionValidator(declaration.get(), inFunction);
+				}
+				return hasError;
+			}
+		}
+	}
+
+	bool Semantics::hasReturnPath(ParseNode* node, std::shared_ptr<ScopeNode> currentScope, Token returnType)
+	{
+		switch (node->nodeType())
+		{
+			case NodeType::Block:
+			{
+				BlockNode* blockNode = (BlockNode*)node;
+				bool allPathsReturn = false;
+				for (const auto& declaration : blockNode->declarations)
+				{
+					allPathsReturn |= hasReturnPath(declaration.get(), blockNode->scope, returnType);
+				}
+				return allPathsReturn;
+			}
+			case NodeType::ForStatement:
+			{
+				ForStatementNode* forNode = (ForStatementNode*)node;
+				return hasReturnPath(forNode->statement.get(),currentScope, returnType);
+			}
+			case NodeType::WhileStatement:
+			{
+				WhileStatementNode* whileNode = (WhileStatementNode*)node;
+				return hasReturnPath(whileNode->doStatement.get(),currentScope, returnType);
+			}
+			case NodeType::IfStatement:
+			{
+				IfStatementNode* ifNode = (IfStatementNode*)node;
+				if (!ifNode->elseStatement) return false;
+				bool allPathsReturn = hasReturnPath(ifNode->thenStatement.get(),currentScope, returnType);
+				allPathsReturn |= hasReturnPath(ifNode->elseStatement.get(),currentScope, returnType);
+				return allPathsReturn;
+			}
+			case NodeType::ReturnStatement:
+			{
+				ReturnStatementNode* returnNode = (ReturnStatementNode*)node;
+				Token statementType = expressionTypeInfo(returnNode->returnValue.get(), currentScope);
+
+				if (util::tokenstring(statementType) == util::tokenstring(returnType))
+					return true;
+				else return false;
+			}
+		}
+	}
+
 	Token Semantics::expressionTypeInfo(ExpressionNode* node, std::shared_ptr<ScopeNode> currentScope, Token expected)
 	{
 		switch(node->expressionType())
@@ -470,7 +568,7 @@ namespace ash
 
 				switch (binaryNode->op.type)
 				{
-					case TokenType::EQUAL:
+					case TokenType::EQUAL_EQUAL:
 					case TokenType::BANG_EQUAL:
 					case TokenType::LESS:
 					case TokenType::LESS_EQUAL:

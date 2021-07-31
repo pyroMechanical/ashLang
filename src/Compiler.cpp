@@ -16,7 +16,7 @@ namespace ash
 
 		ast = analyzer.findSymbols(std::move(ast));
 
-		ast->print(0);
+		//ast->print(0);
 
 		return false;
 	}

@@ -25,13 +25,13 @@ namespace ash
 		{nullptr,             FN2(Parser::call), Precedence::CALL},    //[DOT]
 		{FN(Parser::unary), FN2(Parser::binary), Precedence::TERM},    //[MINUS]
 		{nullptr,           FN2(Parser::binary), Precedence::TERM},    //[PLUS]
-		{nullptr,           FN2(Parser::assignment), Precedence::ASSIGNMENT},    //[COLON]
+		{nullptr,           FN2(Parser::assignment), Precedence::ASSIGNMENT},    //[EQUAL]
 		{nullptr,                       nullptr, Precedence::NONE},	   //[SEMICOLON]
 		{nullptr,           FN2(Parser::binary), Precedence::FACTOR},  //[SLASH]
 		{nullptr,           FN2(Parser::binary), Precedence::FACTOR},  //[STAR]
 		{FN(Parser::unary),             nullptr, Precedence::NONE},    //[BANG]
 		{nullptr,           FN2(Parser::binary), Precedence::EQUALITY},    //[BANG_EQUAL]
-		{nullptr,           FN2(Parser::binary), Precedence::EQUALITY},    //[EQUAL]
+		{nullptr,           FN2(Parser::binary), Precedence::EQUALITY},    //[EQUAL_EQUAL]
 		{nullptr,           FN2(Parser::binary), Precedence::COMPARISON},    //[LESS]
 		{nullptr,           FN2(Parser::binary), Precedence::COMPARISON},    //[LESS_EQUAL]
 		{nullptr,           FN2(Parser::binary), Precedence::COMPARISON},    //[GREATER]
@@ -369,7 +369,7 @@ namespace ash
 					node->usign = usign;
 					node->type = type;
 					node->identifier = identifier;
-					if (match(TokenType::COLON))
+					if (match(TokenType::EQUAL))
 					{
 						node->value = expression();
 					}
@@ -413,7 +413,7 @@ namespace ash
 				declaration->usign = usign;
 				declaration->type = type;
 				declaration->identifier = identifier;
-				if (match(TokenType::COLON))
+				if (match(TokenType::EQUAL))
 				{
 					declaration->value = expression();
 				}

@@ -10,10 +10,10 @@ namespace ash
 	enum class Precedence
 	{
 		NONE,
-		ASSIGNMENT, // :
+		ASSIGNMENT, // =
 		OR, // ||
 		AND, // &&
-		EQUALITY, // =, !=
+		EQUALITY, // ==, !=
 		COMPARISON, // <, >, <=, >=
 		TERM, // +, -
 		FACTOR, // *, /
