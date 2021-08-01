@@ -63,68 +63,70 @@ namespace ash
 			std::string right = tokenstring(rhs);
 			if (left == right) return lhs;
 
-			if (left.c_str() == "double")
+			if (strcmp(left.c_str(),"double") == 0)
 			{
 				return lhs;
 			}
 
-			if (left.c_str() == "float")
+			else if (strcmp(left.c_str(),"float") == 0)
 			{
-				if (right.c_str() == "double")
+				if (strcmp(right.c_str(),"double") == 0)
 					return rhs;
 				return lhs;
 			}
 
-			if (left.c_str() == "long"
-				|| left.c_str() == "ulong")
+			else if (strcmp(left.c_str(),"long") == 0
+				|| strcmp(left.c_str(),"ulong") == 0)
 			{
-				if (right.c_str() == "double"
-					|| right.c_str() == "float")
+				if (strcmp(right.c_str(),"double") == 0
+					|| strcmp(right.c_str(),"float") == 0)
 					return rhs;
 				return lhs;
 			}
-			if (left.c_str() == "int"
-				|| left.c_str() == "uint")
+			else if (strcmp(left.c_str(),"int") == 0
+				|| strcmp(left.c_str(),"uint") == 0)
 			{
-				if (right.c_str() == "double"
-					|| right.c_str() == "float"
-					|| right.c_str() == "long"
-					|| right.c_str() == "ulong")
+				if (strcmp(right.c_str(),"double") == 0
+					|| strcmp(right.c_str(),"float") == 0
+					|| strcmp(right.c_str(),"long") == 0
+					|| strcmp(right.c_str(),"ulong") == 0)
 					return rhs;
 				return lhs;
 			}
-			if (left.c_str() == "short"
-				|| left.c_str() == "ushort")
+			else if (strcmp(left.c_str(),"short") == 0
+				|| strcmp(left.c_str(),"ushort") == 0)
 			{
-				if (right.c_str() == "double"
-					|| right.c_str() == "float"
-					|| right.c_str() == "long"
-					|| right.c_str() == "int"
-					|| right.c_str() == "ulong"
-					|| right.c_str() == "uint")
+				if (strcmp(right.c_str(),"double") == 0
+					|| strcmp(right.c_str(),"float") == 0
+					|| strcmp(right.c_str(),"long") == 0
+					|| strcmp(right.c_str(),"int") == 0
+					|| strcmp(right.c_str(),"ulong") == 0
+					|| strcmp(right.c_str(),"uint") == 0)
 					return rhs;
 				return lhs;
 			}
-			if (left.c_str() == "byte"
-				|| left.c_str() == "ubyte")
+			else if (strcmp(left.c_str(),"byte") == 0
+				|| strcmp(left.c_str(),"ubyte") == 0)
 			{
-				if (right.c_str() == "double"
-					|| right.c_str() == "float"
-					|| right.c_str() == "long"
-					|| right.c_str() == "int"
-					|| right.c_str() == "short"
-					|| right.c_str() == "ulong"
-					|| right.c_str() == "uint"
-					|| right.c_str() == "ushort")
+				if (strcmp(right.c_str(),"double") == 0
+					|| strcmp(right.c_str(),"float") == 0
+					|| strcmp(right.c_str(),"long") == 0
+					|| strcmp(right.c_str(),"int") == 0
+					|| strcmp(right.c_str(),"short") == 0
+					|| strcmp(right.c_str(),"ulong") == 0
+					|| strcmp(right.c_str(),"uint") == 0
+					|| strcmp(right.c_str(),"ushort") == 0)
 					return rhs;
 				return lhs;
 			}
 
-			if(left.c_str() == "char")
+			else if(strcmp(left.c_str(),"char") == 0)
 			{
-				if (right.c_str() != "char")
+				if (strcmp(right.c_str(),"char") != 0)
 					return { TokenType::ERROR, nullptr, 0, lhs.line };
 			}
+
+			return { TokenType::ERROR, nullptr, 0, lhs.line };
 		}
 	}
 	
@@ -143,7 +145,7 @@ namespace ash
 			auto scope = util::getScope((ParseNode*)declaration.get(), currentScope);
 			hadError |= functionValidator((ParseNode*)declaration.get());
 		}
-		std::cout << "Error?: " << hadError << std::endl;
+		std::cout << "Error?: " << (hadError ? "true" : "false") << std::endl;
 		ast->hadError = hadError;
 		return ast;
 	}
@@ -379,6 +381,8 @@ namespace ash
 				}
 				return hasError;
 			}
+			default:
+				return false;
 		}
 	}
 
@@ -418,7 +422,7 @@ namespace ash
 			{
 				ReturnStatementNode* returnNode = (ReturnStatementNode*)node;
 				Token statementType = expressionTypeInfo(returnNode->returnValue.get(), currentScope);
-
+				if (statementType.type == TokenType::ERROR) return true;
 				if (util::tokenstring(statementType) == util::tokenstring(returnType))
 					return true;
 				else return false;
@@ -531,6 +535,17 @@ namespace ash
 						return { TokenType::TYPE, "int", 3, callNode->primary.line };
 					}
 					case TokenType::CHAR: return { TokenType::TYPE, "char", 4, callNode->primary.line };
+					case TokenType::STRING:
+					{
+						if (expected.type != TokenType::ERROR)
+						{
+							if ("string" != util::tokenstring(expected))
+							{
+								return { TokenType::ERROR, callNode->primary.start, callNode->primary.length, callNode->primary.line };
+							}
+						}
+						return { TokenType::TYPE, "string", 6, callNode->primary.line };
+					}
 				}
 			}
 			case ExpressionNode::ExpressionType::Unary:
@@ -604,8 +619,8 @@ namespace ash
 									return { TokenType::ERROR, leftType.start, leftType.length, leftType.line };
 								}
 							}
-							return exprType;
 						}
+						return exprType;
 					}
 				}
 			}
@@ -712,9 +727,8 @@ namespace ash
 				Token parentType = expressionTypeInfo((ExpressionNode*)fieldCallNode->left.get(), currentScope);
 
 				auto scope = currentScope;
-				bool found = false;
 				std::string typeID = util::tokenstring(parentType);
-				while (!found && scope != nullptr)
+				while (scope != nullptr)
 				{
 					if (scope->symbols.find(typeID) == scope->symbols.end())
 					{
@@ -735,6 +749,65 @@ namespace ash
 					}
 				}
 				//Error: type not found!
+			}
+			case ExpressionNode::ExpressionType::FunctionCall:
+			{
+				FunctionCallNode* functionCallNode = (FunctionCallNode*)node;
+
+				std::string funcName = functionCallNode->resolveName();
+				std::string name;
+				//TODO: support calling functions from modules
+
+				auto scope = currentScope;
+				bool found = false;
+				bool inModule = false;
+
+				if (funcName.find(".") != std::string::npos)
+				{
+					name = std::string(funcName, 0, funcName.find("."));
+					inModule = true;
+				}
+				else
+				{
+					name = funcName;
+					inModule = false;
+				}
+				if (!inModule)
+				{
+					while (!found & scope != nullptr)
+					{
+						if (scope->symbols.find(funcName) == scope->symbols.end())
+						{
+							scope = scope->parentScope;
+						}
+						else
+						{
+							std::vector<parameter> parameters = scope->functionParameters.at(funcName);
+							
+							std::vector<Token> args;
+
+							for (const auto& argument : functionCallNode->arguments)
+							{
+								args.push_back(expressionTypeInfo(argument.get(), currentScope));
+							}
+
+							if(args.size() != parameters.size())
+							{
+								return { TokenType::ERROR, "", 0, args[0].line };
+							}
+
+							for(int i = 0; i < args.size(); i++)
+							{
+								if(util::tokenstring(args[i]) != util::tokenstring(parameters[i].type))
+								{
+									return { TokenType::ERROR, "", 0, args[i].line };
+								}
+							}
+
+							return scope->symbols.find(funcName)->second.type;
+						}
+					}
+				}
 			}
 		}
 	}

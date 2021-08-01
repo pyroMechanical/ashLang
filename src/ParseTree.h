@@ -641,6 +641,37 @@ namespace ash
 		std::vector<std::unique_ptr<ExpressionNode>> arguments;
 
 		virtual ExpressionType expressionType() override { return ExpressionType::FunctionCall; }
+
+		std::string resolveName()
+		{
+			ExpressionNode* node = left.get();
+			std::string result;
+			while (node != nullptr)
+			{
+				switch (left->expressionType())
+				{
+					case ExpressionNode::ExpressionType::Primary:
+					{
+						CallNode* callNode = (CallNode*)node;
+
+						result += util::tokenstring(callNode->primary);
+						node = nullptr;
+						break;
+					}
+					case ExpressionNode::ExpressionType::FieldCall:
+					{
+						FieldCallNode* fieldCallNode = (FieldCallNode*)node;
+
+						result += util::tokenstring(fieldCallNode->field);
+						result += ".";
+						node = fieldCallNode->left.get();
+						break;
+					}
+				}
+			}
+
+			return result;
+		}
 		
 		virtual void print(int depth) override
 		{
