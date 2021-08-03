@@ -309,6 +309,30 @@ namespace ash
 		return node;
 	}
 
+	void Parser::synchronize()
+	{
+		panicMode = false;
+
+		while (next.type != TokenType::EOF_)
+		{
+			resolveNewlines();
+			if (current.type == TokenType::SEMICOLON) return;
+			switch (current.type)
+			{
+			case TokenType::TYPE:
+			case TokenType::DEF:
+			case TokenType::FOR:
+			case TokenType::IF:
+			case TokenType::WHILE:
+			case TokenType::RETURN:
+				return;
+			default:;
+			}
+
+			advance();
+		}
+	}
+
 	std::unique_ptr<DeclarationNode> Parser::declaration()
 	{
 		
@@ -568,6 +592,8 @@ namespace ash
 		while (!match(TokenType::EOF_))
 		{
 			node->declarations.push_back(declaration());
+
+			if (panicMode) synchronize();
 		}
 
 		return node;

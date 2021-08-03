@@ -236,6 +236,8 @@ namespace ash
 		virtual NodeType nodeType() override { return NodeType::Expression; }
 		virtual ExpressionType expressionType() = 0;
 
+		virtual int line() = 0;
+
 		virtual void print(int depth) override {};
 	};
 
@@ -510,6 +512,8 @@ namespace ash
 			util::spaces(depth);
 			std::cout << "Literal: " << util::tokenstring(primary) << std::endl;
 		}
+
+		virtual int line() override { return primary.line; }
 	};
 
 	struct FieldCallNode : public ExpressionNode
@@ -529,6 +533,8 @@ namespace ash
 			util::spaces(depth);
 			std::cout << "Field: " << util::tokenstring(field) << std::endl;
 		}
+
+		virtual int line() override { return left->line(); }
 	};
 
 	struct BinaryNode : public ExpressionNode
@@ -547,6 +553,8 @@ namespace ash
 			std::cout << "Operator: " << util::tokenstring(op) << std::endl;
 			right->print(depth + 1);
 		}
+
+		virtual int line() override { return left->line(); }
 	};
 
 
@@ -573,6 +581,8 @@ namespace ash
 				value->print(depth + 1);
 			}
 		}
+
+		virtual int line() override { return identifier->line(); }
 
 		std::string resolveIdentifier()
 		{
@@ -633,6 +643,8 @@ namespace ash
 			std::cout << "Operator: " << util::tokenstring(op);
 			unary->print(depth + 1);
 		}
+
+		virtual int line() override { return op.line; }
 	};
 
 	struct FunctionCallNode : public ExpressionNode
@@ -687,6 +699,8 @@ namespace ash
 				args->print(depth + 1);
 			}
 		}
+
+		virtual int line() override { return left->line(); }
 	};
 
 }

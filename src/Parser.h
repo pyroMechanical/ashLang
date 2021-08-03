@@ -49,6 +49,8 @@ namespace ash
 		bool check(TokenType type);
 		bool match(TokenType type);
 
+		void synchronize();
+
 		void resolveNewlines();
 		
 	public:

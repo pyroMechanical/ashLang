@@ -139,6 +139,7 @@ namespace ash
 		{
 			auto scope = util::getScope((ParseNode*)declaration.get(), currentScope);
 			hadError |= enterNode((ParseNode*)declaration.get(), scope);
+			panicMode = false;
 		}
 		for (const auto& declaration : ast->declarations)
 		{
@@ -155,6 +156,7 @@ namespace ash
 
 	Token Semantics::pushError(const char* msg, int line)
 	{
+		panicMode = true;
 		Token error = { TokenType::ERROR, msg, strlen(msg), line };
 		errorQueue.push_back(error);
 		return error;
@@ -296,7 +298,7 @@ namespace ash
 						msg.append(".");
 						char* c_msg = new char[msg.length() + 1];
 						strcpy(c_msg, msg.c_str());
-						pushError(c_msg, varNode->identifier.line); //add ExpressionNode->getLine() function and use it here
+						pushError(c_msg, varNode->value->line());
 						hadError = true;
 					}
 				}
@@ -461,7 +463,7 @@ namespace ash
 					msg.append(util::tokenstring(statementType));
 					char* c_msg = new char[msg.length() + 1];
 					strcpy(c_msg, msg.c_str());
-					pushError(c_msg, 0); //expressionNode->getLine();
+					pushError(c_msg, returnNode->returnValue->line());
 					return false;
 				}
 			}
@@ -658,7 +660,7 @@ namespace ash
 						exprType =  leftType;
 					}
 
-					else 
+					else if (leftType.type != TokenType::ERROR && rightType.type != TokenType::ERROR)
 					{
 						std::string msg = { "type mismatch " };
 						msg.append(util::tokenstring(leftType));
@@ -669,6 +671,9 @@ namespace ash
 						strcpy(c_msg, msg.c_str());
 						exprType = pushError(c_msg, leftType.line);
 					}
+
+					if (leftType.type == TokenType::ERROR) exprType = leftType;
+					else if (rightType.type == TokenType::ERROR) exprType = rightType;
 				}
 
 				switch (binaryNode->op.type)
@@ -741,7 +746,7 @@ namespace ash
 				if (fullName == "")
 				{
 					
-					return pushError("can only assign to a named variable.", 0); // TODO: add getLine() to expresionNode and add to identifier
+					return pushError("can only assign to a named variable.", assignmentNode->identifier->line());
 				}
 				if (fullName.find(".") != std::string::npos)
 				{
@@ -772,7 +777,7 @@ namespace ash
 					msg.append(" has not been declared.");
 					char* c_msg = new char[msg.length() + 1];
 					strcpy(c_msg, msg.c_str());
-					return pushError(c_msg, 0); // TODO: add getLine() to expresionNode and add to identifier
+					return pushError(c_msg, assignmentNode->identifier->line());
 				}
 				else
 				{
@@ -809,7 +814,7 @@ namespace ash
 								if (!typeExists)
 								{
 									
-									return pushError("type does not exist.", 0); // TODO: add getLine() to expresionNode and add to identifier
+									return pushError("type does not exist.", assignmentNode->identifier->line());
 								}
 							}
 						}
@@ -828,7 +833,7 @@ namespace ash
 						msg.append(".");
 						char* c_msg = new char[msg.length() + 1];
 						strcpy(c_msg, msg.c_str());
-						return pushError(c_msg, 0); // TODO: add getLine() to expresionNode and add to identifier
+						return pushError(c_msg, assignmentNode->value->line());
 					}
 					
 					return assignedType;
@@ -907,14 +912,28 @@ namespace ash
 
 							if(args.size() != parameters.size())
 							{
-								return { TokenType::ERROR, "", 0, args[0].line };
+								std::string msg = { "expected " };
+								msg.append(std::to_string(parameters.size()));
+								msg.append("parameters, received ");
+								msg.append(std::to_string(args.size()));
+								msg.append(".");
+								char* c_msg = new char[msg.length() + 1];
+								strcpy(c_msg, msg.c_str());
+								return pushError(c_msg, functionCallNode->line());
 							}
 
 							for(int i = 0; i < args.size(); i++)
 							{
 								if(util::tokenstring(args[i]) != util::tokenstring(parameters[i].type))
 								{
-									return { TokenType::ERROR, "", 0, args[i].line };
+									std::string msg = { "expected type " };
+									msg.append(util::tokenstring(parameters[i].type));
+									msg.append(", actual type ");
+									msg.append(util::tokenstring(args[i]));
+									msg.append(".");
+									char* c_msg = new char[msg.length() + 1];
+									strcpy(c_msg, msg.c_str());
+									return pushError(c_msg, functionCallNode->line());
 								}
 							}
 
