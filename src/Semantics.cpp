@@ -893,7 +893,7 @@ namespace ash
 				}
 				if (!inModule)
 				{
-					while (!found & scope != nullptr)
+					while (!found && scope != nullptr)
 					{
 						if (scope->symbols.find(funcName) == scope->symbols.end())
 						{
