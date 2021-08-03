@@ -145,9 +145,19 @@ namespace ash
 			auto scope = util::getScope((ParseNode*)declaration.get(), currentScope);
 			hadError |= functionValidator((ParseNode*)declaration.get());
 		}
-		std::cout << "Error?: " << (hadError ? "true" : "false") << std::endl;
 		ast->hadError = hadError;
+		for (const auto& error : errorQueue)
+		{
+			std::cout << "Error on line " << error.line << ": " << util::tokenstring(error).c_str() << std::endl;
+		}
 		return ast;
+	}
+
+	Token Semantics::pushError(const char* msg, int line)
+	{
+		Token error = { TokenType::ERROR, msg, strlen(msg), line };
+		errorQueue.push_back(error);
+		return error;
 	}
 
 	bool Semantics::enterNode(ParseNode* node, std::shared_ptr<ScopeNode> currentScope)
@@ -188,7 +198,7 @@ namespace ash
 
 						else 
 						{
-							//Error: field already included!
+							pushError("field already included", field.identifier.line);
 							hadError = true;
 						}
 					}
@@ -197,9 +207,11 @@ namespace ash
 				}
 				else
 				{
-					std::cout << "Symbol " << typeName << " already defined!" << std::endl;
-					Symbol defined = currentScope->symbols.at(typeName);
-					std::cout << "Name: " << defined.name << " Category: " << util::categoryToString(defined.cat) << " Type: " << util::tokenstring(defined.type) << std::endl;
+					std::string msg = { typeName.c_str() };
+					msg.append(" already defined.");
+					char* c_msg = new char[msg.length() + 1];
+					strcpy(c_msg, msg.c_str());
+					pushError(c_msg, typeNode->typeDefined.line);
 					hadError = true;
 				}
 				return hadError;
@@ -218,9 +230,11 @@ namespace ash
 				}
 				else
 				{
-					std::cout << "Symbol " << funcName << " already defined!" << std::endl;
-					Symbol defined = currentScope->symbols.at(funcName);
-					std::cout << "Name: " << defined.name << " Category: " << util::categoryToString(defined.cat) << " Type: " << util::tokenstring(defined.type) << std::endl;
+					std::string msg = { funcName.c_str() };
+					msg.append(" already defined.");
+					char* c_msg = new char[msg.length() + 1];
+					strcpy(c_msg, msg.c_str());
+					pushError(c_msg, funcNode->identifier.line);
 					hadError = true;
 				}
 				auto blockScope = std::make_shared<ScopeNode>();
@@ -235,9 +249,11 @@ namespace ash
 					}
 					else
 					{
-						std::cout << "Symbol " << paramName << " already defined!" << std::endl;
-						Symbol defined = blockScope->symbols.at(paramName);
-						std::cout << "Name: " << defined.name << " Category: " << util::categoryToString(defined.cat) << " Type: " << util::tokenstring(defined.type) << std::endl;
+						std::string msg = { paramName.c_str() };
+						msg.append(" already defined.");
+						char* c_msg = new char[msg.length() + 1];
+						strcpy(c_msg, msg.c_str());
+						pushError(c_msg, parameter.identifier.line);
 						hadError = true;
 					}
 				}
@@ -258,9 +274,11 @@ namespace ash
 				}
 				else
 				{
-					std::cout << "Symbol " << varName << " already defined!" << std::endl;
-					Symbol defined = currentScope->symbols.at(varName);
-					std::cout << "Name: " << defined.name << " Category: " << util::categoryToString(defined.cat) << " Type: " << util::tokenstring(defined.type) << std::endl;
+					std::string msg = { varName.c_str() };
+					msg.append(" already defined.");
+					char* c_msg = new char[msg.length() + 1];
+					strcpy(c_msg, msg.c_str());
+					pushError(c_msg, varNode->identifier.line);
 					hadError = true;
 				}
 
@@ -271,6 +289,14 @@ namespace ash
 					if (util::tokenstring(valueType) != util::tokenstring(varNode->type))
 					{
 						std::cout << "Error: value is of type " << util::tokenstring(valueType) << ", assigned to variable of type " << util::tokenstring(varNode->type) << std::endl;
+						std::string msg = { "value is of type " };
+						msg.append(util::tokenstring(valueType));
+						msg.append(", assigned to variable of type ");
+						msg.append(util::tokenstring(varNode->type));
+						msg.append(".");
+						char* c_msg = new char[msg.length() + 1];
+						strcpy(c_msg, msg.c_str());
+						pushError(c_msg, varNode->identifier.line); //add ExpressionNode->getLine() function and use it here
 						hadError = true;
 					}
 				}
@@ -424,8 +450,20 @@ namespace ash
 				Token statementType = expressionTypeInfo(returnNode->returnValue.get(), currentScope);
 				if (statementType.type == TokenType::ERROR) return true;
 				if (util::tokenstring(statementType) == util::tokenstring(returnType))
+				{
 					return true;
-				else return false;
+				}
+				else 
+				{
+					std::string msg = { "return statement expected type " };
+					msg.append(util::tokenstring(returnType));
+					msg.append(", got ");
+					msg.append(util::tokenstring(statementType));
+					char* c_msg = new char[msg.length() + 1];
+					strcpy(c_msg, msg.c_str());
+					pushError(c_msg, 0); //expressionNode->getLine();
+					return false;
+				}
 			}
 		}
 	}
@@ -460,8 +498,11 @@ namespace ash
 						}
 						if (!s)
 						{
-							std::cout << "Symbol " << name << " has not yet been declared.";
-							//return { TokenType::ERROR, callNode->primary.start,callNode->primary.length, callNode->primary.line };
+							std::string msg = { name };
+							msg.append(" not defined.");
+							char* c_msg = new char[msg.length() + 1];
+							strcpy(c_msg, msg.c_str());
+							return pushError(c_msg, callNode->primary.line);
 						}
 						if (s)
 						{
@@ -469,7 +510,14 @@ namespace ash
 							{
 								if (util::tokenstring(s->type) != util::tokenstring(expected))
 								{
-									return { TokenType::ERROR, s->type.start, s->type.length, s->type.line };
+									std::string msg = { "expected type " };
+									msg.append(util::tokenstring(expected));
+									msg.append(", actual type ");
+									msg.append(util::tokenstring(s->type));
+									msg.append(".");
+									char* c_msg = new char[msg.length() + 1];
+									strcpy(c_msg, msg.c_str());
+									return pushError(c_msg, callNode->primary.line);
 								}
 							}
 							return s->type;
@@ -482,7 +530,12 @@ namespace ash
 						{
 							if ("bool" != util::tokenstring(expected))
 							{
-								return { TokenType::ERROR, callNode->primary.start, callNode->primary.length, callNode->primary.line };
+								std::string msg = { "expected type " };
+								msg.append(util::tokenstring(expected));
+								msg.append(", actual type bool.");
+								char* c_msg = new char[msg.length() + 1];
+								strcpy(c_msg, msg.c_str());
+								return pushError(c_msg, callNode->primary.line);
 							}
 						}
 
@@ -499,7 +552,12 @@ namespace ash
 						{
 							if ("float" != util::tokenstring(expected))
 							{
-								return { TokenType::ERROR, callNode->primary.start, callNode->primary.length, callNode->primary.line };
+								std::string msg = { "expected type " };
+								msg.append(util::tokenstring(expected));
+								msg.append(", actual type float.");
+								char* c_msg = new char[msg.length() + 1];
+								strcpy(c_msg, msg.c_str());
+								return pushError(c_msg, callNode->primary.line);
 							}
 						}
 						return { TokenType::TYPE, "float", 5, callNode->primary.line }; 
@@ -510,7 +568,12 @@ namespace ash
 						{
 							if ("double" != util::tokenstring(expected))
 							{
-								return { TokenType::ERROR, callNode->primary.start, callNode->primary.length, callNode->primary.line };
+								std::string msg = { "expected type " };
+								msg.append(util::tokenstring(expected));
+								msg.append(", actual type double.");
+								char* c_msg = new char[msg.length() + 1];
+								strcpy(c_msg, msg.c_str());
+								return pushError(c_msg, callNode->primary.line);
 							}
 						}
 						return { TokenType::TYPE, "double", 6, callNode->primary.line }; 
@@ -529,7 +592,12 @@ namespace ash
 								"ulong" != util::tokenstring(expected)
 								)
 							{
-								return { TokenType::ERROR, callNode->primary.start, callNode->primary.length, callNode->primary.line };
+								std::string msg = { "expected type " };
+								msg.append(util::tokenstring(expected));
+								msg.append(", actual type int.");
+								char* c_msg = new char[msg.length() + 1];
+								strcpy(c_msg, msg.c_str());
+								return pushError(c_msg, callNode->primary.line);
 							}
 						}
 						return { TokenType::TYPE, "int", 3, callNode->primary.line };
@@ -541,7 +609,12 @@ namespace ash
 						{
 							if ("string" != util::tokenstring(expected))
 							{
-								return { TokenType::ERROR, callNode->primary.start, callNode->primary.length, callNode->primary.line };
+								std::string msg = { "expected type " };
+								msg.append(util::tokenstring(expected));
+								msg.append(", actual type string.");
+								char* c_msg = new char[msg.length() + 1];
+								strcpy(c_msg, msg.c_str());
+								return pushError(c_msg, callNode->primary.line);
 							}
 						}
 						return { TokenType::TYPE, "string", 6, callNode->primary.line };
@@ -556,7 +629,14 @@ namespace ash
 				{
 					if (util::tokenstring(unaryValue) != util::tokenstring(expected))
 					{
-						return { TokenType::ERROR, unaryValue.start, unaryValue.length, unaryValue.line };
+						std::string msg = { "expected type " };
+						msg.append(util::tokenstring(expected));
+						msg.append(", actual type ");
+						msg.append(util::tokenstring(unaryValue));
+						msg.append(".");
+						char* c_msg = new char[msg.length() + 1];
+						strcpy(c_msg, msg.c_str());
+						return pushError(c_msg, unaryNode->op.line);
 					}
 				}
 			}
@@ -578,7 +658,17 @@ namespace ash
 						exprType =  leftType;
 					}
 
-					else exprType = { TokenType::ERROR, nullptr, 0, leftType.line };
+					else 
+					{
+						std::string msg = { "type mismatch " };
+						msg.append(util::tokenstring(leftType));
+						msg.append(" and ");
+						msg.append(util::tokenstring(rightType));
+						msg.append(".");
+						char* c_msg = new char[msg.length() + 1];
+						strcpy(c_msg, msg.c_str());
+						exprType = pushError(c_msg, leftType.line);
+					}
 				}
 
 				switch (binaryNode->op.type)
@@ -598,7 +688,12 @@ namespace ash
 							{
 								if ("bool" != util::tokenstring(expected))
 								{
-									return { TokenType::ERROR, leftType.start, leftType.length, leftType.line };
+									std::string msg = { "expected type " };
+									msg.append(util::tokenstring(expected));
+									msg.append(", actual type bool.");
+									char* c_msg = new char[msg.length() + 1];
+									strcpy(c_msg, msg.c_str());
+									return pushError(c_msg, leftType.line);
 								}
 							}
 							return { TokenType::TYPE, "bool", 4, leftType.line };
@@ -616,11 +711,19 @@ namespace ash
 							{
 								if ("bool" != util::tokenstring(expected))
 								{
-									return { TokenType::ERROR, leftType.start, leftType.length, leftType.line };
+									std::string msg = { "expected type " };
+									msg.append(util::tokenstring(expected));
+									msg.append(", actual type ");
+									msg.append(util::tokenstring(exprType));
+									msg.append(".");
+									char* c_msg = new char[msg.length() + 1];
+									strcpy(c_msg, msg.c_str());
+									return pushError(c_msg, leftType.line);
 								}
 							}
+							return exprType;
 						}
-						return exprType;
+						else return exprType;
 					}
 				}
 			}
@@ -637,8 +740,8 @@ namespace ash
 				// find the base variable first, then work down the list of fields
 				if (fullName == "")
 				{
-					std::cout << "Can only assign to a named variable!" << std::endl;
-					//Error
+					
+					return pushError("can only assign to a named variable.", 0); // TODO: add getLine() to expresionNode and add to identifier
 				}
 				if (fullName.find(".") != std::string::npos)
 				{
@@ -665,8 +768,11 @@ namespace ash
 				}
 				if (!s)
 				{
-					std::cout << "Symbol " << name << " has not yet been declared.";
-					//return { TokenType::ERROR, };
+					std::string msg = { name };
+					msg.append(" has not been declared.");
+					char* c_msg = new char[msg.length() + 1];
+					strcpy(c_msg, msg.c_str());
+					return pushError(c_msg, 0); // TODO: add getLine() to expresionNode and add to identifier
 				}
 				else
 				{
@@ -702,7 +808,8 @@ namespace ash
 								}
 								if (!typeExists)
 								{
-									return { TokenType::ERROR, assignedType.start, assignedType.length, assignedType.line };
+									
+									return pushError("type does not exist.", 0); // TODO: add getLine() to expresionNode and add to identifier
 								}
 							}
 						}
@@ -712,9 +819,16 @@ namespace ash
 
 					if (valueType.type == TokenType::ERROR) std::cout << "Error: expression type does not match assigned type!" << std::endl;
 
-					if (util::tokenstring(valueType) != util::tokenstring(assignedType))
+					if (valueType.type != TokenType::ERROR && util::tokenstring(valueType) != util::tokenstring(assignedType))
 					{
-						return { TokenType::ERROR, valueType.start, valueType.length, valueType.line };
+						std::string msg = { "expected type " };
+						msg.append(util::tokenstring(expected));
+						msg.append(", actual type ");
+						msg.append(util::tokenstring(valueType));
+						msg.append(".");
+						char* c_msg = new char[msg.length() + 1];
+						strcpy(c_msg, msg.c_str());
+						return pushError(c_msg, 0); // TODO: add getLine() to expresionNode and add to identifier
 					}
 					
 					return assignedType;
@@ -745,10 +859,10 @@ namespace ash
 								return field.type;
 							}
 						}
-						//error: type valid, but does not contain field!
+						return pushError("type valid, but does not contain field.", fieldCallNode->field.line);
 					}
 				}
-				//Error: type not found!
+				return pushError("type not found.", fieldCallNode->field.line);
 			}
 			case ExpressionNode::ExpressionType::FunctionCall:
 			{
