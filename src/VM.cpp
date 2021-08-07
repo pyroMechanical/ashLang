@@ -77,6 +77,13 @@ namespace ash
 					R[B] = R[A];
 					break;
 				}
+				case OP_ALLOC:
+				{
+					uint8_t A = read_byte(ip);
+					uint64_t toAllocate = R[A];
+					//size_t newSize = heap.size() + toAllocate;
+					//heap.resize(toAllocate);
+				}
 				case OP_CONST:
 				{
 					uint8_t A = read_byte(ip);
@@ -93,35 +100,12 @@ namespace ash
 				}
 				case OP_STORE:
 				{
-					uint8_t flags = read_byte(ip) & FLAG_MAX_BYTES;
-					uint8_t B = read_byte(ip);
-					for (uint8_t i = 1; i <= flags; i++)
-					{
-						stack.push_back( (uint8_t) ( R[B] >> ( (flags * 8) - (i * 8) ) ) );
-					}
-
+					//TODO: rewrite op_store
 					break;
 				}
 				case OP_LOAD:
 				{
-					uint8_t flags = read_byte(ip);
-					bool s_int = flags & FLAG_READ_SINT;
-					flags &= FLAG_MAX_BYTES;
-					uint8_t B = read_byte(ip);
-					uint64_t temp = 0;
-					if (s_int)
-					{
-						for (uint8_t i = 1; i <= 8 - flags; i++)
-						{
-							temp += (uint64_t)0xFF << (64 - ((i) * 8));
-						}
-					}
-					for (uint8_t i = 1; i <= flags; i++)
-					{
-						temp += ((uint64_t)stack.back()) << ((i-1) * 8);
-						stack.pop_back();
-					}
-					R[B] = temp;
+					//TODO: rewrite op_load
 					break;
 				}
 				case OP_INT_ADD:

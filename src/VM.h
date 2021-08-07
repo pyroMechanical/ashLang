@@ -21,8 +21,6 @@ namespace ash
 		Chunk* chunk;
 		uint8_t* ip;
 		std::array<uint64_t, 256> R;
-		std::vector<uint8_t> stack;
-
 	public:
 		VM();
 		~VM();
