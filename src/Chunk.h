@@ -37,10 +37,11 @@ namespace ash
 	enum OpCodes : uint8_t
 	{
 		OP_MOVE, // A, B
+		OP_ALLOC, // A; allocate R[A] bytes of memory on the heap
 		OP_CONST, // A, 4 byte constant
 		OP_CONST_LONG, // A, 8 byte constant
-		OP_STORE, // A, B; stack.push(R[B]), based on Flags(A)
-		OP_LOAD, // A, B; R[B]: stack.pop(), based on Flags(A)
+		OP_STORE, // A, B; stack.push(R[B]), 
+		OP_LOAD, // A, B; R[B]: stack.pop()
 			/*signed integers are sign-extended, so 
 				one addition/subtraction operation works for both*/
 		OP_INT_EQUAL, //A, B, C; R[C]: R[A] = R[B]
