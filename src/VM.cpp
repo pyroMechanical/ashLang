@@ -37,7 +37,7 @@ namespace ash
 
 	VM::~VM()
 	{
-		
+		mem.freeAllocations();
 	}
 
 	InterpretResult VM::interpret(std::string source)

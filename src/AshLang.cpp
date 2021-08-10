@@ -4,6 +4,9 @@
 
 #include <iostream>
 #include <string>
+#ifdef _WIN32
+#include <Windows.h>
+#endif
 
 using namespace ash;
 
@@ -13,6 +16,10 @@ using namespace ash;
         std::cout << "type 'exit' to exit REPL\n";
         std::string line;
         std::string source;
+#ifdef _WIN32
+        SetConsoleCP(CP_UTF8);
+        SetConsoleOutputCP(CP_UTF8);
+#endif
         do
         {
             std::getline(std::cin, line);

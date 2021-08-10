@@ -1,5 +1,5 @@
 #pragma once
-
+#include "Memory.h"
 #include "Chunk.h"
 
 #include <array>
@@ -21,6 +21,8 @@ namespace ash
 		Chunk* chunk;
 		uint8_t* ip;
 		std::array<uint64_t, 256> R;
+		std::vector<uint64_t> stack;
+		Memory mem;
 	public:
 		VM();
 		~VM();
@@ -30,5 +32,9 @@ namespace ash
 		InterpretResult interpret(Chunk* chunk);
 
 		InterpretResult run();
+
+		void freeAllocations();
+
+		void collectGarbage();
 	};
 }
