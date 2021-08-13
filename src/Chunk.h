@@ -40,8 +40,24 @@ namespace ash
 		OP_ALLOC, // A, B; allocate R[A] bytes of memory on the heap, store address in R[B]
 		OP_CONST, // A, 4 byte constant
 		OP_CONST_LONG, // A, 8 byte constant
-		OP_STORE, // A, B, C; store value from R[B] to memory address R[C], bytes A: 0x01 to 0x08
-		OP_LOAD, // A, B, C; load value from address R[C] to R[B], bytes A: 0x01 to 0x08
+		OP_STORE8, // A, B; store value from R[A] to memory address R[B]
+		OP_STORE16, // A, B; store value from R[A] to memory address R[B]
+		OP_STORE32, // A, B; store value from R[A] to memory address R[B]
+		OP_STORE64, // A, B; store value from R[A] to memory address R[B]
+		OP_LOAD8, // A, B; load value from address R[B] to R[A]
+		OP_LOAD16, // A, B; load value from address R[B] to R[A]
+		OP_LOAD32, // A, B; load value from address R[B] to R[A]
+		OP_LOAD64, // A, B; load value from address R[B] to R[A]
+		OP_STORE8_OFFSET, // A, B, C; store value from R[A] to memory address R[B] + R[C]
+		OP_STORE16_OFFSET, // A, B, C; store value from R[A] to memory address R[B] + R[C]
+		OP_STORE32_OFFSET, // A, B, C; store value from R[A] to memory address R[B] + R[C]
+		OP_STORE64_OFFSET, // A, B, C; store value from R[A] to memory address R[B] + R[C]
+		OP_LOAD8_OFFSET, // A, B, C; load value from address R[B] + R[C] to R[A]
+		OP_LOAD16_OFFSET, // A, B, C; load value from address R[B] + R[C] to R[A]
+		OP_LOAD32_OFFSET, // A, B, C; load value from address R[B] + R[C] to R[A]
+		OP_LOAD64_OFFSET, // A, B, C; load value from address R[B] + R[C] to R[A]
+		OP_PUSH, //A; push value from R[A] onto stack
+		OP_POP, //A; pop value from stack into R[A]
 			/*signed integers are sign-extended, so 
 				one addition/subtraction operation works for both*/
 		OP_INT_EQUAL, //A, B, C; R[C]: R[A] = R[B]
@@ -84,15 +100,5 @@ namespace ash
 		OP_OR, //A, B, C; R[C]: R[A] or R[B]
 		OP_CALL, 
 		OP_RETURN,
-	};
-
-	enum StackTransferFlags : uint8_t
-	{
-		FLAG_BYTE = 0x01,
-		FLAG_SHORT = 0x02,
-		FLAG_HALF = 0x04,
-		FLAG_LONG = 0x08,
-		FLAG_MAX_BYTES = 0x0F,
-		FLAG_READ_SINT = 0x80
 	};
 }

@@ -8,11 +8,27 @@
 #include <Windows.h>
 #endif
 
+#define TEST_VM_OPERATIONS
+
 using namespace ash;
 
     int main()
     {
         VM vm;
+#ifdef TEST_VM_OPERATIONS
+        Chunk chunk;
+        chunk.WriteU8(0, 16);
+        chunk.WriteU8(3, 8);
+        chunk.WriteAB(OP_ALLOC, 0, 1, 0);
+        chunk.WriteAB(OP_STORE8, 0, 1, 0);
+        chunk.WriteABC(OP_STORE8_OFFSET, 0, 1, 3, 0);
+        chunk.WriteAB(OP_LOAD8, 2, 1, 0);
+        chunk.WriteU8(1, 0);
+        chunk.WriteAB(OP_ALLOC, 2, 1, 0);
+        chunk.WriteOp(OP_RETURN);
+        InterpretResult result = vm.interpret(&chunk);
+        system("pause");
+#else
         std::cout << "type 'exit' to exit REPL\n";
         std::string line;
         std::string source;
@@ -40,12 +56,13 @@ using namespace ash;
             }
             InterpretResult result = vm.interpret(source);
             source.clear();
-            //if(result != InterpretResult::INTERPRET_OK)
-            //{
-            //    std::cout << "Error!";
-            //
-            //    return 64;
-            //}
+           //if(result != InterpretResult::INTERPRET_OK)
+           //{
+           //    std::cout << "Error!";
+           //
+           //    return 64;
+           //}
         } while (line != "exit");
+#endif
         return 0;
     }

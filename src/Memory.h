@@ -1,28 +1,25 @@
 #pragma once
 
 #include <stdlib.h>
+#include <vector>
 namespace ash
 {
+	struct FieldMetadata
+	{
+		bool isPointer; //replace with uint8_t bit flag later?
+		size_t offset;
+	};
 
+	struct TypeMetadata
+	{
+		std::vector<FieldMetadata> offsets;
+	};
 
 	struct Allocation
 	{
-		void* memory;
+		char* memory;
 		Allocation* next;
+		bool marked = false;
+		TypeMetadata* offsets;
 	};
-
-	class Memory
-	{
-	private:
-		Allocation* allocationList;
-	public:
-		void* allocate(void* pointer, size_t oldSize, size_t newSize);
-
-		void freeAllocation(Allocation* alloc);
-
-		void freeAllocations();
-
-		void collectGarbage();
-	};
-
 }

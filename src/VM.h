@@ -15,14 +15,23 @@ namespace ash
 		INTERPRET_RUNTIME_ERROR
 	};
 
+	enum registerFlags : uint8_t
+	{
+		REGISTER_HOLDS_POINTER = 0x01,
+	};
+
 	class VM
 	{
 	private:
+		std::array<uint64_t, 256> R;
+		std::array<uint8_t, 256> rFlags;
+		std::vector<uint64_t> stack;
+		std::vector<size_t> stackPointers;
+		Allocation* allocationList = nullptr;
+		friend class Memory;
+
 		Chunk* chunk;
 		uint8_t* ip;
-		std::array<uint64_t, 256> R;
-		std::vector<uint64_t> stack;
-		Memory mem;
 	public:
 		VM();
 		~VM();
@@ -32,6 +41,12 @@ namespace ash
 		InterpretResult interpret(Chunk* chunk);
 
 		InterpretResult run();
+
+		InterpretResult error(const char* msg);
+
+		void* allocate(void* pointer, size_t oldSize, size_t newSize);
+
+		void freeAllocation(Allocation* alloc);
 
 		void freeAllocations();
 
