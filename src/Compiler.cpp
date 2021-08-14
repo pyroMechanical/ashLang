@@ -12,11 +12,18 @@ namespace ash
 
 		Semantics analyzer;
 
-		ast = analyzer.findSymbols(std::move(ast));
+		ast = analyzer.findSymbols(ast);
 
-		//ast->print(0);
+		ast->print(0);
+
+		pseudochunk result = precompile(ast);
 
 		return false;
+	}
+
+	pseudochunk Compiler::precompile(std::shared_ptr<ProgramNode> ast)
+	{
+
 	}
 
 }

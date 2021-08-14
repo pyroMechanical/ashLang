@@ -231,31 +231,31 @@ namespace ash
 		return &rules[(int)type];
 	}
 
-	std::unique_ptr<ExpressionNode> Parser::binary(std::unique_ptr<ExpressionNode> lhs, bool canAssign)
+	std::shared_ptr<ExpressionNode> Parser::binary(std::shared_ptr<ExpressionNode> lhs, bool canAssign)
 	{
-		std::unique_ptr<BinaryNode> node = std::make_unique<BinaryNode>();
-		node->left = std::move(lhs);
+		std::shared_ptr<BinaryNode> node = std::make_shared<BinaryNode>();
+		node->left = lhs;
 		node->op = previous;
 		ParseRule* rule = getRule(previous.type);
 		node->right = ParsePrecedence((Precedence)((int)rule->precedence + 1));
 		return node;
 	}
 
-	std::unique_ptr<ExpressionNode> Parser::assignment(std::unique_ptr<ExpressionNode> lhs, bool canAssign)
+	std::shared_ptr<ExpressionNode> Parser::assignment(std::shared_ptr<ExpressionNode> lhs, bool canAssign)
 	{
-		std::unique_ptr<AssignmentNode> node = std::make_unique<AssignmentNode>();
-		node->identifier = std::move(lhs);
+		std::shared_ptr<AssignmentNode> node = std::make_shared<AssignmentNode>();
+		node->identifier = lhs;
 		node->value = expression();
 		return node;
 	}
 
-	std::unique_ptr<ExpressionNode> Parser::call(std::unique_ptr<ExpressionNode> lhs, bool canAssign)
+	std::shared_ptr<ExpressionNode> Parser::call(std::shared_ptr<ExpressionNode> lhs, bool canAssign)
 	{
 		//TODO: field calls
 		if (previous.type == TokenType::PAREN)
 		{
-			std::unique_ptr<FunctionCallNode> node = std::make_unique<FunctionCallNode>();
-			node->left = std::move(lhs);
+			std::shared_ptr<FunctionCallNode> node = std::make_shared<FunctionCallNode>();
+			node->left = lhs;
 			if (!match(TokenType::CLOSE_PAREN))
 			{
 				while (!check(TokenType::CLOSE_PAREN))
@@ -273,8 +273,8 @@ namespace ash
 		}
 		else if (previous.type == TokenType::DOT)
 		{
-			std::unique_ptr<FieldCallNode> node = std::make_unique<FieldCallNode>();
-			node->left = std::move(lhs);
+			std::shared_ptr<FieldCallNode> node = std::make_shared<FieldCallNode>();
+			node->left = lhs;
 			if (check(TokenType::IDENTIFIER))
 			{
 				node->field = current;
@@ -285,23 +285,23 @@ namespace ash
 		}
 	}
 
-	std::unique_ptr<ExpressionNode> Parser::grouping(bool canAssign)
+	std::shared_ptr<ExpressionNode> Parser::grouping(bool canAssign)
 	{
 		auto node = expression();
 		consume(TokenType::CLOSE_PAREN, "Expected ')' after expresion.");
 		return node;
 	}
 
-	std::unique_ptr<ExpressionNode> Parser::literal(bool canAssign)
+	std::shared_ptr<ExpressionNode> Parser::literal(bool canAssign)
 	{
-		std::unique_ptr<CallNode> node = std::make_unique<CallNode>();
+		std::shared_ptr<CallNode> node = std::make_shared<CallNode>();
 		node->primary = previous;
 		return node;
 	}
 
-	std::unique_ptr<ExpressionNode> Parser::unary(bool canAssign)
+	std::shared_ptr<ExpressionNode> Parser::unary(bool canAssign)
 	{
-		std::unique_ptr<UnaryNode> node = std::make_unique<UnaryNode>();
+		std::shared_ptr<UnaryNode> node = std::make_shared<UnaryNode>();
 		node->op = previous;
 
 		node->unary = ParsePrecedence(Precedence::UNARY);
@@ -333,12 +333,12 @@ namespace ash
 		}
 	}
 
-	std::unique_ptr<DeclarationNode> Parser::declaration()
+	std::shared_ptr<DeclarationNode> Parser::declaration()
 	{
 		
 		if (match(TokenType::DEF))
 		{
-			std::unique_ptr<TypeDeclarationNode> node = std::make_unique<TypeDeclarationNode>();
+			std::shared_ptr<TypeDeclarationNode> node = std::make_shared<TypeDeclarationNode>();
 			consume(TokenType::TYPE, "expected type after 'def.'");
 			node->typeDefined = previous;
 			consume(TokenType::BRACE, "expected '{' before type definition.");
@@ -376,7 +376,7 @@ namespace ash
 			{
 				if (match(TokenType::PAREN))
 				{
-					std::unique_ptr<FunctionDeclarationNode> node = std::make_unique<FunctionDeclarationNode>();
+					std::shared_ptr<FunctionDeclarationNode> node = std::make_shared<FunctionDeclarationNode>();
 					node->usign = usign;
 					node->type = type;
 					node->identifier = identifier;
@@ -389,7 +389,7 @@ namespace ash
 				}
 				else 
 				{
-					std::unique_ptr<VariableDeclarationNode> node = std::make_unique<VariableDeclarationNode>();
+					std::shared_ptr<VariableDeclarationNode> node = std::make_shared<VariableDeclarationNode>();
 					node->usign = usign;
 					node->type = type;
 					node->identifier = identifier;
@@ -405,17 +405,17 @@ namespace ash
 		}
 		else
 		{
-			std::unique_ptr<StatementNode> stmt = statement();
+			std::shared_ptr<StatementNode> stmt = statement();
 			return stmt;
 		}
 	}
 
-	std::unique_ptr<StatementNode> Parser::statement()
+	std::shared_ptr<StatementNode> Parser::statement()
 	{
 		if (match(TokenType::FOR))
 		{
 			consume(TokenType::PAREN, "expected '(' after 'for.'");
-			std::unique_ptr<ForStatementNode> node = std::make_unique<ForStatementNode>();
+			std::shared_ptr<ForStatementNode> node = std::make_shared<ForStatementNode>();
 			if (match(TokenType::SEMICOLON))
 			{
 				node->declaration = nullptr;
@@ -433,7 +433,7 @@ namespace ash
 				}
 				consume(TokenType::IDENTIFIER, "expected identifier after type.");
 				identifier = previous;
-				std::unique_ptr<VariableDeclarationNode> declaration = std::make_unique<VariableDeclarationNode>();
+				std::shared_ptr<VariableDeclarationNode> declaration = std::make_shared<VariableDeclarationNode>();
 				declaration->usign = usign;
 				declaration->type = type;
 				declaration->identifier = identifier;
@@ -441,7 +441,7 @@ namespace ash
 				{
 					declaration->value = expression();
 				}
-				node->declaration = std::move(declaration);
+				node->declaration = declaration;
 
 				consume(TokenType::SEMICOLON, "expected ';' after variable declaration.");
 			}
@@ -480,7 +480,7 @@ namespace ash
 		}
 		else if (match(TokenType::IF))
 		{
-			std::unique_ptr<IfStatementNode> node = std::make_unique<IfStatementNode>();
+			std::shared_ptr<IfStatementNode> node = std::make_shared<IfStatementNode>();
 			consume(TokenType::PAREN, "expected '(' after 'if.'");
 			node->condition = expression();
 			consume(TokenType::CLOSE_PAREN, "expected')' after expression.");
@@ -494,14 +494,14 @@ namespace ash
 		}
 		else if (match(TokenType::RETURN))
 		{
-			std::unique_ptr<ReturnStatementNode> node = std::make_unique<ReturnStatementNode>();
+			std::shared_ptr<ReturnStatementNode> node = std::make_shared<ReturnStatementNode>();
 			node->returnValue = expression();
 			consume(TokenType::SEMICOLON, "expected ';' after expression.");
 			return node;
 		}
 		else if (match(TokenType::WHILE))
 		{
-			std::unique_ptr<WhileStatementNode> node = std::make_unique<WhileStatementNode>();
+			std::shared_ptr<WhileStatementNode> node = std::make_shared<WhileStatementNode>();
 			consume(TokenType::PAREN, "expected '(' after 'while.'");
 			node->condition = expression();
 			consume(TokenType::CLOSE_PAREN, "expected')' after expression.");
@@ -515,22 +515,22 @@ namespace ash
 		}
 		else
 		{
-			std::unique_ptr<ExpressionStatement> node = std::make_unique<ExpressionStatement>();
+			std::shared_ptr<ExpressionStatement> node = std::make_shared<ExpressionStatement>();
 			node->expression = expression();
 			consume(TokenType::SEMICOLON, "expected ';' after expression");
 			return node;
 		}
 	}
 
-	std::unique_ptr<ExpressionNode> Parser::expression()
+	std::shared_ptr<ExpressionNode> Parser::expression()
 	{
 		return ParsePrecedence(Precedence::ASSIGNMENT);
 	}
 
-	std::unique_ptr<ExpressionNode> Parser::ParsePrecedence(Precedence precedence)
+	std::shared_ptr<ExpressionNode> Parser::ParsePrecedence(Precedence precedence)
 	{
 		advance();
-		std::function<std::unique_ptr<ExpressionNode>(bool)> prefixRule = getRule(previous.type)->prefix;
+		std::function<std::shared_ptr<ExpressionNode>(bool)> prefixRule = getRule(previous.type)->prefix;
 		if (prefixRule == nullptr)
 		{
 			error("expected expression.");
@@ -538,13 +538,13 @@ namespace ash
 		}
 
 		bool canAssign = precedence <= Precedence::ASSIGNMENT;
-		std::unique_ptr<ExpressionNode> node = prefixRule(canAssign);
+		std::shared_ptr<ExpressionNode> node = prefixRule(canAssign);
 
 		while (precedence <= getRule(current.type)->precedence)
 		{
 			advance();
-			std::function<std::unique_ptr<ExpressionNode>(std::unique_ptr<ExpressionNode>, bool)> infixRule = getRule(previous.type)->infix;
-			node = infixRule(std::move(node), canAssign);
+			std::function<std::shared_ptr<ExpressionNode>(std::shared_ptr<ExpressionNode>, bool)> infixRule = getRule(previous.type)->infix;
+			node = infixRule(node, canAssign);
 		}
 
 		return node;
@@ -566,9 +566,9 @@ namespace ash
 		return parameters;
 	}
 
-	std::unique_ptr<BlockNode> Parser::block()
+	std::shared_ptr<BlockNode> Parser::block()
 	{
-		std::unique_ptr<BlockNode> node = std::make_unique<BlockNode>();
+		std::shared_ptr<BlockNode> node = std::make_shared<BlockNode>();
 		while (!check(TokenType::CLOSE_BRACE) && !check(TokenType::EOF_))
 		{
 			node->declarations.push_back(declaration());
@@ -578,12 +578,12 @@ namespace ash
 		return node;
 	}
 
-	std::unique_ptr<ProgramNode> Parser::parse()
+	std::shared_ptr<ProgramNode> Parser::parse()
 	{
-		std::unique_ptr<ProgramNode> node = std::make_unique<ProgramNode>();
+		std::shared_ptr<ProgramNode> node = std::make_shared<ProgramNode>();
 
 		/*if (match(TokenType::LIBRARY))
-		std::unique_ptr<LibraryNode> library;
+		std::shared_ptr<LibraryNode> library;
 		consume(TokenType::IDENTIFIER, "Expected a library name.");
 		library.libraryIdentifier = previous;
 		node.library = library;

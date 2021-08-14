@@ -14,7 +14,7 @@ namespace ash
 
 		bool panicMode = false;
 	public:
-		std::unique_ptr<ProgramNode> findSymbols(std::unique_ptr<ProgramNode> ast);
+		std::shared_ptr<ProgramNode> findSymbols(std::shared_ptr<ProgramNode> ast);
 		std::vector<Token> errorQueue;
 	};
 }

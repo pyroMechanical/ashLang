@@ -250,7 +250,7 @@ namespace ash
 
 	struct ExpressionStatement : public StatementNode
 	{
-		std::unique_ptr<ExpressionNode> expression;
+		std::shared_ptr<ExpressionNode> expression;
 
 		virtual NodeType nodeType() override { return NodeType::ExpressionStatement; }
 
@@ -267,10 +267,10 @@ namespace ash
 
 	struct ForStatementNode : public StatementNode
 	{
-		std::unique_ptr<ParseNode> declaration; //can only be VariableDeclarationNode or ExpressionNode
-		std::unique_ptr<ExpressionNode> conditional;
-		std::unique_ptr<ExpressionNode> increment;
-		std::unique_ptr<StatementNode> statement;
+		std::shared_ptr<ParseNode> declaration; //can only be VariableDeclarationNode or ExpressionNode
+		std::shared_ptr<ExpressionNode> conditional;
+		std::shared_ptr<ExpressionNode> increment;
+		std::shared_ptr<StatementNode> statement;
 
 		virtual NodeType nodeType() override { return NodeType::ForStatement; }
 
@@ -308,9 +308,9 @@ namespace ash
 
 	struct IfStatementNode : public StatementNode
 	{
-		std::unique_ptr<ExpressionNode> condition;
-		std::unique_ptr<StatementNode> thenStatement;
-		std::unique_ptr<StatementNode> elseStatement;
+		std::shared_ptr<ExpressionNode> condition;
+		std::shared_ptr<StatementNode> thenStatement;
+		std::shared_ptr<StatementNode> elseStatement;
 
 		virtual NodeType nodeType() override { return NodeType::IfStatement; }
 
@@ -341,7 +341,7 @@ namespace ash
 
 	struct ReturnStatementNode : public StatementNode
 	{
-		std::unique_ptr<ExpressionNode> returnValue;
+		std::shared_ptr<ExpressionNode> returnValue;
 
 		virtual NodeType nodeType() override { return NodeType::ReturnStatement; }
 
@@ -360,8 +360,8 @@ namespace ash
 
 	struct WhileStatementNode : public StatementNode
 	{
-		std::unique_ptr<ExpressionNode> condition;
-		std::unique_ptr<StatementNode> doStatement;
+		std::shared_ptr<ExpressionNode> condition;
+		std::shared_ptr<StatementNode> doStatement;
 
 		virtual NodeType nodeType() override { return NodeType::WhileStatement; }
 
@@ -386,7 +386,7 @@ namespace ash
 
 	struct BlockNode : public StatementNode
 	{
-		std::vector<std::unique_ptr<DeclarationNode>> declarations;
+		std::vector<std::shared_ptr<DeclarationNode>> declarations;
 
 		std::shared_ptr<ScopeNode> scope;
 
@@ -412,7 +412,7 @@ namespace ash
 		Token type;
 		Token identifier;
 		std::vector<parameter> parameters;
-		std::unique_ptr<BlockNode> body;
+		std::shared_ptr<BlockNode> body;
 
 		virtual NodeType nodeType() override { return NodeType::FunctionDeclaration; }
 
@@ -438,14 +438,12 @@ namespace ash
 		}
 	};
 
-
-
 	struct VariableDeclarationNode : public DeclarationNode
 	{
 		bool usign = false;
 		Token type;
 		Token identifier;
-		std::unique_ptr<ExpressionNode> value;
+		std::shared_ptr<ExpressionNode> value;
 
 		virtual NodeType nodeType() override { return NodeType::VariableDeclaration; }
 
@@ -468,9 +466,9 @@ namespace ash
 
 	struct ProgramNode : public ParseNode
 	{
-		//std::unique_ptr<LibraryNode> library;
-		//std::vector<std::unique_ptr<ImportNode>> imports;
-		std::vector<std::unique_ptr<DeclarationNode>> declarations;
+		//std::shared_ptr<LibraryNode> library;
+		//std::vector<std::shared_ptr<ImportNode>> imports;
+		std::vector<std::shared_ptr<DeclarationNode>> declarations;
 
 		std::shared_ptr<ScopeNode> globalScope;
 
@@ -518,7 +516,7 @@ namespace ash
 
 	struct FieldCallNode : public ExpressionNode
 	{
-		std::unique_ptr<ExpressionNode> left;
+		std::shared_ptr<ExpressionNode> left;
 		Token field;
 
 		virtual ExpressionType expressionType() override { return ExpressionType::FieldCall; }
@@ -539,9 +537,9 @@ namespace ash
 
 	struct BinaryNode : public ExpressionNode
 	{
-		std::unique_ptr<ExpressionNode> left;
+		std::shared_ptr<ExpressionNode> left;
 		Token op;
-		std::unique_ptr<ExpressionNode> right;
+		std::shared_ptr<ExpressionNode> right;
 		virtual ExpressionType expressionType() override { return ExpressionType::Binary; }
 
 		virtual void print(int depth) override
@@ -560,8 +558,8 @@ namespace ash
 
 	struct AssignmentNode : public ExpressionNode
 	{
-		std::unique_ptr<ExpressionNode> identifier;
-		std::unique_ptr<ExpressionNode> value;
+		std::shared_ptr<ExpressionNode> identifier;
+		std::shared_ptr<ExpressionNode> value;
 		virtual ExpressionType expressionType() override { return ExpressionType::Assignment; }
 
 		virtual void print(int depth) override
@@ -631,7 +629,7 @@ namespace ash
 	struct UnaryNode : public ExpressionNode
 	{
 		Token op;
-		std::unique_ptr<ExpressionNode> unary; //Unary or Call
+		std::shared_ptr<ExpressionNode> unary; //Unary or Call
 
 		virtual ExpressionType expressionType() override { return ExpressionType::Unary; }
 
@@ -649,8 +647,8 @@ namespace ash
 
 	struct FunctionCallNode : public ExpressionNode
 	{
-		std::unique_ptr<ExpressionNode> left;
-		std::vector<std::unique_ptr<ExpressionNode>> arguments;
+		std::shared_ptr<ExpressionNode> left;
+		std::vector<std::shared_ptr<ExpressionNode>> arguments;
 
 		virtual ExpressionType expressionType() override { return ExpressionType::FunctionCall; }
 

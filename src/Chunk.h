@@ -99,6 +99,8 @@ namespace ash
 		OP_AND, //A, B, C; R[C]: R[A] and R[B]
 		OP_OR, //A, B, C; R[C]: R[A] or R[B]
 		OP_CALL, 
+		OP_JUMP_IF_FALSE, //A, B; if R[A] is false, treat R[B] as a signed integer and make a relative jump to that instruction
+		OP_JUMP_IF_TRUE, //A, B; if R[A] is false, treat R[B] as a signed integer and make a relative jump to that instruction
 		OP_RETURN,
 	};
 }

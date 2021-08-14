@@ -5,6 +5,33 @@
 namespace ash
 {
 
+	struct pseudocode
+	{
+		OpCodes op;
+	};
+
+	struct oneaddress : public pseudocode
+	{
+		Token A;
+	};
+
+	struct twoaddress : public pseudocode
+	{
+		Token A;
+		Token B;
+	};
+	struct threeaddress : public pseudocode
+	{
+		Token A;
+		Token B;
+		Token C;
+	};
+
+	struct pseudochunk
+	{
+		std::vector<pseudocode*> code;
+	};
+
 	struct Local
 	{
 		Token name;
@@ -24,6 +51,8 @@ namespace ash
 			:scopeDepth(0) {}
 
 		bool compile(const char* source);
+
+		pseudochunk precompile(std::shared_ptr<ProgramNode> ast);
 	};
 
 }

@@ -18,6 +18,10 @@ namespace ash
 	enum registerFlags : uint8_t
 	{
 		REGISTER_HOLDS_POINTER = 0x01,
+		REGISTER_HOLDS_SIGNED = 0x02,
+		REGISTER_HOLDS_FLOAT = 0x04,
+		REGISTER_HOLDS_DOUBLE = 0x08,
+		REGISTER_HIGH_BITS = 0xF0
 	};
 
 	class VM

@@ -73,7 +73,7 @@ namespace ash
 
 	InterpretResult VM::interpret(Chunk* chunk)
 	{
-		this->chunk = chunk;
+		chunk = chunk;
 		ip = chunk->code();
 
 		return run();
@@ -103,6 +103,7 @@ namespace ash
 					size_t toAllocate = R[A];
 					void* alloc = allocate(nullptr, 0, toAllocate);
 					R[B] = reinterpret_cast<uint64_t>(alloc);
+					rFlags[B] &= REGISTER_HIGH_BITS;
 					rFlags[B] |= REGISTER_HOLDS_POINTER;
 					break;
 				}
@@ -332,7 +333,7 @@ namespace ash
 					uint8_t B = read_byte(ip);
 					uint8_t C = read_byte(ip);
 					R[C] = R[A] + R[B];
-					rFlags[C] = 0;
+					rFlags[C] &= (REGISTER_HIGH_BITS | REGISTER_HOLDS_SIGNED);
 					break;
 				}
 				case OP_INT_SUB:
@@ -341,7 +342,7 @@ namespace ash
 					uint8_t B = read_byte(ip);
 					uint8_t C = read_byte(ip);
 					R[C] = R[A] - R[B];
-					rFlags[C] = 0;
+					rFlags[C] &= (REGISTER_HIGH_BITS | REGISTER_HOLDS_SIGNED);
 					break;
 				}
 				case OP_UNSIGN_MUL:
@@ -350,7 +351,7 @@ namespace ash
 					uint8_t B = read_byte(ip);
 					uint8_t C = read_byte(ip);
 					R[C] = R[A] * R[B];
-					rFlags[C] = 0;
+					rFlags[C] &= REGISTER_HIGH_BITS;
 					break;
 				}
 				case OP_UNSIGN_DIV:
@@ -359,7 +360,7 @@ namespace ash
 					uint8_t B = read_byte(ip);
 					uint8_t C = read_byte(ip);
 					R[C] = R[A] / R[B];
-					rFlags[C] = 0;
+					rFlags[C] &= REGISTER_HIGH_BITS;
 					break;
 				}
 				case OP_UNSIGN_LESS:
@@ -368,7 +369,7 @@ namespace ash
 					uint8_t B = read_byte(ip);
 					uint8_t C = read_byte(ip);
 					R[C] = R[A] < R[B];
-					rFlags[C] = 0;
+					rFlags[C] &= REGISTER_HIGH_BITS;
 					break;
 				}
 				case OP_INT_EQUAL:
@@ -377,7 +378,7 @@ namespace ash
 					uint8_t B = read_byte(ip);
 					uint8_t C = read_byte(ip);
 					R[C] = R[A] == R[B];
-					rFlags[C] = 0;
+					rFlags[C] &= (REGISTER_HIGH_BITS | REGISTER_HOLDS_SIGNED);
 					break;
 				}
 				case OP_UNSIGN_GREATER:
@@ -386,7 +387,7 @@ namespace ash
 					uint8_t B = read_byte(ip);
 					uint8_t C = read_byte(ip);
 					R[C] = R[A] > R[B];
-					rFlags[C] = 0;
+					rFlags[C] &= REGISTER_HIGH_BITS;
 					break;
 				}
 				case OP_SIGN_MUL:
@@ -395,7 +396,8 @@ namespace ash
 					uint8_t B = read_byte(ip);
 					uint8_t C = read_byte(ip);
 					R[C] = static_cast<uint64_t>((static_cast<int64_t>(R[A]) * static_cast<int64_t>(R[B])));
-					rFlags[C] = 0;
+					rFlags[C] &= REGISTER_HIGH_BITS;
+					rFlags[C] |= REGISTER_HOLDS_SIGNED;
 					break;
 				}
 				case OP_SIGN_DIV:
@@ -404,7 +406,8 @@ namespace ash
 					uint8_t B = read_byte(ip);
 					uint8_t C = read_byte(ip);
 					R[C] = static_cast<uint64_t>((static_cast<int64_t>(R[A]) * static_cast<int64_t>(R[B])));
-					rFlags[C] = 0;
+					rFlags[C] &= REGISTER_HIGH_BITS;
+					rFlags[C] |= REGISTER_HOLDS_SIGNED;
 					break;
 				}
 				case OP_SIGN_LESS:
@@ -413,7 +416,8 @@ namespace ash
 					uint8_t B = read_byte(ip);
 					uint8_t C = read_byte(ip);
 					R[C] = (static_cast<int64_t>(R[A]) < static_cast<int64_t>(R[B]));
-					rFlags[C] = 0;
+					rFlags[C] &= REGISTER_HIGH_BITS;
+					rFlags[C] |= REGISTER_HOLDS_SIGNED;
 					break;
 				}
 				case OP_SIGN_GREATER:
@@ -432,7 +436,8 @@ namespace ash
 					uint8_t C = read_byte(ip);
 					float temp = (r_cast<float>(&R[A]) + r_cast<float>(&R[B]));
 					R[C] = r_cast<uint64_t>(&temp);
-					rFlags[C] = 0;
+					rFlags[C] &= REGISTER_HIGH_BITS;
+					rFlags[C] |= REGISTER_HOLDS_FLOAT;
 					break;
 				}
 				case OP_FLOAT_SUB:
@@ -442,7 +447,8 @@ namespace ash
 					uint8_t C = read_byte(ip);
 					float temp = (r_cast<float>(&R[A]) - r_cast<float>(&R[B]));
 					R[C] = r_cast<uint64_t>(&temp);
-					rFlags[C] = 0;
+					rFlags[C] &= REGISTER_HIGH_BITS;
+					rFlags[C] |= REGISTER_HOLDS_FLOAT;
 					break;
 				}
 				case OP_FLOAT_MUL:
@@ -452,7 +458,8 @@ namespace ash
 					uint8_t C = read_byte(ip);
 					float temp = (r_cast<float>(&R[A]) * r_cast<float>(&R[B]));
 					R[C] = r_cast<uint64_t>(&temp);
-					rFlags[C] = 0;
+					rFlags[C] &= REGISTER_HIGH_BITS;
+					rFlags[C] |= REGISTER_HOLDS_FLOAT;
 					break;
 				}
 				case OP_FLOAT_DIV:
@@ -462,7 +469,8 @@ namespace ash
 					uint8_t C = read_byte(ip);
 					float temp = (r_cast<float>(&R[A]) / r_cast<float>(&R[B]));
 					R[C] = r_cast<uint64_t>(&temp);
-					rFlags[C] = 0;
+					rFlags[C] &= REGISTER_HIGH_BITS;
+					rFlags[C] |= REGISTER_HOLDS_FLOAT;
 					break;
 				}
 				case OP_FLOAT_LESS:
@@ -472,7 +480,8 @@ namespace ash
 					uint8_t C = read_byte(ip);
 					float temp = (r_cast<float>(&R[A]) < r_cast<float>(&R[B]));
 					R[C] = r_cast<uint64_t>(&temp);
-					rFlags[C] = 0;
+					rFlags[C] &= REGISTER_HIGH_BITS;
+					rFlags[C] |= REGISTER_HOLDS_FLOAT;
 					break;
 				}
 				case OP_FLOAT_GREATER:
@@ -482,7 +491,8 @@ namespace ash
 					uint8_t C = read_byte(ip);
 					float temp = (r_cast<float>(&R[A]) > r_cast<float>(&R[B]));
 					R[C] = r_cast<uint64_t>(&temp);
-					rFlags[C] = 0;
+					rFlags[C] &= REGISTER_HIGH_BITS;
+					rFlags[C] |= REGISTER_HOLDS_FLOAT;
 					break;
 				}
 				case OP_FLOAT_EQUAL:
@@ -492,7 +502,8 @@ namespace ash
 					uint8_t C = read_byte(ip);
 					float temp = (r_cast<float>(&R[A]) == r_cast<float>(&R[B]));
 					R[C] = r_cast<uint64_t>(&temp);
-					rFlags[C] = 0;
+					rFlags[C] &= REGISTER_HIGH_BITS;
+					rFlags[C] |= REGISTER_HOLDS_FLOAT;
 					break;
 				}
 				case OP_DOUBLE_ADD:
@@ -502,7 +513,8 @@ namespace ash
 					uint8_t C = read_byte(ip);
 					double temp = (r_cast<double>(&R[A]) + r_cast<double>(&R[B]));
 					R[C] = r_cast<uint64_t>(&temp);
-					rFlags[C] = 0;
+					rFlags[C] &= REGISTER_HIGH_BITS;
+					rFlags[C] |= REGISTER_HOLDS_DOUBLE;
 					break;
 				}
 				case OP_DOUBLE_SUB:
@@ -512,7 +524,8 @@ namespace ash
 					uint8_t C = read_byte(ip);
 					double temp = (r_cast<double>(&R[A]) - r_cast<double>(&R[B]));
 					R[C] = r_cast<uint64_t>(&temp);
-					rFlags[C] = 0;
+					rFlags[C] &= REGISTER_HIGH_BITS;
+					rFlags[C] |= REGISTER_HOLDS_DOUBLE;
 					break;
 				}
 				case OP_DOUBLE_MUL:
@@ -522,7 +535,8 @@ namespace ash
 					uint8_t C = read_byte(ip);
 					double temp = (r_cast<double>(&R[A]) * r_cast<double>(&R[B]));
 					R[C] = r_cast<uint64_t>(&temp);
-					rFlags[C] = 0;
+					rFlags[C] &= REGISTER_HIGH_BITS;
+					rFlags[C] |= REGISTER_HOLDS_DOUBLE;
 					break;
 				}
 				case OP_DOUBLE_DIV:
@@ -532,7 +546,8 @@ namespace ash
 					uint8_t C = read_byte(ip);
 					double temp = (r_cast<double>(&R[A]) / r_cast<double>(&R[B]));
 					R[C] = r_cast<uint64_t>(&temp);
-					rFlags[C] = 0;
+					rFlags[C] &= REGISTER_HIGH_BITS;
+					rFlags[C] |= REGISTER_HOLDS_DOUBLE;
 					break;
 				}
 				case OP_DOUBLE_LESS:
@@ -542,7 +557,8 @@ namespace ash
 					uint8_t C = read_byte(ip);
 					double temp = (r_cast<double>(&R[A]) < r_cast<double>(&R[B]));
 					R[C] = r_cast<uint64_t>(&temp);
-					rFlags[C] = 0;
+					rFlags[C] &= REGISTER_HIGH_BITS;
+					rFlags[C] |= REGISTER_HOLDS_DOUBLE;
 					break;
 				}
 				case OP_DOUBLE_GREATER:
@@ -552,7 +568,8 @@ namespace ash
 					uint8_t C = read_byte(ip);
 					double temp = (r_cast<double>(&R[A]) > r_cast<double>(&R[B]));
 					R[C] = r_cast<uint64_t>(&temp);
-					rFlags[C] = 0;
+					rFlags[C] &= REGISTER_HIGH_BITS;
+					rFlags[C] |= REGISTER_HOLDS_DOUBLE;
 					break;
 				}
 				case OP_DOUBLE_EQUAL:
@@ -562,7 +579,8 @@ namespace ash
 					uint8_t C = read_byte(ip);
 					double temp = (r_cast<double>(&R[A]) == r_cast<double>(&R[B]));
 					R[C] = r_cast<uint64_t>(&temp);
-					rFlags[C] = 0;
+					rFlags[C] &= REGISTER_HIGH_BITS;
+					rFlags[C] |= REGISTER_HOLDS_DOUBLE;
 					break;
 				}
 
@@ -580,7 +598,8 @@ namespace ash
 					uint8_t A = read_byte(ip);
 					uint8_t B = read_byte(ip);
 					R[B] = static_cast<uint64_t>(static_cast<int64_t>(static_cast<float>(R[A])));
-					rFlags[B] = 0;
+					rFlags[B] &= REGISTER_HIGH_BITS;
+					rFlags[B] |= REGISTER_HOLDS_FLOAT;
 					break;
 				}
 				case OP_FLOAT_TO_DOUBLE:
@@ -589,7 +608,8 @@ namespace ash
 					uint8_t B = read_byte(ip);
 					double temp = static_cast<double>(r_cast<float>(&R[A]));
 					R[B] = r_cast<uint64_t>(&temp);
-					rFlags[B] = 0;
+					rFlags[B] &= REGISTER_HIGH_BITS;
+					rFlags[B] |= REGISTER_HOLDS_DOUBLE;
 					break;
 				}
 				case OP_DOUBLE_TO_FLOAT:
@@ -598,7 +618,8 @@ namespace ash
 					uint8_t B = read_byte(ip);
 					float temp = static_cast<float>(r_cast<double>(&R[A]));
 					R[B] = r_cast<uint64_t>(&temp);
-					rFlags[B] = 0;
+					rFlags[B] &= REGISTER_HIGH_BITS;
+					rFlags[B] |= REGISTER_HOLDS_FLOAT;
 					break;
 				}
 				case OP_INT_TO_DOUBLE:
@@ -607,7 +628,8 @@ namespace ash
 					uint8_t B = read_byte(ip);
 					double temp = static_cast<double>(static_cast<int64_t>(R[A]));
 					R[B] = r_cast<uint64_t>(&temp);
-					rFlags[B] = 0;
+					rFlags[B] &= REGISTER_HIGH_BITS;
+					rFlags[B] |= REGISTER_HOLDS_DOUBLE;
 					break;
 				}
 				case OP_DOUBLE_TO_INT:
@@ -615,7 +637,8 @@ namespace ash
 					uint8_t A = read_byte(ip);
 					uint8_t B = read_byte(ip);
 					R[B] = static_cast<uint64_t>(static_cast<int64_t>(static_cast<double>(R[A])));
-					rFlags[B] = 0;
+					rFlags[B] &= REGISTER_HIGH_BITS;
+					rFlags[B] |= REGISTER_HOLDS_SIGNED;
 					break;
 				}
 				case OP_AND:
@@ -624,7 +647,7 @@ namespace ash
 					uint8_t B = read_byte(ip);
 					uint8_t C = read_byte(ip);
 					R[C] = R[A] & R[B];
-					rFlags[C] = 0;
+					rFlags[C] &= REGISTER_HIGH_BITS;
 					break;
 				}
 				case OP_OR:
@@ -633,17 +656,15 @@ namespace ash
 					uint8_t B = read_byte(ip);
 					uint8_t C = read_byte(ip);
 					R[C] = R[A] | R[B];
-					rFlags[C] = 0;
+					rFlags[C] &= REGISTER_HIGH_BITS;
 					break;
 				}
 				case OP_RETURN: 
 				{
-					std::cout << "bits: " << std::bitset<64>(R[0]) << std::endl;
-					std::cout << "boolean: " << ((std::bitset<64>(R[0]).count() > 0) ? "true" : "false") << std::endl;
-					std::cout << "unsigned integer: " << R[0] << std::endl;
-					std::cout << "signed integer: " << static_cast<int64_t>(R[0]) << std::endl;
-					std::cout << "float: " << r_cast<float>(&R[0]) << std::endl;
-					std::cout << "double: " << r_cast<double>(&R[0]) << std::endl;
+					if((rFlags[0] & REGISTER_HOLDS_SIGNED) != 0) std::cout << static_cast<int64_t>(R[0]) << std::endl;
+					else if ((rFlags[0] & REGISTER_HOLDS_FLOAT) != 0) std::cout << r_cast<float>(&R[0]) << std::endl;
+					else if ((rFlags[0] & REGISTER_HOLDS_FLOAT) != 0) std::cout << r_cast<double>(&R[0]) << std::endl;
+					else std::cout << "type unknown. bits: " << std::bitset<64>(R[0]) << std::endl;
 
 					return InterpretResult::INTERPRET_OK;
 				}

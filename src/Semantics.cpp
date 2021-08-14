@@ -130,7 +130,7 @@ namespace ash
 		}
 	}
 	
-	std::unique_ptr<ProgramNode> Semantics::findSymbols(std::unique_ptr<ProgramNode> ast)
+	std::shared_ptr<ProgramNode> Semantics::findSymbols(std::shared_ptr<ProgramNode> ast)
 	{
 		std::shared_ptr<ScopeNode> currentScope = ast->globalScope = std::make_shared<ScopeNode>();
 
