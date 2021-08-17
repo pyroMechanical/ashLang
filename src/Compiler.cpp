@@ -16,14 +16,14 @@ namespace ash
 
 		ast->print(0);
 
-		pseudochunk result = precompile(ast);
+		//pseudochunk result = precompile(ast);
 
 		return false;
 	}
 
-	pseudochunk Compiler::precompile(std::shared_ptr<ProgramNode> ast)
+	/*pseudochunk Compiler::precompile(std::shared_ptr<ProgramNode> ast)
 	{
 
-	}
+	}*/
 
 }

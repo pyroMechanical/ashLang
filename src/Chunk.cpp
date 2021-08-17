@@ -11,10 +11,12 @@ namespace ash
 			lines.back().second++;
 		else
 			lines.emplace_back(std::pair<int, int>(line, 1));
-
-		opcode.push_back(op);
-		opcode.push_back(A);
-		opcode.push_back(B);
+		uint32_t result = 0;
+		result = op;
+		result = (result << 8) + A;
+		result = (result << 8) + B;
+		result = (result << 8);
+		opcode.push_back(result);
 	}
 
 	void Chunk::WriteABC(uint8_t op, uint8_t A, uint8_t B, uint8_t C, int line)
@@ -25,23 +27,25 @@ namespace ash
 		else
 			lines.emplace_back(std::pair<int, int>(line, 1));
 
-		opcode.push_back(op);
-		opcode.push_back(A);
-		opcode.push_back(B);
-		opcode.push_back(C);
+		uint32_t result = 0;
+		result = op;
+		result = (result << 8) + A;
+		result = (result << 8) + B;
+		result = (result << 8) + C;
+		opcode.push_back(result);
 	}
 
 	void Chunk::WriteI8(uint8_t A, int8_t constant)
 	{
-		WriteI64(A, (int64_t)constant);
+		WriteI16(A, (int16_t)constant);
 	}
 	void Chunk::WriteI16(uint8_t A, int16_t constant)
 	{
-		WriteI64(A, (int64_t)constant);
+		WriteU16(A, static_cast<uint16_t>(constant));
 	}
 	void Chunk::WriteI32(uint8_t A, int32_t constant)
 	{
-		WriteI64(A, (int64_t)constant);
+		WriteU32(A, static_cast<uint32_t>(constant));
 	}
 	void Chunk::WriteFloat(uint8_t A, float constant)
 	{
@@ -57,45 +61,61 @@ namespace ash
 	}
 	void Chunk::WriteU8(uint8_t A, uint8_t constant)
 	{
-		WriteU32(A, static_cast<uint32_t>(constant));
+		WriteU16(A, (uint16_t)constant);
 	}
 	void Chunk::WriteU16(uint8_t A, uint16_t constant)
 	{
-		WriteU32(A, static_cast<uint32_t>(constant));
+		uint32_t result = 0;
+		result = OP_CONST_LOW;
+		result = (result << 8) + A;
+		result = (result << 16) + constant;
+
+		opcode.push_back(result);
 	}
 	void Chunk::WriteU32(uint8_t A, uint32_t constant)
 	{
-		uint8_t temp = (uint8_t)(constant >> 24);
-		opcode.push_back(OP_CONST);
-		opcode.push_back(A);
-		opcode.push_back(temp);
-		temp = (uint8_t)(constant >> 16);
-		opcode.push_back(temp);
-		temp = (uint8_t)(constant >> 8);
-		opcode.push_back(temp);
-		temp = (uint8_t)constant;
-		opcode.push_back(temp);
+		uint16_t constant_high = constant >> 16;
+		uint16_t constant_low = constant;
+
+		uint32_t result_high = OP_CONST_MID_LOW;
+		result_high = (result_high << 8) + A;
+		result_high = (result_high << 16) + constant_high;
+
+		uint32_t result_low = OP_CONST_LOW;
+		result_low = (result_low << 8) + A;
+		result_low = (result_low << 16) + constant_low;
+
+		opcode.push_back(result_low);
+		opcode.push_back(result_high);
 	}
 	void Chunk::WriteU64(uint8_t A, uint64_t constant)
 	{
-		uint8_t temp = (uint8_t)(constant >> 56);
-		opcode.push_back(OP_CONST_LONG);
-		opcode.push_back(A);
-		opcode.push_back(temp);
-		temp = (uint8_t)(constant >> 48);
-		opcode.push_back(temp);
-		temp = (uint8_t)(constant >> 40);
-		opcode.push_back(temp);
-		temp = (uint8_t)(constant >> 32);
-		opcode.push_back(temp);
-		temp = (uint8_t)(constant >> 24);
-		opcode.push_back(temp);
-		temp = (uint8_t)(constant >> 16);
-		opcode.push_back(temp);
-		temp = (uint8_t)(constant >> 8);
-		opcode.push_back(temp);
-		temp = (uint8_t)constant;
-		opcode.push_back(temp);
+		uint16_t constant_high = constant >> 48;
+		uint16_t constant_mid_high = constant >> 32;
+		uint16_t constant_mid_low = constant >> 16;
+		uint16_t constant_low = constant;
+
+		uint32_t result_high = OP_CONST_HIGH;
+		result_high = (result_high << 8) + A;
+		result_high = (result_high << 16) + constant_high;
+
+		uint32_t result_mid_high = OP_CONST_MID_HIGH;
+		result_mid_high = (result_mid_high << 8) + A;
+		result_mid_high = (result_mid_high << 16) + constant_mid_high;
+
+		uint32_t result_mid_low = OP_CONST_MID_LOW;
+		result_mid_low = (result_mid_low << 8) + A;
+		result_mid_low = (result_mid_low << 16) + constant_mid_low;
+
+		uint32_t result_low = OP_CONST_LOW;
+		result_low = (result_low << 8) + A;
+		result_low = (result_low << 16) + constant_low;
+
+		opcode.push_back(result_low);
+		opcode.push_back(result_mid_low);
+		opcode.push_back(result_mid_high);
+		opcode.push_back(result_high);
+
 	}
 
 	int Chunk::GetLine(size_t offset)

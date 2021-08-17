@@ -28,8 +28,6 @@ namespace ash
 		switch (instruction)
 		{
 		case OP_MOVE: return ABInstruction("OP_MOVE", offset);
-		case OP_CONST: return ConstantInstruction("OP_CONST", offset, 4);
-		case OP_CONST_LONG: return ConstantInstruction("OP_CONST_LONG", offset, 8);
 		case OP_INT_EQUAL: return ABCInstruction("OP_INT_EQUAL", offset);
 		case OP_INT_ADD: return ABCInstruction("OP_INT_ADD", offset);
 		case OP_INT_SUB: return ABCInstruction("OP_INT_SUB", offset);

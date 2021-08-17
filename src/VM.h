@@ -35,7 +35,7 @@ namespace ash
 		friend class Memory;
 
 		Chunk* chunk;
-		uint8_t* ip;
+		uint32_t* ip;
 	public:
 		VM();
 		~VM();

@@ -8,13 +8,14 @@
 #include <Windows.h>
 #endif
 
-//#define TEST_VM_OPERATIONS
+#define TEST_VM_OPERATIONS
 
 using namespace ash;
 
     int main()
     {
         VM vm;
+        Disassembler debug;
 #ifdef TEST_VM_OPERATIONS
         Chunk chunk;
         chunk.WriteU8(0, 16);

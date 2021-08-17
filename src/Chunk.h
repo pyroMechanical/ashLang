@@ -7,14 +7,14 @@ namespace ash
 	class Chunk
 	{
 	private:
-		std::vector<uint8_t> opcode;
+		std::vector<uint32_t> opcode;
 		std::vector<std::pair<int, int>> lines;
 	public:
 		Chunk() = default;
 		~Chunk() = default;
 		void WriteAB(uint8_t op, uint8_t A, uint8_t B, int line);
 		void WriteABC(uint8_t op, uint8_t A, uint8_t B, uint8_t C, int line);
-		void WriteOp(uint8_t op) { opcode.push_back(op); }
+		void WriteOp(uint8_t op) { opcode.push_back(op << 24); }
 		void WriteU8(uint8_t A, uint8_t constant);
 		void WriteU16(uint8_t A, uint16_t contant);
 		void WriteU32(uint8_t A, uint32_t contant);
@@ -26,9 +26,9 @@ namespace ash
 		void WriteFloat(uint8_t A, float constant);
 		void WriteDouble(uint8_t A, double constant);
 
-		uint8_t* code() { return opcode.data(); }
+		uint32_t* code() { return opcode.data(); }
 		size_t size() { return opcode.size(); }
-		uint8_t at(size_t offset) { return opcode[offset]; }
+		uint32_t at(size_t offset) { return opcode[offset]; }
 
 		int GetLine(size_t offset);
 
@@ -36,71 +36,81 @@ namespace ash
 
 	enum OpCodes : uint8_t
 	{
-		OP_MOVE, // A, B
+			//one-register instructions: 8-bit opcode | 8-bit register A | 16 bits space
+		OP_PUSH, //A; push value from R[A] onto stack
+		OP_POP, //A; pop value from stack into R[A]
+		OP_RETURN, // A, 
+			//two-register instructions: 8-bit opcode | 8-bit register A | 8-bit register B | 8 bits space
+		OP_MOVE, // A, B; move value from R[A] to R[B]
 		OP_ALLOC, // A, B; allocate R[A] bytes of memory on the heap, store address in R[B]
-		OP_CONST, // A, 4 byte constant
-		OP_CONST_LONG, // A, 8 byte constant
-		OP_STORE8, // A, B; store value from R[A] to memory address R[B]
-		OP_STORE16, // A, B; store value from R[A] to memory address R[B]
-		OP_STORE32, // A, B; store value from R[A] to memory address R[B]
-		OP_STORE64, // A, B; store value from R[A] to memory address R[B]
+		OP_STORE8, // A, B; store value from R[A] in memory address R[B]
+		OP_STORE16, // A, B; store value from R[A] in memory address R[B]
+		OP_STORE32, // A, B; store value from R[A] in memory address R[B]
+		OP_STORE64, // A, B; store value from R[A] in memory address R[B]
 		OP_LOAD8, // A, B; load value from address R[B] to R[A]
 		OP_LOAD16, // A, B; load value from address R[B] to R[A]
 		OP_LOAD32, // A, B; load value from address R[B] to R[A]
 		OP_LOAD64, // A, B; load value from address R[B] to R[A]
-		OP_STORE8_OFFSET, // A, B, C; store value from R[A] to memory address R[B] + R[C]
-		OP_STORE16_OFFSET, // A, B, C; store value from R[A] to memory address R[B] + R[C]
-		OP_STORE32_OFFSET, // A, B, C; store value from R[A] to memory address R[B] + R[C]
-		OP_STORE64_OFFSET, // A, B, C; store value from R[A] to memory address R[B] + R[C]
+		OP_CONST_LOW, // A, clears R[A], then writes to bottom two bytes
+		OP_CONST_MID_LOW, // A, writes to second lowest two bytes
+		OP_CONST_MID_HIGH, // A, writes to second higest two bytes
+		OP_CONST_HIGH, // A, writes to highest two bytes
+			//three-register instructions: 8-bit opcode | 8-bit register A | 8-bit register B | 8-bit register C
+		OP_STORE8_OFFSET, // A, B, C; store value from R[A] in memory address R[B] + R[C]
+		OP_STORE16_OFFSET, // A, B, C; store value from R[A] in memory address R[B] + R[C]
+		OP_STORE32_OFFSET, // A, B, C; store value from R[A] in memory address R[B] + R[C]
+		OP_STORE64_OFFSET, // A, B, C; store value from R[A] in memory address R[B] + R[C]
 		OP_LOAD8_OFFSET, // A, B, C; load value from address R[B] + R[C] to R[A]
 		OP_LOAD16_OFFSET, // A, B, C; load value from address R[B] + R[C] to R[A]
 		OP_LOAD32_OFFSET, // A, B, C; load value from address R[B] + R[C] to R[A]
 		OP_LOAD64_OFFSET, // A, B, C; load value from address R[B] + R[C] to R[A]
-		OP_PUSH, //A; push value from R[A] onto stack
-		OP_POP, //A; pop value from stack into R[A]
-			/*signed integers are sign-extended, so 
-				one addition/subtraction operation works for both*/
-		OP_INT_EQUAL, //A, B, C; R[C]: R[A] = R[B]
-		OP_INT_ADD, //A, B, C; R[C]: R[A] + R[B]
-		OP_INT_SUB, //A, B, C; R[C]: R[A] - R[B]
+			//signed integers are sign-extended, so one addition/subtraction operation works for both
+		OP_INT_ADD, //A, B, C; R[C] = R[A] + R[B]
+		OP_INT_SUB, //A, B, C; R[C] = R[A] - R[B]
 			//arithmetic and comparison operations on unsigned integers
-		OP_UNSIGN_MUL, //A, B, C; R[C]: R[A] * R[B]
-		OP_UNSIGN_DIV, //A, B, C; R[C]: R[A] / R[B]
-		OP_UNSIGN_LESS, //A, B, C; R[C]: R[A] < R[B]
-		OP_UNSIGN_GREATER, //A, B, C; R[C]: R[A] > R[B]
+		OP_UNSIGN_MUL, //A, B, C; R[C] = R[A] * R[B]
+		OP_UNSIGN_DIV, //A, B, C; R[C] = R[A] / R[B]
 			//arithmetic and comparison operations on unsigned integers
-		OP_SIGN_MUL, //A, B, C; R[C]: R[A] * R[B]
-		OP_SIGN_DIV, //A, B, C; R[C]: R[A] / R[B]
-		OP_SIGN_LESS, //A, B, C; R[C]: R[A] < R[B]
-		OP_SIGN_GREATER, //A, B, C; R[C]: R[A] > R[B]
+		OP_SIGN_MUL, //A, B, C; R[C] = R[A] * R[B]
+		OP_SIGN_DIV, //A, B, C; R[C] = R[A] / R[B]
 			//arithmetic and comparison operations on single-precision floats
-		OP_FLOAT_ADD,
-		OP_FLOAT_SUB,
-		OP_FLOAT_MUL,
-		OP_FLOAT_DIV,
-		OP_FLOAT_LESS,
-		OP_FLOAT_GREATER,
-		OP_FLOAT_EQUAL,
+		OP_FLOAT_ADD, //A, B, C; R[C] = R[A] + R[B]
+		OP_FLOAT_SUB, //A, B, C; R[C] = R[A] - R[B]
+		OP_FLOAT_MUL, //A, B, C; R[C] = R[A] * R[B]
+		OP_FLOAT_DIV, //A, B, C; R[C] = R[A] / R[B]
 			//arithmetic and comparison operators on double-precision floats
-		OP_DOUBLE_ADD,
-		OP_DOUBLE_SUB,
-		OP_DOUBLE_MUL,
-		OP_DOUBLE_DIV,
-		OP_DOUBLE_LESS,
-		OP_DOUBLE_GREATER,
-		OP_DOUBLE_EQUAL,
+		OP_DOUBLE_ADD, //A, B, C; R[C] = R[A] + R[B]
+		OP_DOUBLE_SUB, //A, B, C; R[C] = R[A] - R[B]
+		OP_DOUBLE_MUL, //A, B, C; R[C] = R[A] * R[B]
+		OP_DOUBLE_DIV, //A, B, C; R[C] = R[A] / R[B]
+			//comparison operations set the value of the comparison register with their output value
+		OP_UNSIGN_LESS, //A, B, C; R[C] = R[A] < R[B]
+		OP_UNSIGN_GREATER, //A, B, C; R[C] = R[A] > R[B]
+		OP_SIGN_LESS, //A, B, C; R[C] = R[A] < R[B]
+		OP_SIGN_GREATER, //A, B, C; R[C] = R[A] > R[B]
+		OP_INT_EQUAL, //A, B, C; R[C] = R[A] == R[B]
+		OP_FLOAT_LESS, //A, B, C; R[C] = R[A] < R[B]
+		OP_FLOAT_GREATER, //A, B, C; R[C] = R[A] > R[B]
+		OP_FLOAT_EQUAL, //A, B, C; R[C] = R[A] == R[B]
+		OP_DOUBLE_LESS, //A, B, C; R[C] = R[A] < R[B]
+		OP_DOUBLE_GREATER, //A, B, C; R[C] = R[A] > R[B]
+		OP_DOUBLE_EQUAL, //A, B, C; R[C] = R[A] == R[B]
 			//conversion operations
-		OP_INT_TO_FLOAT, // A, B; R[B]: (float)R[A]
-		OP_FLOAT_TO_INT, // A, B; R[B]: (int)R[A]
-		OP_FLOAT_TO_DOUBLE, // A, B; R[B]: (double)R[A]
-		OP_DOUBLE_TO_FLOAT, // A, B; R[B]: (float)R[A]
-		OP_INT_TO_DOUBLE, // A, B; R[B]: (double)R[A]
-		OP_DOUBLE_TO_INT, // A, B; R[B]: (int)R[A]
-		OP_AND, //A, B, C; R[C]: R[A] and R[B]
-		OP_OR, //A, B, C; R[C]: R[A] or R[B]
-		OP_CALL, 
-		OP_JUMP_IF_FALSE, //A, B; if R[A] is false, treat R[B] as a signed integer and make a relative jump to that instruction
-		OP_JUMP_IF_TRUE, //A, B; if R[A] is false, treat R[B] as a signed integer and make a relative jump to that instruction
-		OP_RETURN,
+		OP_INT_TO_FLOAT, // A, B; R[B] = (float)R[A]
+		OP_FLOAT_TO_INT, // A, B; R[B] = (int)R[A]
+		OP_FLOAT_TO_DOUBLE, // A, B; R[B] = (double)R[A]
+		OP_DOUBLE_TO_FLOAT, // A, B; R[B] = (float)R[A]
+		OP_INT_TO_DOUBLE, // A, B; R[B] = (double)R[A]
+		OP_DOUBLE_TO_INT, // A, B; R[B] = (int)R[A]
+		OP_BITWISE_AND, //A, B, C; R[C] = R[A] & R[B]
+		OP_BITWISE_OR, //A, B, C; R[C] = R[A] | R[B]
+			//jump instructions
+			//relative jump instruction: 8-bit opcode | 24-bit signed integer offset
+		OP_RELATIVE_JUMP, // instruction pointer += signed integer offset
+		OP_RELATIVE_JUMP_IF_TRUE, // if(comparison register), instruction pointer += signed integer offset
+			//absolute jump instruction: 8-bit opcode | 8-bit register A | 16 bits space
+		OP_ABSOLUTE_JUMP, // instruction pointer = chunk beginning + R[A] 
+		OP_ABSOLUTE_JUMP_IF_TRUE, // if(comparison register) instruciton pointer = chunk beginning + R[A]
+	
 	};
 }
