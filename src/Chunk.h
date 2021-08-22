@@ -12,6 +12,7 @@ namespace ash
 	public:
 		Chunk() = default;
 		~Chunk() = default;
+		void WriteA(uint8_t op, uint8_t A, int line);
 		void WriteAB(uint8_t op, uint8_t A, uint8_t B, int line);
 		void WriteABC(uint8_t op, uint8_t A, uint8_t B, uint8_t C, int line);
 		void WriteOp(uint8_t op) { opcode.push_back(op << 24); }
@@ -26,6 +27,8 @@ namespace ash
 		void WriteFloat(uint8_t A, float constant);
 		void WriteDouble(uint8_t A, double constant);
 
+		void WriteRelativeJump(uint8_t op, int32_t jump, int line);
+
 		uint32_t* code() { return opcode.data(); }
 		size_t size() { return opcode.size(); }
 		uint32_t at(size_t offset) { return opcode[offset]; }
@@ -39,7 +42,8 @@ namespace ash
 			//one-register instructions: 8-bit opcode | 8-bit register A | 16 bits space
 		OP_PUSH, //A; push value from R[A] onto stack
 		OP_POP, //A; pop value from stack into R[A]
-		OP_RETURN, // A, 
+		OP_RETURN, // A, outputs value of register in terminal
+		OP_STORE_IP_OFFSET, // A; R[A] = instruction pointer - chunk beginning
 			//two-register instructions: 8-bit opcode | 8-bit register A | 8-bit register B | 8 bits space
 		OP_MOVE, // A, B; move value from R[A] to R[B]
 		OP_ALLOC, // A, B; allocate R[A] bytes of memory on the heap, store address in R[B]
@@ -104,13 +108,15 @@ namespace ash
 		OP_DOUBLE_TO_INT, // A, B; R[B] = (int)R[A]
 		OP_BITWISE_AND, //A, B, C; R[C] = R[A] & R[B]
 		OP_BITWISE_OR, //A, B, C; R[C] = R[A] | R[B]
+		OP_LOGICAL_AND, //A, B, C; R[C] = R[A] && R[B]
+		OP_LOGICAL_OR, //A, B, C; R[C] = R[A] || R[B]
+		OP_LOGICAL_NOT, //A, B; R[B] = !R[A]
 			//jump instructions
 			//relative jump instruction: 8-bit opcode | 24-bit signed integer offset
 		OP_RELATIVE_JUMP, // instruction pointer += signed integer offset
 		OP_RELATIVE_JUMP_IF_TRUE, // if(comparison register), instruction pointer += signed integer offset
-			//absolute jump instruction: 8-bit opcode | 8-bit register A | 16 bits space
-		OP_ABSOLUTE_JUMP, // instruction pointer = chunk beginning + R[A] 
-		OP_ABSOLUTE_JUMP_IF_TRUE, // if(comparison register) instruciton pointer = chunk beginning + R[A]
-	
-	};
+				//absolute jump instruction: 8-bit opcode | 8-bit register A | 16 bits space
+		OP_REGISTER_JUMP, // instruction pointer = chunk beginning + R[A] 
+		OP_REGISTER_JUMP_IF_TRUE, // if(comparison register) instruciton pointer = chunk beginning + R[A]
+		};
 }

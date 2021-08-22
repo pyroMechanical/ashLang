@@ -4,6 +4,38 @@
 
 namespace ash
 {
+	void Chunk::WriteA(uint8_t op, uint8_t A, int line)
+	{
+
+		if (lines.size() != 0 && line == lines.back().first)
+			lines.back().second++;
+		else
+			lines.emplace_back(std::pair<int, int>(line, 1));
+		uint32_t result = 0;
+		result = op;
+		result = (result << 8) + A;
+		result = (result << 16);
+		opcode.push_back(result);
+	}
+
+
+
+	void Chunk::WriteRelativeJump(uint8_t op, int32_t jump, int line)
+	{
+#define INT24_MIN  (-8388608)
+#define INT24_MAX 8388607
+		if (lines.size() != 0 && line == lines.back().first)
+			lines.back().second++;
+		else
+			lines.emplace_back(std::pair<int, int>(line, 1));
+		uint32_t result = 0;
+		if (jump > INT24_MAX) jump = INT24_MAX;
+		if (jump < INT24_MIN) jump = INT24_MIN;
+		result = op;
+		result = (result << 24) + (jump & 0xFFFFFF);
+		opcode.push_back(result);
+	}
+
 	void Chunk::WriteAB(uint8_t op, uint8_t A, uint8_t B, int line)
 	{
 
@@ -117,6 +149,8 @@ namespace ash
 		opcode.push_back(result_high);
 
 	}
+
+
 
 	int Chunk::GetLine(size_t offset)
 	{

@@ -8,7 +8,7 @@
 #include <Windows.h>
 #endif
 
-#define TEST_VM_OPERATIONS
+//#define TEST_VM_OPERATIONS
 
 using namespace ash;
 
@@ -18,14 +18,12 @@ using namespace ash;
         Disassembler debug;
 #ifdef TEST_VM_OPERATIONS
         Chunk chunk;
-        chunk.WriteU8(0, 16);
-        chunk.WriteU8(3, 8);
-        chunk.WriteAB(OP_ALLOC, 0, 1, 0);
-        chunk.WriteAB(OP_STORE8, 0, 1, 0);
-        chunk.WriteABC(OP_STORE8_OFFSET, 0, 1, 3, 0);
-        chunk.WriteAB(OP_LOAD8, 2, 1, 0);
-        chunk.WriteU8(1, 0);
-        chunk.WriteAB(OP_ALLOC, 2, 1, 0);
+        chunk.WriteU8(1,1);
+        chunk.WriteU8(2, 15);
+        chunk.WriteABC(OP_INT_ADD, 0, 1, 0, 0);
+        chunk.WriteABC(OP_UNSIGN_LESS, 0, 2, 3, 0);
+        chunk.WriteA(OP_OUT, 0, 0);
+        chunk.WriteRelativeJump(OP_RELATIVE_JUMP_IF_TRUE, -3 ,0);
         chunk.WriteOp(OP_RETURN);
         InterpretResult result = vm.interpret(&chunk);
         system("pause");

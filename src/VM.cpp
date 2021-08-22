@@ -43,6 +43,7 @@ namespace ash
 		inline static uint32_t JumpOffset(uint32_t instruction)
 		{
 			uint32_t offset = instruction & 0x00FFFFFF;
+			offset += (!!(offset & (1 << (24 - 1))) * 0xFF000000);
 			return offset;
 		}
 
@@ -70,6 +71,24 @@ namespace ash
 		freeAllocations();
 	}
 
+	bool VM::isTruthy(uint8_t _register)
+	{
+		bool result = false;
+		if (rFlags[_register] & REGISTER_HOLDS_FLOAT)
+		{
+			result = ( 0x7FFFFFFF & R[_register]);
+		}
+		else if (rFlags[_register] & REGISTER_HOLDS_DOUBLE)
+		{
+			result = (0x7FFFFFFFFFFFFFFF & R[_register]);
+		}
+		else
+		{
+			result = R[_register];
+		}
+		return result;
+	}
+
 	InterpretResult VM::error(const char* msg)
 	{
 		std::cout << msg << std::endl;
@@ -92,7 +111,7 @@ namespace ash
 
 	InterpretResult VM::interpret(Chunk* chunk)
 	{
-		chunk = chunk;
+		this->chunk = chunk;
 		ip = chunk->code();
 
 		return run();
@@ -405,7 +424,7 @@ namespace ash
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
-					R[C] = R[A] < R[B];
+					R[C] = comparisonRegister = R[A] < R[B];
 					rFlags[C] &= REGISTER_HIGH_BITS;
 					break;
 				}
@@ -414,7 +433,7 @@ namespace ash
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
-					R[C] = R[A] == R[B];
+					R[C] = comparisonRegister = R[A] == R[B];
 					rFlags[C] &= (REGISTER_HIGH_BITS | REGISTER_HOLDS_SIGNED);
 					break;
 				}
@@ -423,7 +442,7 @@ namespace ash
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
-					R[C] = R[A] > R[B];
+					R[C] = comparisonRegister = R[A] > R[B];
 					rFlags[C] &= REGISTER_HIGH_BITS;
 					break;
 				}
@@ -452,7 +471,8 @@ namespace ash
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
-					R[C] = (static_cast<int64_t>(R[A]) < static_cast<int64_t>(R[B]));
+					
+					R[C] = comparisonRegister = (static_cast<int64_t>(R[A]) < static_cast<int64_t>(R[B]));
 					rFlags[C] &= REGISTER_HIGH_BITS;
 					rFlags[C] |= REGISTER_HOLDS_SIGNED;
 					break;
@@ -462,7 +482,7 @@ namespace ash
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
-					R[C] = (static_cast<int64_t>(R[A]) > static_cast<int64_t>(R[B]));
+					R[C] = comparisonRegister = (static_cast<int64_t>(R[A]) > static_cast<int64_t>(R[B]));
 					rFlags[C] = 0;
 					break;
 				}
@@ -515,8 +535,7 @@ namespace ash
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
-					float temp = (r_cast<float>(&R[A]) < r_cast<float>(&R[B]));
-					R[C] = r_cast<uint64_t>(&temp);
+					R[C] = comparisonRegister = (r_cast<float>(&R[A]) < r_cast<float>(&R[B]));
 					rFlags[C] &= REGISTER_HIGH_BITS;
 					rFlags[C] |= REGISTER_HOLDS_FLOAT;
 					break;
@@ -526,8 +545,7 @@ namespace ash
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
-					float temp = (r_cast<float>(&R[A]) > r_cast<float>(&R[B]));
-					R[C] = r_cast<uint64_t>(&temp);
+					R[C] = comparisonRegister = (r_cast<float>(&R[A]) > r_cast<float>(&R[B]));
 					rFlags[C] &= REGISTER_HIGH_BITS;
 					rFlags[C] |= REGISTER_HOLDS_FLOAT;
 					break;
@@ -537,8 +555,7 @@ namespace ash
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
-					float temp = (r_cast<float>(&R[A]) == r_cast<float>(&R[B]));
-					R[C] = r_cast<uint64_t>(&temp);
+					R[C] = comparisonRegister = (r_cast<float>(&R[A]) == r_cast<float>(&R[B]));
 					rFlags[C] &= REGISTER_HIGH_BITS;
 					rFlags[C] |= REGISTER_HOLDS_FLOAT;
 					break;
@@ -592,8 +609,7 @@ namespace ash
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
-					double temp = (r_cast<double>(&R[A]) < r_cast<double>(&R[B]));
-					R[C] = r_cast<uint64_t>(&temp);
+					R[C] = comparisonRegister = (r_cast<double>(&R[A]) < r_cast<double>(&R[B]));
 					rFlags[C] &= REGISTER_HIGH_BITS;
 					rFlags[C] |= REGISTER_HOLDS_DOUBLE;
 					break;
@@ -603,8 +619,7 @@ namespace ash
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
-					double temp = (r_cast<double>(&R[A]) > r_cast<double>(&R[B]));
-					R[C] = r_cast<uint64_t>(&temp);
+					R[C] = comparisonRegister = (r_cast<double>(&R[A]) > r_cast<double>(&R[B]));
 					rFlags[C] &= REGISTER_HIGH_BITS;
 					rFlags[C] |= REGISTER_HOLDS_DOUBLE;
 					break;
@@ -614,8 +629,7 @@ namespace ash
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
-					double temp = (r_cast<double>(&R[A]) == r_cast<double>(&R[B]));
-					R[C] = r_cast<uint64_t>(&temp);
+					R[C] = comparisonRegister = (r_cast<double>(&R[A]) == r_cast<double>(&R[B]));
 					rFlags[C] &= REGISTER_HIGH_BITS;
 					rFlags[C] |= REGISTER_HOLDS_DOUBLE;
 					break;
@@ -696,12 +710,88 @@ namespace ash
 					rFlags[C] &= REGISTER_HIGH_BITS;
 					break;
 				}
+				case OP_LOGICAL_AND:
+				{
+					uint8_t A = RegisterA(instruction);
+					uint8_t B = RegisterB(instruction);
+					uint8_t C = RegisterC(instruction);
+					bool isATruthy = isTruthy(A);
+					bool isBTruthy = isTruthy(B);
+
+					R[C] = comparisonRegister = isATruthy && isBTruthy;
+					rFlags[C] &= REGISTER_HIGH_BITS;
+					break;
+				}
+				case OP_LOGICAL_OR:
+				{
+					uint8_t A = RegisterA(instruction);
+					uint8_t B = RegisterB(instruction);
+					uint8_t C = RegisterC(instruction);
+					bool isATruthy = isTruthy(A);
+					bool isBTruthy = isTruthy(B);
+
+					R[C] = comparisonRegister = isATruthy || isBTruthy;
+					rFlags[C] &= REGISTER_HIGH_BITS;
+					break;
+				}
+				case OP_LOGICAL_NOT:
+				{
+					uint8_t A = RegisterA(instruction);
+					uint8_t B = RegisterB(instruction);
+					bool isATruthy = isTruthy(A);
+
+					R[B] = comparisonRegister = !isATruthy;
+					rFlags[B] &= REGISTER_HIGH_BITS;
+					break;
+				}
+				case OP_STORE_IP_OFFSET:
+				{
+					uint8_t A = RegisterA(instruction);
+					R[A] = ip - chunk->code();
+					break;
+				}
+				case OP_RELATIVE_JUMP:
+				{
+					int32_t jump = (int32_t)JumpOffset(instruction);
+					if((ip - chunk->code()) + jump - 1 > chunk->size() || (ip - chunk->code()) + jump - 1 < 0) return error("attempted jump beyond code bounds!");
+					ip += jump - 1;
+					break;
+				}
+				case OP_RELATIVE_JUMP_IF_TRUE:
+				{
+					if (comparisonRegister)
+					{
+						comparisonRegister = false;
+						int32_t jump = (int32_t)JumpOffset(instruction);
+						if ((ip - chunk->code()) + jump - 1 > chunk->size() || (ip - chunk->code()) + jump - 1 < 0) return error("attempted jump beyond code bounds!");
+						ip += jump - 1;
+					}
+					break;
+				}
+				case OP_REGISTER_JUMP:
+				{
+					uint8_t A = RegisterA(instruction);
+					if (R[A] > chunk->size()) return error("attempted jump beyond code bounds!");
+					ip = chunk->code() + R[A];
+					break;
+				}
+				case OP_REGISTER_JUMP_IF_TRUE:
+				{
+					if (comparisonRegister)
+					{
+						comparisonRegister = false;
+						uint8_t A = RegisterA(instruction);
+						if (R[A] > chunk->size()) return error("attempted jump beyond code bounds!");
+						ip = chunk->code() + R[A];
+					}
+					break;
+				}
 				case OP_RETURN: 
 				{
-					if((rFlags[0] & REGISTER_HOLDS_SIGNED) != 0) std::cout << static_cast<int64_t>(R[0]) << std::endl;
+					if ((rFlags[0] & REGISTER_HOLDS_SIGNED) != 0) std::cout << static_cast<int64_t>(R[0]) << std::endl;
 					else if ((rFlags[0] & REGISTER_HOLDS_FLOAT) != 0) std::cout << r_cast<float>(&R[0]) << std::endl;
 					else if ((rFlags[0] & REGISTER_HOLDS_FLOAT) != 0) std::cout << r_cast<double>(&R[0]) << std::endl;
-					else std::cout << "type unknown. bits: " << std::bitset<64>(R[0]) << std::endl;
+					else std::cout << R[0] << std::endl;
 
 					return InterpretResult::INTERPRET_OK;
 				}

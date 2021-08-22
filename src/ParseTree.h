@@ -72,7 +72,19 @@ namespace ash
 
 		//Scope nodes
 
-		Scope
+		Scope,
+
+		//CFG nodes
+
+		CFGVariableDeclaration,
+		CFGTypeDeclaration,
+		CFGFunctionDeclaration,
+		CFGIfStatement,
+		CFGForStatement,
+		CFGWhileStatement,
+		CFGBlock,
+		CFGReturnStatement,
+		CFGExpressionStatement
 	};
 
 	struct BlockNode;
@@ -221,6 +233,36 @@ namespace ash
 		}
 	};
 
+	struct CFGTypeDeclarationNode : public DeclarationNode
+	{
+		Token typeDefined;
+		std::vector<parameter> fields;
+		std::shared_ptr<ParseNode> next;
+
+		virtual NodeType nodeType() override { return NodeType::CFGTypeDeclaration; }
+
+		virtual void print(int depth) override
+		{
+			util::spaces(depth);
+			std::cout << "Type Declaration" << std::endl;
+			util::spaces(depth);
+			std::cout << "Type: " << util::tokenstring(typeDefined) << std::endl;
+			util::spaces(depth);
+			std::cout << "Fields: ";
+			bool repeat = false;
+			for (const auto& parameter : fields)
+			{
+				if (repeat) std::cout << ", ";
+				std::cout << util::tokenstring(parameter.type) << " " << util::tokenstring(parameter.identifier);
+				repeat = true;
+			}
+			std::cout << std::endl;
+			
+			if (next)
+				next->print(depth);
+		}
+	};
+
 	struct ExpressionNode : public ParseNode
 	{
 		enum class ExpressionType
@@ -265,6 +307,28 @@ namespace ash
 		}
 	};
 
+	struct CFGExpressionStatement : public StatementNode
+	{
+		std::shared_ptr<ExpressionNode> expression;
+
+		std::shared_ptr<ParseNode> next;
+
+		virtual NodeType nodeType() override { return NodeType::CFGExpressionStatement; }
+
+		virtual void print(int depth) override
+		{
+			util::spaces(depth);
+			std::cout << "Expression Statement" << std::endl;
+			util::spaces(depth);
+			std::cout << "Expression: " << std::endl;
+			if (expression != nullptr)
+				expression->print(depth + 1);
+
+			if (next)
+				next->print(depth);
+		}
+	};
+
 	struct ForStatementNode : public StatementNode
 	{
 		std::shared_ptr<ParseNode> declaration; //can only be VariableDeclarationNode or ExpressionNode
@@ -306,6 +370,52 @@ namespace ash
 		}
 	};
 
+	struct CFGForStatementNode : public StatementNode
+	{
+		std::shared_ptr<ParseNode> declaration; //can only be VariableDeclarationNode or ExpressionNode
+		std::shared_ptr<ExpressionNode> conditional;
+		std::shared_ptr<ExpressionNode> increment;
+		std::shared_ptr<StatementNode> statement;
+		std::shared_ptr<ParseNode> next;
+
+		virtual NodeType nodeType() override { return NodeType::CFGForStatement; }
+
+		virtual void print(int depth) override
+		{
+			util::spaces(depth);
+			std::cout << "For Statement" << std::endl;
+
+			if (declaration != nullptr)
+			{
+				util::spaces(depth);
+				std::cout << "Setup: " << std::endl;
+				declaration->print(depth + 1);
+			}
+			if (conditional != nullptr)
+			{
+				util::spaces(depth);
+				std::cout << "Condition: " << std::endl;
+				conditional->print(depth + 1);
+			}
+			if (increment != nullptr)
+			{
+				util::spaces(depth);
+				std::cout << "Increment: " << std::endl;
+				increment->print(depth + 1);
+			}
+			if (statement != nullptr)
+			{
+				util::spaces(depth);
+				std::cout << "Statement: " << std::endl;
+				statement->print(depth + 1);
+			}
+			if (next)
+			{
+				next->print(depth);
+			}
+		}
+	};
+
 	struct IfStatementNode : public StatementNode
 	{
 		std::shared_ptr<ExpressionNode> condition;
@@ -339,6 +449,43 @@ namespace ash
 		}
 	};
 
+	struct CFGIFStatementNode : public StatementNode
+	{
+		std::shared_ptr<ExpressionNode> condition;
+		std::shared_ptr<StatementNode> thenStatement;
+		std::shared_ptr<StatementNode> elseStatement;
+		std::shared_ptr<ParseNode> next;
+
+		virtual NodeType nodeType() override { return NodeType::CFGIfStatement; }
+		virtual void print(int depth) override 
+		{
+			util::spaces(depth);
+			std::cout << "If Statement" << std::endl;
+			if (condition)
+			{
+				util::spaces(depth);
+				std::cout << "Condition: " << std::endl;
+				condition->print(depth + 1);
+			}
+			if (thenStatement)
+			{
+				util::spaces(depth);
+				std::cout << "Then: " << std::endl;
+				thenStatement->print(depth + 1);
+			}
+			if (elseStatement)
+			{
+				util::spaces(depth);
+				std::cout << "Else: " << std::endl;
+				elseStatement->print(depth + 1);
+			}
+			if (next)
+			{
+				next->print(depth);
+			}
+		};
+	};
+
 	struct ReturnStatementNode : public StatementNode
 	{
 		std::shared_ptr<ExpressionNode> returnValue;
@@ -355,6 +502,29 @@ namespace ash
 				std::cout << "Value: " << std::endl;
 				returnValue->print(depth + 1);
 			}
+		}
+	};
+
+	struct CFGReturnStatementNode : public StatementNode
+	{
+		std::shared_ptr<ExpressionNode> returnValue;
+		std::shared_ptr<ParseNode> next;
+
+		virtual NodeType nodeType() override { return NodeType::CFGReturnStatement; }
+
+		virtual void print(int depth) override
+		{
+			util::spaces(depth);
+			std::cout << "Return Statement" << std::endl;
+			if (returnValue)
+			{
+				util::spaces(depth);
+				std::cout << "Value: " << std::endl;
+				returnValue->print(depth + 1);
+			}
+
+			if (next)
+				next->print(depth);
 		}
 	};
 
@@ -384,6 +554,37 @@ namespace ash
 		}
 	};
 
+	struct CFGWhileStatementNode : public StatementNode
+	{
+		std::shared_ptr<ExpressionNode> condition;
+		std::shared_ptr<StatementNode> doStatement;
+		std::shared_ptr<ParseNode> next;
+
+		virtual NodeType nodeType() override { return NodeType::CFGWhileStatement; }
+
+		virtual void print(int depth) override
+		{
+			util::spaces(depth);
+			std::cout << "While Statement" << std::endl;
+			if (condition)
+			{
+				util::spaces(depth);
+				std::cout << "Condition: " << std::endl;
+				condition->print(depth + 1);
+			}
+			if (doStatement)
+			{
+				util::spaces(depth);
+				std::cout << "Do: " << std::endl;
+				doStatement->print(depth + 1);
+			}
+			if (next)
+			{
+				next->print(depth);
+			}
+		}
+	};
+
 	struct BlockNode : public StatementNode
 	{
 		std::vector<std::shared_ptr<DeclarationNode>> declarations;
@@ -406,6 +607,27 @@ namespace ash
 		}
 	};
 
+	struct CFGBlockNode : public StatementNode
+	{
+		std::shared_ptr<DeclarationNode> declarations;
+
+		std::shared_ptr<ScopeNode> scope;
+
+		virtual NodeType nodeType() override { return NodeType::CFGBlock; }
+
+		virtual void print(int depth) override
+		{
+			util::spaces(depth);
+			std::cout << "Block" << std::endl;
+			
+				declarations->print(depth);
+			
+
+			if (scope)
+				scope->print(depth + 1);
+		}
+	};
+
 	struct FunctionDeclarationNode : public DeclarationNode
 	{
 		bool usign = false;
@@ -415,6 +637,38 @@ namespace ash
 		std::shared_ptr<BlockNode> body;
 
 		virtual NodeType nodeType() override { return NodeType::FunctionDeclaration; }
+
+		virtual void print(int depth) override
+		{
+			util::spaces(depth);
+			std::cout << "Function Declaration" << std::endl;
+			util::spaces(depth);
+			std::cout << "Function: " << util::tokenstring(type) << " " << util::tokenstring(identifier) << std::endl;
+			util::spaces(depth);
+			std::cout << "Parameters: ";
+			bool repeat = false;
+			for (const auto& parameter : parameters)
+			{
+				if (repeat) std::cout << ", ";
+				std::cout << util::tokenstring(parameter.type) << " " << util::tokenstring(parameter.identifier);
+				repeat = true;
+			}
+			std::cout << std::endl;
+			util::spaces(depth);
+			std::cout << "Body: " << std::endl;
+			body->print(depth + 1);
+		}
+	};
+
+	struct CFGFunctionDeclarationNode : public DeclarationNode
+	{
+		bool usign = false;
+		Token type;
+		Token identifier;
+		std::vector<parameter> parameters;
+		std::shared_ptr<CFGBlockNode> body;
+
+		virtual NodeType nodeType() override { return NodeType::CFGFunctionDeclaration; }
 
 		virtual void print(int depth) override
 		{
@@ -464,6 +718,34 @@ namespace ash
 		}
 	};
 
+	struct CFGVariableDeclarationNode : public DeclarationNode
+	{
+		bool usign = false;
+		Token type;
+		Token identifier;
+		std::shared_ptr<ExpressionNode> value;
+		std::shared_ptr<ParseNode> next;
+
+		virtual NodeType nodeType() override { return NodeType::CFGVariableDeclaration; }
+
+		virtual void print(int depth) override
+		{
+			util::spaces(depth);
+			std::cout << "Variable Declaration" << std::endl;
+			util::spaces(depth);
+			std::cout << "Variable: " << util::tokenstring(type) << " " << util::tokenstring(identifier) << std::endl;
+			if (value)
+			{
+				util::spaces(depth);
+				std::cout << "Value: " << std::endl;
+				value->print(depth + 1);
+			}
+
+			if (next)
+				next->print(depth);
+		}
+	};
+
 	struct ProgramNode : public ParseNode
 	{
 		//std::shared_ptr<LibraryNode> library;
@@ -495,13 +777,25 @@ namespace ash
 			if (globalScope)
 				globalScope->print(0);
 		}
+
+		std::shared_ptr<FunctionDeclarationNode> convertToFunctionNode()
+		{
+			std::shared_ptr<FunctionDeclarationNode> result = std::make_shared<FunctionDeclarationNode>();
+			result->type = Token{ TokenType::TYPE, "void", 4, 0 };
+			result->identifier = Token{ TokenType::IDENTIFIER, "<program>", 9, 0 };
+			result->usign = false;
+			std::shared_ptr<BlockNode> programBody = std::make_shared<BlockNode>();
+			programBody->declarations = declarations;
+			programBody->scope = globalScope;
+			result->body = programBody;
+			return result;
+		}
 	};
-
-
 
 	struct CallNode : public ExpressionNode
 	{
 		Token primary;
+		Token primaryType;
 
 		virtual ExpressionType expressionType() override { return ExpressionType::Primary; }
 
@@ -518,6 +812,7 @@ namespace ash
 	{
 		std::shared_ptr<ExpressionNode> left;
 		Token field;
+		Token fieldType;
 
 		virtual ExpressionType expressionType() override { return ExpressionType::FieldCall; }
 
@@ -538,8 +833,10 @@ namespace ash
 	struct BinaryNode : public ExpressionNode
 	{
 		std::shared_ptr<ExpressionNode> left;
+		Token leftType;
 		Token op;
 		std::shared_ptr<ExpressionNode> right;
+		Token rightType;
 		virtual ExpressionType expressionType() override { return ExpressionType::Binary; }
 
 		virtual void print(int depth) override
@@ -555,11 +852,12 @@ namespace ash
 		virtual int line() override { return left->line(); }
 	};
 
-
 	struct AssignmentNode : public ExpressionNode
 	{
 		std::shared_ptr<ExpressionNode> identifier;
+		Token identifierType;
 		std::shared_ptr<ExpressionNode> value;
+		Token valueType;
 		virtual ExpressionType expressionType() override { return ExpressionType::Assignment; }
 
 		virtual void print(int depth) override
@@ -699,6 +997,12 @@ namespace ash
 		}
 
 		virtual int line() override { return left->line(); }
+	};
+
+	struct ControlFlowGraph
+	{
+		std::shared_ptr<ProgramNode> ast;
+		std::vector<std::shared_ptr<CFGFunctionDeclarationNode>> basicBlocks;
 	};
 
 }

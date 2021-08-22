@@ -27,6 +27,7 @@ namespace ash
 	class VM
 	{
 	private:
+		bool comparisonRegister = false;
 		std::array<uint64_t, 256> R;
 		std::array<uint8_t, 256> rFlags;
 		std::vector<uint64_t> stack;
@@ -55,5 +56,7 @@ namespace ash
 		void freeAllocations();
 
 		void collectGarbage();
+
+		bool isTruthy(uint8_t _register);
 	};
 }

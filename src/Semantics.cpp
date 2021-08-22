@@ -522,6 +522,7 @@ namespace ash
 									return pushError(c_msg, callNode->primary.line);
 								}
 							}
+							callNode->primaryType = s->type;
 							return s->type;
 						}
 					}
@@ -540,7 +541,7 @@ namespace ash
 								return pushError(c_msg, callNode->primary.line);
 							}
 						}
-
+						callNode->primaryType = { TokenType::TYPE, "bool", 4, callNode->primary.line };
 						return { TokenType::TYPE, "bool", 4, callNode->primary.line };
 					}
 						
@@ -562,6 +563,7 @@ namespace ash
 								return pushError(c_msg, callNode->primary.line);
 							}
 						}
+						callNode->primaryType = { TokenType::TYPE, "float", 5, callNode->primary.line };
 						return { TokenType::TYPE, "float", 5, callNode->primary.line }; 
 					}
 					case TokenType::DOUBLE:
@@ -617,8 +619,10 @@ namespace ash
 								char* c_msg = new char[msg.length() + 1];
 								strcpy(c_msg, msg.c_str());
 								return pushError(c_msg, callNode->primary.line);
+						
 							}
 						}
+						callNode->primaryType = { TokenType::TYPE, "string", 6, callNode->primary.line };
 						return { TokenType::TYPE, "string", 6, callNode->primary.line };
 					}
 				}
@@ -648,7 +652,8 @@ namespace ash
 				Token exprType;
 				Token leftType = expressionTypeInfo((ExpressionNode*)binaryNode->left.get(), currentScope);
 				Token rightType = expressionTypeInfo((ExpressionNode*)binaryNode->right.get(), currentScope);
-
+				binaryNode->leftType = leftType;
+				binaryNode->rightType = rightType;
 				if (util::isBasic(leftType) && util::isBasic(rightType))
 				{
 					exprType =  util::resolveBasicTypes(leftType, rightType);
