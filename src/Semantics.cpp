@@ -957,7 +957,7 @@ namespace ash
 				result->type = funcNode->type;
 				result->identifier = funcNode->identifier;
 				result->parameters = funcNode->parameters;
-				result->body = linearizeAST(funcNode->body.get(), currentBlock, currentScope);
+				result->body = std::dynamic_pointer_cast<BlockNode>(linearizeAST(funcNode->body.get(), currentBlock, currentScope));
 				return result;
 			}
 			case NodeType::WhileStatement:
