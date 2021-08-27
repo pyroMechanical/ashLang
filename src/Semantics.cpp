@@ -46,10 +46,9 @@ namespace ash
 				std::string("ulong")
 			};
 
-			std::string typestring = util::tokenstring(type);
 			for (const auto& string : basicTypes)
 			{
-				if (typestring == string)
+				if (type.string == string)
 				{
 					return true;
 				}
@@ -59,74 +58,74 @@ namespace ash
 
 		static Token resolveBasicTypes(Token lhs, Token rhs)
 		{
-			std::string left = tokenstring(lhs);
-			std::string right = tokenstring(rhs);
+			std::string left = lhs.string;
+			std::string right = rhs.string;
 			if (left == right) return lhs;
 
-			if (strcmp(left.c_str(),"double") == 0)
+			if (left.compare("double") == 0)
 			{
 				return lhs;
 			}
 
-			else if (strcmp(left.c_str(),"float") == 0)
+			else if (left.compare("float") == 0)
 			{
-				if (strcmp(right.c_str(),"double") == 0)
+				if (right.compare("double") == 0)
 					return rhs;
 				return lhs;
 			}
 
-			else if (strcmp(left.c_str(),"long") == 0
-				|| strcmp(left.c_str(),"ulong") == 0)
+			else if (left.compare("long") == 0
+				|| left.compare("ulong") == 0)
 			{
-				if (strcmp(right.c_str(),"double") == 0
-					|| strcmp(right.c_str(),"float") == 0)
+				if (right.compare("double") == 0
+					|| right.compare("float") == 0)
 					return rhs;
 				return lhs;
 			}
-			else if (strcmp(left.c_str(),"int") == 0
-				|| strcmp(left.c_str(),"uint") == 0)
+			else if (left.compare("int") == 0
+				|| left.compare("uint") == 0)
 			{
-				if (strcmp(right.c_str(),"double") == 0
-					|| strcmp(right.c_str(),"float") == 0
-					|| strcmp(right.c_str(),"long") == 0
-					|| strcmp(right.c_str(),"ulong") == 0)
+				if (right.compare("double") == 0
+					|| right.compare("float") == 0
+					|| right.compare("long") == 0
+					|| right.compare("ulong") == 0)
 					return rhs;
 				return lhs;
 			}
-			else if (strcmp(left.c_str(),"short") == 0
-				|| strcmp(left.c_str(),"ushort") == 0)
+			else if (left.compare("short") == 0
+				|| left.compare("ushort") == 0)
 			{
-				if (strcmp(right.c_str(),"double") == 0
-					|| strcmp(right.c_str(),"float") == 0
-					|| strcmp(right.c_str(),"long") == 0
-					|| strcmp(right.c_str(),"int") == 0
-					|| strcmp(right.c_str(),"ulong") == 0
-					|| strcmp(right.c_str(),"uint") == 0)
+				if (right.compare("double") == 0
+					|| right.compare("float") == 0
+					|| right.compare("long") == 0
+					|| right.compare("int") == 0
+					|| right.compare("ulong") == 0
+					|| right.compare("uint") == 0)
 					return rhs;
 				return lhs;
 			}
-			else if (strcmp(left.c_str(),"byte") == 0
-				|| strcmp(left.c_str(),"ubyte") == 0)
+			else if (left.compare("byte") == 0
+				|| left.compare("ubyte") == 0)
 			{
-				if (strcmp(right.c_str(),"double") == 0
-					|| strcmp(right.c_str(),"float") == 0
-					|| strcmp(right.c_str(),"long") == 0
-					|| strcmp(right.c_str(),"int") == 0
-					|| strcmp(right.c_str(),"short") == 0
-					|| strcmp(right.c_str(),"ulong") == 0
-					|| strcmp(right.c_str(),"uint") == 0
-					|| strcmp(right.c_str(),"ushort") == 0)
+				if (right.compare("double") == 0
+					|| right.compare("float") == 0
+					|| right.compare("long") == 0
+					|| right.compare("int") == 0
+					|| right.compare("short") == 0
+					|| right.compare("ulong") == 0
+					|| right.compare("uint") == 0
+					|| right.compare("ushort") == 0)
 					return rhs;
 				return lhs;
 			}
 
-			else if(strcmp(left.c_str(),"char") == 0)
+			else if(left.compare("char") == 0)
 			{
-				if (strcmp(right.c_str(),"char") != 0)
-					return { TokenType::ERROR, nullptr, 0, lhs.line };
+				if (right.compare("char") != 0)
+					return { TokenType::ERROR, "", lhs.line };
 			}
 
-			return { TokenType::ERROR, nullptr, 0, lhs.line };
+			return { TokenType::ERROR, "", lhs.line };
 		}
 	}
 	
@@ -143,21 +142,26 @@ namespace ash
 		}
 		for (const auto& declaration : ast->declarations)
 		{
-			auto scope = util::getScope((ParseNode*)declaration.get(), currentScope);
 			hadError |= functionValidator((ParseNode*)declaration.get());
 		}
+		std::vector<std::shared_ptr<DeclarationNode>> newDeclarations;
+		for(const auto& declaration : ast->declarations)
+		{
+			newDeclarations.push_back(linearizeAST((ParseNode*)declaration.get(), newDeclarations, ast->globalScope));
+		}
+		ast->declarations = newDeclarations;
 		ast->hadError = hadError;
 		for (const auto& error : errorQueue)
 		{
-			std::cout << "Error on line " << error.line << ": " << util::tokenstring(error).c_str() << std::endl;
+			std::cout << "Error on line " << error.line << ": " << error.string << std::endl;
 		}
 		return ast;
 	}
 
-	Token Semantics::pushError(const char* msg, int line)
+	Token Semantics::pushError(std::string msg, int line)
 	{
 		panicMode = true;
-		Token error = { TokenType::ERROR, msg, strlen(msg), line };
+		Token error = { TokenType::ERROR, msg, line };
 		errorQueue.push_back(error);
 		return error;
 	}
@@ -181,7 +185,7 @@ namespace ash
 			case NodeType::TypeDeclaration:
 			{
 				TypeDeclarationNode* typeNode = (TypeDeclarationNode*)node;
-				std::string typeName = util::tokenstring(typeNode->typeDefined);
+				std::string typeName = typeNode->typeDefined.string;
 				Symbol s = { typeName, category::Type, typeNode->typeDefined };
 				bool hadError = false;
 				if (currentScope->symbols.find(typeName) == currentScope->symbols.end())
@@ -191,7 +195,7 @@ namespace ash
 
 					for (const auto& field : typeNode->fields)
 					{
-						auto id = util::tokenstring(field.identifier);
+						auto id = field.identifier.string;
 
 						if (typeFields.find(id) == typeFields.end())
 						{
@@ -211,9 +215,7 @@ namespace ash
 				{
 					std::string msg = { typeName.c_str() };
 					msg.append(" already defined.");
-					char* c_msg = new char[msg.length() + 1];
-					strcpy(c_msg, msg.c_str());
-					pushError(c_msg, typeNode->typeDefined.line);
+					pushError(msg, typeNode->typeDefined.line);
 					hadError = true;
 				}
 				return hadError;
@@ -221,7 +223,7 @@ namespace ash
 			case NodeType::FunctionDeclaration:
 			{
 				FunctionDeclarationNode* funcNode = (FunctionDeclarationNode*)node;
-				std::string funcName = util::tokenstring(funcNode->identifier);
+				std::string funcName = funcNode->identifier.string;
 				Symbol s = { funcName, category::Function, funcNode->type };
 				bool hadError = false;
 				if (currentScope->symbols.find(funcName) == currentScope->symbols.end())
@@ -234,16 +236,14 @@ namespace ash
 				{
 					std::string msg = { funcName.c_str() };
 					msg.append(" already defined.");
-					char* c_msg = new char[msg.length() + 1];
-					strcpy(c_msg, msg.c_str());
-					pushError(c_msg, funcNode->identifier.line);
+					pushError(msg, funcNode->identifier.line);
 					hadError = true;
 				}
 				auto blockScope = std::make_shared<ScopeNode>();
 				blockScope->parentScope = currentScope;
 				for(const auto& parameter : funcNode->parameters)
 				{
-					std::string paramName = util::tokenstring(parameter.identifier);
+					std::string paramName = parameter.identifier.string;
 					Symbol t = { paramName, category::Variable, parameter.type };
 					if(blockScope->symbols.find(paramName) == blockScope->symbols.end())
 					{
@@ -253,9 +253,7 @@ namespace ash
 					{
 						std::string msg = { paramName.c_str() };
 						msg.append(" already defined.");
-						char* c_msg = new char[msg.length() + 1];
-						strcpy(c_msg, msg.c_str());
-						pushError(c_msg, parameter.identifier.line);
+						pushError(msg, parameter.identifier.line);
 						hadError = true;
 					}
 				}
@@ -267,7 +265,7 @@ namespace ash
 			case NodeType::VariableDeclaration:
 			{
 				VariableDeclarationNode* varNode = (VariableDeclarationNode*)node;
-				std::string varName = util::tokenstring(varNode->identifier);
+				std::string varName = varNode->identifier.string;
 				Symbol s = { varName, category::Variable, varNode->type };
 				bool hadError = false;
 				if (currentScope->symbols.find(varName) == currentScope->symbols.end())
@@ -278,9 +276,7 @@ namespace ash
 				{
 					std::string msg = { varName.c_str() };
 					msg.append(" already defined.");
-					char* c_msg = new char[msg.length() + 1];
-					strcpy(c_msg, msg.c_str());
-					pushError(c_msg, varNode->identifier.line);
+					pushError(msg, varNode->identifier.line);
 					hadError = true;
 				}
 
@@ -288,17 +284,15 @@ namespace ash
 				{
 					auto valueType = expressionTypeInfo((ExpressionNode*)varNode->value.get(), currentScope);
 
-					if (util::tokenstring(valueType) != util::tokenstring(varNode->type))
+					if (valueType.string != varNode->type.string)
 					{
-						std::cout << "Error: value is of type " << util::tokenstring(valueType) << ", assigned to variable of type " << util::tokenstring(varNode->type) << std::endl;
+						std::cout << "Error: value is of type " << valueType.string << ", assigned to variable of type " << varNode->type.string << std::endl;
 						std::string msg = { "value is of type " };
-						msg.append(util::tokenstring(valueType));
+						msg.append(valueType.string);
 						msg.append(", assigned to variable of type ");
-						msg.append(util::tokenstring(varNode->type));
+						msg.append(varNode->type.string);
 						msg.append(".");
-						char* c_msg = new char[msg.length() + 1];
-						strcpy(c_msg, msg.c_str());
-						pushError(c_msg, varNode->value->line());
+						pushError(msg, varNode->value->line());
 						hadError = true;
 					}
 				}
@@ -372,7 +366,7 @@ namespace ash
 				FunctionDeclarationNode* funcNode = (FunctionDeclarationNode*)node;
 				bool blockHasError = functionValidator(funcNode->body.get(), true);
 				bool allBranchesReturn = false;
-				if (util::tokenstring(funcNode->type).c_str() != "void")
+				if (funcNode->type.string.compare("void") != 0)
 					allBranchesReturn = hasReturnPath(funcNode->body.get(), nullptr, funcNode->type);
 				else allBranchesReturn = true;
 				return !allBranchesReturn || blockHasError;
@@ -451,19 +445,17 @@ namespace ash
 				ReturnStatementNode* returnNode = (ReturnStatementNode*)node;
 				Token statementType = expressionTypeInfo(returnNode->returnValue.get(), currentScope);
 				if (statementType.type == TokenType::ERROR) return true;
-				if (util::tokenstring(statementType) == util::tokenstring(returnType))
+				if (statementType.string.compare(returnType.string) == 0)
 				{
 					return true;
 				}
 				else 
 				{
 					std::string msg = { "return statement expected type " };
-					msg.append(util::tokenstring(returnType));
+					msg.append(returnType.string);
 					msg.append(", got ");
-					msg.append(util::tokenstring(statementType));
-					char* c_msg = new char[msg.length() + 1];
-					strcpy(c_msg, msg.c_str());
-					pushError(c_msg, returnNode->returnValue->line());
+					msg.append(statementType.string);
+					pushError(msg, returnNode->returnValue->line());
 					return false;
 				}
 			}
@@ -484,7 +476,7 @@ namespace ash
 						Symbol* s = nullptr;
 						bool found = false;
 						auto scope = currentScope;
-						std::string name = util::tokenstring(callNode->primary);
+						std::string name = callNode->primary.string;
 						while (!found && scope != nullptr)
 						{
 							auto it = scope->symbols.find(name);
@@ -502,24 +494,20 @@ namespace ash
 						{
 							std::string msg = { name };
 							msg.append(" not defined.");
-							char* c_msg = new char[msg.length() + 1];
-							strcpy(c_msg, msg.c_str());
-							return pushError(c_msg, callNode->primary.line);
+							return pushError(msg, callNode->primary.line);
 						}
 						if (s)
 						{
 							if (expected.type != TokenType::ERROR)
 							{
-								if (util::tokenstring(s->type) != util::tokenstring(expected))
+								if (s->type.string != expected.string)
 								{
 									std::string msg = { "expected type " };
-									msg.append(util::tokenstring(expected));
+									msg.append(expected.string);
 									msg.append(", actual type ");
-									msg.append(util::tokenstring(s->type));
+									msg.append(s->type.string);
 									msg.append(".");
-									char* c_msg = new char[msg.length() + 1];
-									strcpy(c_msg, msg.c_str());
-									return pushError(c_msg, callNode->primary.line);
+									return pushError(msg, callNode->primary.line);
 								}
 							}
 							callNode->primaryType = s->type;
@@ -531,99 +519,89 @@ namespace ash
 					{
 						if (expected.type != TokenType::ERROR)
 						{
-							if ("bool" != util::tokenstring(expected))
+							if ("bool" != expected.string)
 							{
 								std::string msg = { "expected type " };
-								msg.append(util::tokenstring(expected));
+								msg.append(expected.string);
 								msg.append(", actual type bool.");
-								char* c_msg = new char[msg.length() + 1];
-								strcpy(c_msg, msg.c_str());
-								return pushError(c_msg, callNode->primary.line);
+								return pushError(msg, callNode->primary.line);
 							}
 						}
-						callNode->primaryType = { TokenType::TYPE, "bool", 4, callNode->primary.line };
-						return { TokenType::TYPE, "bool", 4, callNode->primary.line };
+						callNode->primaryType = { TokenType::TYPE, "bool", callNode->primary.line };
+						return { TokenType::TYPE, "bool", callNode->primary.line };
 					}
 						
 					case TokenType::NULL_:
 					{
-						return { TokenType::TYPE, "nulltype", 8, callNode->primary.line };
+						return { TokenType::TYPE, "nulltype", callNode->primary.line };
 					}
 					case TokenType::FLOAT: 
 					{
 						if (expected.type != TokenType::ERROR)
 						{
-							if ("float" != util::tokenstring(expected))
+							if ("float" != expected.string)
 							{
 								std::string msg = { "expected type " };
-								msg.append(util::tokenstring(expected));
+								msg.append(expected.string);
 								msg.append(", actual type float.");
-								char* c_msg = new char[msg.length() + 1];
-								strcpy(c_msg, msg.c_str());
-								return pushError(c_msg, callNode->primary.line);
+								return pushError(msg, callNode->primary.line);
 							}
 						}
-						callNode->primaryType = { TokenType::TYPE, "float", 5, callNode->primary.line };
-						return { TokenType::TYPE, "float", 5, callNode->primary.line }; 
+						callNode->primaryType = { TokenType::TYPE, "float", callNode->primary.line };
+						return { TokenType::TYPE, "float", callNode->primary.line }; 
 					}
 					case TokenType::DOUBLE:
 					{
 						if (expected.type != TokenType::ERROR)
 						{
-							if ("double" != util::tokenstring(expected))
+							if ("double" != expected.string)
 							{
 								std::string msg = { "expected type " };
-								msg.append(util::tokenstring(expected));
+								msg.append(expected.string);
 								msg.append(", actual type double.");
-								char* c_msg = new char[msg.length() + 1];
-								strcpy(c_msg, msg.c_str());
-								return pushError(c_msg, callNode->primary.line);
+								return pushError(msg, callNode->primary.line);
 							}
 						}
-						return { TokenType::TYPE, "double", 6, callNode->primary.line }; 
+						return { TokenType::TYPE, "double", callNode->primary.line }; 
 					}
 					case TokenType::INT:
 					{
 						if (expected.type != TokenType::ERROR)
 						{
-							if ("byte" != util::tokenstring(expected) &&
-								"ubyte" != util::tokenstring(expected) && 
-								"short" != util::tokenstring(expected) && 
-								"ushort" != util::tokenstring(expected) && 
-								"int" != util::tokenstring(expected) && 
-								"uint" != util::tokenstring(expected) && 
-								"long" != util::tokenstring(expected) && 
-								"ulong" != util::tokenstring(expected)
+							if ("byte" != expected.string &&
+								"ubyte" != expected.string && 
+								"short" != expected.string && 
+								"ushort" != expected.string && 
+								"int" != expected.string && 
+								"uint" != expected.string && 
+								"long" != expected.string && 
+								"ulong" != expected.string
 								)
 							{
 								std::string msg = { "expected type " };
-								msg.append(util::tokenstring(expected));
+								msg.append(expected.string);
 								msg.append(", actual type int.");
-								char* c_msg = new char[msg.length() + 1];
-								strcpy(c_msg, msg.c_str());
-								return pushError(c_msg, callNode->primary.line);
+								return pushError(msg, callNode->primary.line);
 							}
 						}
-						return { TokenType::TYPE, "int", 3, callNode->primary.line };
+						return { TokenType::TYPE, "int", callNode->primary.line };
 					}
-					case TokenType::CHAR: return { TokenType::TYPE, "char", 4, callNode->primary.line };
+					case TokenType::CHAR: return { TokenType::TYPE, "char",  callNode->primary.line };
 					case TokenType::STRING:
 					{
 						if (expected.type != TokenType::ERROR)
 						{
-							if ("string" != util::tokenstring(expected))
+							if ("string" != expected.string)
 							{
 								std::string msg = { "expected type " };
-								msg.append(util::tokenstring(expected));
+								msg.append(expected.string);
 								msg.append(", actual type string.");
-								char* c_msg = new char[msg.length() + 1];
-								strcpy(c_msg, msg.c_str());
-								return pushError(c_msg, callNode->primary.line);
+								return pushError(msg, callNode->primary.line);
 						
 							}
 						}
-						callNode->primaryType = { TokenType::TYPE, "string", 6, callNode->primary.line };
-						return { TokenType::TYPE, "string", 6, callNode->primary.line };
+						callNode->primaryType = { TokenType::TYPE, "string", callNode->primary.line };
+						return { TokenType::TYPE, "string",  callNode->primary.line };
 					}
 				}
 			}
@@ -633,18 +611,17 @@ namespace ash
 				Token unaryValue = expressionTypeInfo((ExpressionNode*)unaryNode->unary.get(), currentScope);
 				if (expected.type != TokenType::ERROR)
 				{
-					if (util::tokenstring(unaryValue) != util::tokenstring(expected))
+					if (unaryValue.string != expected.string)
 					{
 						std::string msg = { "expected type " };
-						msg.append(util::tokenstring(expected));
+						msg.append(expected.string);
 						msg.append(", actual type ");
-						msg.append(util::tokenstring(unaryValue));
+						msg.append(unaryValue.string);
 						msg.append(".");
-						char* c_msg = new char[msg.length() + 1];
-						strcpy(c_msg, msg.c_str());
-						return pushError(c_msg, unaryNode->op.line);
+						return pushError(msg, unaryNode->op.line);
 					}
 				}
+				return unaryValue;
 			}
 			case ExpressionNode::ExpressionType::Binary:
 			{
@@ -660,7 +637,7 @@ namespace ash
 				}
 				else
 				{
-					if (util::tokenstring(leftType) == util::tokenstring(rightType))
+					if (leftType.string == rightType.string)
 					{
 						exprType =  leftType;
 					}
@@ -668,13 +645,11 @@ namespace ash
 					else if (leftType.type != TokenType::ERROR && rightType.type != TokenType::ERROR)
 					{
 						std::string msg = { "type mismatch " };
-						msg.append(util::tokenstring(leftType));
+						msg.append(leftType.string);
 						msg.append(" and ");
-						msg.append(util::tokenstring(rightType));
+						msg.append(rightType.string);
 						msg.append(".");
-						char* c_msg = new char[msg.length() + 1];
-						strcpy(c_msg, msg.c_str());
-						exprType = pushError(c_msg, leftType.line);
+						exprType = pushError(msg, leftType.line);
 					}
 
 					if (leftType.type == TokenType::ERROR) exprType = leftType;
@@ -696,17 +671,15 @@ namespace ash
 						{
 							if (expected.type != TokenType::ERROR)
 							{
-								if ("bool" != util::tokenstring(expected))
+								if (expected.string.compare("bool") != 0)
 								{
 									std::string msg = { "expected type " };
-									msg.append(util::tokenstring(expected));
+									msg.append(expected.string);
 									msg.append(", actual type bool.");
-									char* c_msg = new char[msg.length() + 1];
-									strcpy(c_msg, msg.c_str());
-									return pushError(c_msg, leftType.line);
+									return pushError(msg, leftType.line);
 								}
 							}
-							return { TokenType::TYPE, "bool", 4, leftType.line };
+							return { TokenType::TYPE, "bool", leftType.line };
 						}
 						else return exprType;
 					}
@@ -719,16 +692,14 @@ namespace ash
 						{
 							if (expected.type != TokenType::ERROR)
 							{
-								if ("bool" != util::tokenstring(expected))
+								if (expected.string.compare("bool") != 0)
 								{
 									std::string msg = { "expected type " };
-									msg.append(util::tokenstring(expected));
+									msg.append(expected.string);
 									msg.append(", actual type ");
-									msg.append(util::tokenstring(exprType));
+									msg.append(exprType.string);
 									msg.append(".");
-									char* c_msg = new char[msg.length() + 1];
-									strcpy(c_msg, msg.c_str());
-									return pushError(c_msg, leftType.line);
+									return pushError(msg, leftType.line);
 								}
 							}
 							return exprType;
@@ -780,9 +751,7 @@ namespace ash
 				{
 					std::string msg = { name };
 					msg.append(" has not been declared.");
-					char* c_msg = new char[msg.length() + 1];
-					strcpy(c_msg, msg.c_str());
-					return pushError(c_msg, assignmentNode->identifier->line());
+					return pushError(msg, assignmentNode->identifier->line());
 				}
 				else
 				{
@@ -799,7 +768,7 @@ namespace ash
 							size_t len = pos - lastPos;
 							fieldName = fullName.substr(lastPos, len);
 							lastPos = pos + 1;
-							auto it = minimumScope->typeParameters.find(util::tokenstring(assignedType));
+							auto it = minimumScope->typeParameters.find(assignedType.string);
 							if (it == minimumScope->typeParameters.end())
 							{
 								minimumScope = minimumScope->parentScope;
@@ -810,7 +779,7 @@ namespace ash
 								bool typeExists = false;
 								for (const auto& field : fields)
 								{
-									if (util::tokenstring(field.identifier) == fieldName)
+									if (field.identifier.string == fieldName)
 									{
 										assignedType = field.type;
 										typeExists = true;
@@ -829,16 +798,14 @@ namespace ash
 
 					if (valueType.type == TokenType::ERROR) std::cout << "Error: expression type does not match assigned type!" << std::endl;
 
-					if (valueType.type != TokenType::ERROR && util::tokenstring(valueType) != util::tokenstring(assignedType))
+					if (valueType.type != TokenType::ERROR && valueType.string != assignedType.string)
 					{
 						std::string msg = { "expected type " };
-						msg.append(util::tokenstring(expected));
+						msg.append(expected.string);
 						msg.append(", actual type ");
-						msg.append(util::tokenstring(valueType));
+						msg.append(valueType.string);
 						msg.append(".");
-						char* c_msg = new char[msg.length() + 1];
-						strcpy(c_msg, msg.c_str());
-						return pushError(c_msg, assignmentNode->value->line());
+						return pushError(msg, assignmentNode->value->line());
 					}
 					
 					return assignedType;
@@ -851,7 +818,7 @@ namespace ash
 				Token parentType = expressionTypeInfo((ExpressionNode*)fieldCallNode->left.get(), currentScope);
 
 				auto scope = currentScope;
-				std::string typeID = util::tokenstring(parentType);
+				std::string typeID = parentType.string;
 				while (scope != nullptr)
 				{
 					if (scope->symbols.find(typeID) == scope->symbols.end())
@@ -864,7 +831,7 @@ namespace ash
 
 						for (const auto& field : fields)
 						{
-							if (util::tokenstring(field.identifier) == util::tokenstring(fieldCallNode->field))
+							if (field.identifier.string == fieldCallNode->field.string)
 							{
 								return field.type;
 							}
@@ -922,23 +889,19 @@ namespace ash
 								msg.append("parameters, received ");
 								msg.append(std::to_string(args.size()));
 								msg.append(".");
-								char* c_msg = new char[msg.length() + 1];
-								strcpy(c_msg, msg.c_str());
-								return pushError(c_msg, functionCallNode->line());
+								return pushError(msg, functionCallNode->line());
 							}
 
 							for(int i = 0; i < args.size(); i++)
 							{
-								if(util::tokenstring(args[i]) != util::tokenstring(parameters[i].type))
+								if(args[i].string != parameters[i].type.string)
 								{
 									std::string msg = { "expected type " };
-									msg.append(util::tokenstring(parameters[i].type));
+									msg.append(parameters[i].type.string);
 									msg.append(", actual type ");
-									msg.append(util::tokenstring(args[i]));
+									msg.append(args[i].string);
 									msg.append(".");
-									char* c_msg = new char[msg.length() + 1];
-									strcpy(c_msg, msg.c_str());
-									return pushError(c_msg, functionCallNode->line());
+									return pushError(msg, functionCallNode->line());
 								}
 							}
 
@@ -946,6 +909,264 @@ namespace ash
 						}
 					}
 				}
+			}
+		}
+	}
+
+	std::shared_ptr<DeclarationNode> Semantics::linearizeAST(ParseNode* node, std::vector<std::shared_ptr<DeclarationNode>>& currentBlock, std::shared_ptr<ScopeNode> currentScope)
+	{
+		switch(node->nodeType())
+		{
+			case NodeType::Block:
+			{
+				auto blockNode = (BlockNode*)node;
+				std::vector<std::shared_ptr<DeclarationNode>> thisBlock;
+				for(const auto& declaration : blockNode->declarations)
+				{
+					linearizeAST((ParseNode*)declaration.get(), thisBlock, blockNode->scope);
+				}
+				auto result = std::make_shared<BlockNode>();
+				result->declarations = thisBlock;
+				result->scope = blockNode->scope;
+				return result;
+			}
+			case NodeType::VariableDeclaration:
+			{
+				auto varNode = (VariableDeclarationNode*)node;
+				auto result = std::make_shared<VariableDeclarationNode>();
+
+				result->identifier = varNode->identifier;
+				result->type = varNode->type;
+				result->usign = varNode->usign;
+				result->value = pruneBinaryExpressions(varNode->value.get(), currentBlock, currentScope);
+				return result;
+			}
+			case NodeType::TypeDeclaration:
+			{
+				auto typeNode = (TypeDeclarationNode*)node;
+				auto result = std::make_shared<TypeDeclarationNode>();
+				result->typeDefined = typeNode->typeDefined;
+				result->fields = typeNode->fields;
+				return result;
+			}
+			case NodeType::FunctionDeclaration:
+			{
+				auto funcNode = (FunctionDeclarationNode*)node;
+				auto result = std::make_shared<FunctionDeclarationNode>();
+				result->usign = funcNode->usign;
+				result->type = funcNode->type;
+				result->identifier = funcNode->identifier;
+				result->parameters = funcNode->parameters;
+				result->body = linearizeAST(funcNode->body.get(), currentBlock, currentScope);
+				return result;
+			}
+			case NodeType::WhileStatement:
+			{
+				auto whileNode = (WhileStatementNode*)node;
+				auto result = std::make_shared<WhileStatementNode>();
+
+				result->condition = pruneBinaryExpressions(whileNode->condition.get(), currentBlock, currentScope);
+				std::shared_ptr<BlockNode> stmtBlock = std::make_shared<BlockNode>();
+				std::vector<std::shared_ptr<DeclarationNode>> blockDeclarations;
+				stmtBlock->declarations = blockDeclarations;
+				if (whileNode->doStatement->nodeType() != NodeType::Block)
+				{
+					stmtBlock->scope = std::make_shared<ScopeNode>();
+					blockDeclarations.push_back(linearizeAST((ParseNode*)whileNode->doStatement.get(), blockDeclarations, stmtBlock->scope));
+				}
+				else
+				{
+					auto doStmtBlock = (BlockNode*)whileNode->doStatement.get();
+					stmtBlock = linearizeAST((ParseNode*)doStmtBlock, blockDeclarations, doStmtBlock->scope);
+				}
+				
+				result->doStatement = stmtBlock;
+				return result;
+			}
+			case NodeType::ForStatement:
+			{
+				auto forNode = (ForStatementNode*)node;
+				auto result = std::make_shared<ForStatementNode>();
+				result->declaration = std::dynamic_pointer_cast<ParseNode>(linearizeAST(forNode->declaration.get(), currentBlock, currentScope));
+				result->conditional = pruneBinaryExpressions(forNode->conditional.get(), currentBlock, currentScope);
+				result->increment = pruneBinaryExpressions(forNode->increment.get(), currentBlock, currentScope);
+				std::shared_ptr<BlockNode> stmtBlock = std::make_shared<BlockNode>();
+				std::vector<std::shared_ptr<DeclarationNode>> stmtDeclarations;
+				if(forNode->statement->nodeType() != NodeType::Block)
+				{
+					stmtBlock->scope = std::make_shared<ScopeNode>();
+					stmtDeclarations.push_back(linearizeAST((ParseNode*)forNode->statement.get(), stmtDeclarations, stmtBlock->scope));
+				}
+				else
+				{
+					auto forStmtBlock = (BlockNode*)forNode->statement.get();
+					stmtBlock = linearizeAST((ParseNode*)forStmtBlock, stmtDeclarations, forStmtBlock->scope);
+				}
+				result->statement = stmtBlock;
+				return result;
+			}
+			case NodeType::IfStatement:
+			{
+				auto ifNode = (IfStatementNode*)node;
+				auto result = std::make_shared<IfStatementNode>();
+
+				result->condition = pruneBinaryExpressions(ifNode->condition.get(), currentBlock, currentScope);
+				std::shared_ptr<BlockNode> thenBlock = std::make_shared<BlockNode>();
+				std::vector<std::shared_ptr<DeclarationNode>> thenDeclarations;
+				thenBlock->declarations = thenDeclarations;
+				if(ifNode->thenStatement->nodeType() != NodeType::Block)
+				{
+					thenBlock->scope = std::make_shared<ScopeNode>();
+					thenDeclarations.push_back(linearizeAST((ParseNode*)ifNode->thenStatement.get(), thenDeclarations, thenBlock->scope));
+				}
+				else
+				{
+					auto thenStmtBlock = (BlockNode*)ifNode->thenStatement.get();
+					thenBlock = linearizeAST((ParseNode*)thenStmtBlock, thenDeclarations, thenStmtBlock->scope);
+				}
+		
+				result->thenStatement = thenBlock;
+				std::shared_ptr<BlockNode> elseBlock = std::make_shared<BlockNode>();
+				std::vector<std::shared_ptr<DeclarationNode>> elseDeclarations;
+				elseBlock->declarations = elseDeclarations;
+				if(ifNode->elseStatement->nodeType() != NodeType::Block)
+				{
+					elseBlock->scope = std::make_shared<ScopeNode>();
+					elseDeclarations.push_back(linearizeAST((ParseNode*)ifNode->elseStatement.get(), elseDeclarations, elseBlock->scope));
+				}
+				else
+				{
+					auto elseStmtBlock = (BlockNode*)ifNode->elseStatement.get();
+					elseBlock = linearizeAST((ParseNode*)elseStmtBlock, elseDeclarations, elseStmtBlock->scope);
+				}
+				result->elseStatement = elseBlock;
+				return result;
+			}
+			case NodeType::ExpressionStatement:
+			{
+				auto exprNode = (ExpressionStatement*)node;
+				auto result = std::make_shared<ExpressionStatement>();
+
+				result->expression = pruneBinaryExpressions(exprNode->expression.get(), currentBlock, currentScope);
+				return result;
+			}
+			case NodeType::ReturnStatement:
+			{
+				auto returnNode = (ReturnStatementNode*)node;
+				auto result = std::make_shared<ReturnStatementNode>();
+
+				result->returnValue = pruneBinaryExpressions(returnNode->returnValue.get(), currentBlock, currentScope);
+				return result;
+			}
+			case NodeType::Expression:
+			{
+				return std::dynamic_pointer_cast<DeclarationNode>(pruneBinaryExpressions((ExpressionNode*)node, currentBlock, currentScope));
+			}
+		}
+	}
+
+	std::shared_ptr<ExpressionNode> Semantics::pruneBinaryExpressions(ExpressionNode* node, std::vector<std::shared_ptr<DeclarationNode>>& currentBlock, std::shared_ptr<ScopeNode> currentScope)
+	{
+		switch(node->expressionType())
+		{
+			case ExpressionNode::ExpressionType::Assignment:
+			{
+				auto assignmentNode = (AssignmentNode*)node;
+				auto result = std::make_shared<AssignmentNode>();
+				result->identifier = pruneBinaryExpressions(assignmentNode->identifier.get(), currentBlock, currentScope);
+				result->identifierType = assignmentNode->identifierType;
+				result->value = pruneBinaryExpressions(assignmentNode->value.get(), currentBlock, currentScope);
+				return result;
+			}
+			case ExpressionNode::ExpressionType::Unary:
+			{
+				auto unaryNode = (UnaryNode*)node;
+				auto result = std::make_shared<UnaryNode>();
+				result->op = unaryNode->op;
+				result->unary = pruneBinaryExpressions(unaryNode->unary.get(), currentBlock, currentScope);
+				return result;
+			}
+			case ExpressionNode::ExpressionType::FieldCall:
+			{
+				auto fieldNode = (FieldCallNode*)node;
+				auto result = std::make_shared<FieldCallNode>();
+				result->left = pruneBinaryExpressions(fieldNode->left.get(), currentBlock, currentScope);
+				result->field = fieldNode->field;
+				result->fieldType = fieldNode->fieldType;
+				return result;
+			}
+			case ExpressionNode::ExpressionType::Primary:
+			{
+				auto primaryNode = (CallNode*)node;
+				auto result = std::make_shared<CallNode>();
+				result->primary = primaryNode->primary;
+				result->primaryType = primaryNode->primaryType;
+				return result;
+			}
+			case ExpressionNode::ExpressionType::FunctionCall:
+			{
+				auto funcNode = (FunctionCallNode*)node;
+				auto result = std::make_shared<FunctionCallNode>();
+				result->left = pruneBinaryExpressions(funcNode->left.get(), currentBlock, currentScope);
+				std::vector<std::shared_ptr<ExpressionNode>> args;
+				args.resize(funcNode->arguments.size());
+				for (const auto& arg : funcNode->arguments)
+				{
+					args.push_back(pruneBinaryExpressions(arg.get(), currentBlock, currentScope));
+				}
+				result->arguments = args;
+				return result;
+			}
+			case ExpressionNode::ExpressionType::Binary:
+			{
+				auto binaryNode = (BinaryNode*)node;
+				auto result = std::make_shared<BinaryNode>();
+				std::shared_ptr<CallNode> leftPrimary;
+				std::shared_ptr<CallNode> rightPrimary;
+				if(binaryNode->left->expressionType() == ExpressionNode::ExpressionType::Primary)
+				{
+					leftPrimary = std::dynamic_pointer_cast<CallNode>(binaryNode->left);
+				}
+				else
+				{
+					auto temp = std::make_shared<VariableDeclarationNode>();
+					temp->value = pruneBinaryExpressions(binaryNode->left.get(), currentBlock, currentScope);
+					temp->type = binaryNode->leftType;
+					std::string tempName = std::string("#").append(std::to_string(temporaries++));
+					temp->identifier = Token{ TokenType::IDENTIFIER, tempName, binaryNode->left->line() };
+
+					currentScope->symbols.emplace(tempName, Symbol{ tempName, category::Variable, temp->type });
+					currentBlock.push_back(temp);
+
+					leftPrimary = std::make_shared<CallNode>();
+					leftPrimary->primary = temp->identifier;
+					leftPrimary->primaryType = temp->type;
+				}
+				if (binaryNode->right->expressionType() == ExpressionNode::ExpressionType::Primary)
+				{
+					rightPrimary = std::dynamic_pointer_cast<CallNode>(binaryNode->right);
+				}
+				else
+				{
+					auto temp = std::make_shared<VariableDeclarationNode>();
+					temp->value = pruneBinaryExpressions(binaryNode->right.get(), currentBlock, currentScope);
+					temp->type = binaryNode->leftType;
+					std::string tempName = std::string("#").append(std::to_string(temporaries++));
+					temp->identifier = Token{ TokenType::IDENTIFIER, tempName, binaryNode->right->line() };
+
+					currentScope->symbols.emplace(tempName, Symbol{ tempName, category::Variable, temp->type });
+					currentBlock.push_back(temp);
+
+					rightPrimary = std::make_shared<CallNode>();
+					rightPrimary->primary = temp->identifier;
+					rightPrimary->primaryType = temp->type;
+				}
+				result->left = leftPrimary;
+				result->leftType = binaryNode->leftType;
+				result->right = rightPrimary;
+				result->rightType = binaryNode->rightType;
+				result->op = binaryNode->op;
+				return result;
 			}
 		}
 	}

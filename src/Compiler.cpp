@@ -13,9 +13,11 @@ namespace ash
 
 		Semantics analyzer;
 
+		ast->print(0);
+
 		ast = analyzer.findSymbols(ast);
 
-		//ast->print(0);
+		ast->print(0);
 
 		ControlFlowAnalysis cfa;
 
@@ -26,7 +28,7 @@ namespace ash
 			func->print(0);
 		}
 
-		pseudochunk result = precompile(ast);
+		//pseudochunk result = precompile(ast);
 
 		return false;
 	}

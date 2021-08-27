@@ -43,6 +43,7 @@ namespace ash
 		OP_PUSH, //A; push value from R[A] onto stack
 		OP_POP, //A; pop value from stack into R[A]
 		OP_RETURN, // A, outputs value of register in terminal
+		OP_OUT,
 		OP_STORE_IP_OFFSET, // A; R[A] = instruction pointer - chunk beginning
 			//two-register instructions: 8-bit opcode | 8-bit register A | 8-bit register B | 8 bits space
 		OP_MOVE, // A, B; move value from R[A] to R[B]

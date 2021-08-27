@@ -106,7 +106,7 @@ namespace ash
 
 		//return result;
 
-		return InterpretResult::INTERPRET_COMPILE_ERROR;
+		return InterpretResult::INTERPRET_OK;
 	}
 
 	InterpretResult VM::interpret(Chunk* chunk)
@@ -159,7 +159,7 @@ namespace ash
 				{
 					uint8_t A = RegisterA(instruction);
 					uint16_t value = Value(instruction);
-					R[A] = (R[A] & 0xFFFFFFFF0000FFFF) + (value<<16);
+					R[A] = (R[A] & 0xFFFFFFFF0000FFFF) + (((uint64_t)value) <<16);
 					rFlags[A] = rFlags[A] & (~REGISTER_HOLDS_POINTER);
 					break;
 				}
@@ -167,7 +167,7 @@ namespace ash
 				{
 					uint8_t A = RegisterA(instruction);
 					uint16_t value = Value(instruction);
-					R[A] = (R[A] & 0xFFFF0000FFFFFFFF) + (value << 32);
+					R[A] = (R[A] & 0xFFFF0000FFFFFFFF) + (((uint64_t)value) << 32);
 					rFlags[A] = rFlags[A] & (~REGISTER_HOLDS_POINTER);
 					break;
 				}
@@ -175,7 +175,7 @@ namespace ash
 				{
 					uint8_t A = RegisterA(instruction);
 					uint16_t value = Value(instruction);
-					R[A] = (R[A] & 0x0000FFFFFFFFFFFF) + (value << 48);
+					R[A] = (R[A] & 0x0000FFFFFFFFFFFF) + (((uint64_t)value) << 48);
 					rFlags[A] = rFlags[A] & (~REGISTER_HOLDS_POINTER);
 					break;
 				}
@@ -786,13 +786,19 @@ namespace ash
 					}
 					break;
 				}
+				case OP_OUT:
+				{
+					uint8_t A = RegisterA(instruction);
+
+					if ((rFlags[A] & REGISTER_HOLDS_SIGNED) != 0) std::cout << static_cast<int64_t>(R[A]) << std::endl;
+					else if ((rFlags[A] & REGISTER_HOLDS_FLOAT) != 0) std::cout << r_cast<float>(&R[A]) << std::endl;
+					else if ((rFlags[A] & REGISTER_HOLDS_FLOAT) != 0) std::cout << r_cast<double>(&R[A]) << std::endl;
+					else std::cout << R[A] << std::endl;
+
+					break;
+				}
 				case OP_RETURN: 
 				{
-					if ((rFlags[0] & REGISTER_HOLDS_SIGNED) != 0) std::cout << static_cast<int64_t>(R[0]) << std::endl;
-					else if ((rFlags[0] & REGISTER_HOLDS_FLOAT) != 0) std::cout << r_cast<float>(&R[0]) << std::endl;
-					else if ((rFlags[0] & REGISTER_HOLDS_FLOAT) != 0) std::cout << r_cast<double>(&R[0]) << std::endl;
-					else std::cout << R[0] << std::endl;
-
 					return InterpretResult::INTERPRET_OK;
 				}
 			}

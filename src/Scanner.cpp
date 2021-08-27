@@ -1,6 +1,6 @@
 #include "Scanner.h"
 
-#include <cstring>
+#include <string>
 
 namespace ash
 {
@@ -52,8 +52,7 @@ namespace ash
 	{
 		Token token;
 		token.type = type;
-		token.start = start;
-		token.length = (int)(current - start);
+		token.string = std::string(start, (int)(current - start));
 		token.line = line;
 		return token;
 	}
@@ -62,8 +61,7 @@ namespace ash
 	{
 		Token token;
 		token.type = TokenType::ERROR;
-		token.start = message;
-		token.length = (int)strlen(message);
+		token.string = std::string(message);
 		token.line = line;
 		return token;
 	}

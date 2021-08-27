@@ -19,10 +19,10 @@ using namespace ash;
 #ifdef TEST_VM_OPERATIONS
         Chunk chunk;
         chunk.WriteU8(1,1);
-        chunk.WriteU8(2, 15);
+        chunk.WriteU8(2, 255);
         chunk.WriteABC(OP_INT_ADD, 0, 1, 0, 0);
-        chunk.WriteABC(OP_UNSIGN_LESS, 0, 2, 3, 0);
         chunk.WriteA(OP_OUT, 0, 0);
+        chunk.WriteABC(OP_UNSIGN_LESS, 0, 2, 3, 0);
         chunk.WriteRelativeJump(OP_RELATIVE_JUMP_IF_TRUE, -3 ,0);
         chunk.WriteOp(OP_RETURN);
         InterpretResult result = vm.interpret(&chunk);

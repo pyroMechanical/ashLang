@@ -1,5 +1,5 @@
 #pragma once
-
+#include <string>
 
 namespace ash
 {
@@ -33,8 +33,7 @@ namespace ash
 	struct Token
 	{
 		TokenType type = TokenType::ERROR;
-		const char* start;
-		int length;
+		std::string string;
 		int line;
 	};
 

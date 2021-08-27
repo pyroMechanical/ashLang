@@ -69,7 +69,7 @@ namespace ash
 		advance();
 	}
 
-	void Parser::errorAt(Token* token, const char* message)
+	void Parser::errorAt(Token* token, std::string message)
 	{
 		if (panicMode) return;
 		panicMode = true;
@@ -85,19 +85,19 @@ namespace ash
 		}
 		else
 		{
-			fprintf(stderr, " at '%.*s'", token->length, token->start);
+			std::cerr << "at " << token->string << std::endl;
 		}
 
-		fprintf(stderr, ": %s\n", message);
+		std::cerr << message << std::endl;
 		hadError = true;
 	}
 
-	void Parser::error(const char* message)
+	void Parser::error(std::string message)
 	{
 		errorAt(&previous, message);
 	}
 
-	void Parser::errorAtCurrent(const char* message)
+	void Parser::errorAtCurrent(std::string message)
 	{
 		errorAt(&current, message);
 	}
@@ -167,7 +167,7 @@ namespace ash
 				{
 					next = scanner.scanToken();
 					if (next.type != TokenType::ERROR) break;
-					errorAtCurrent(next.start);
+					errorAtCurrent(next.string);
 				}
 
 				if (previous.type == TokenType::DEF && current.type == TokenType::IDENTIFIER)
@@ -191,7 +191,7 @@ namespace ash
 		{
 			next = scanner.scanToken(); 
 			if (next.type != TokenType::ERROR) break;
-			errorAtCurrent(next.start);
+			errorAtCurrent(next.string);
 		}
 
 		if (previous.type == TokenType::DEF && current.type == TokenType::IDENTIFIER)
@@ -203,7 +203,7 @@ namespace ash
 		resolveNewlines();
 	}
 
-	void Parser::consume(TokenType type, const char* message)
+	void Parser::consume(TokenType type, std::string message)
 	{
 		if(check(type))
 		{
@@ -364,7 +364,7 @@ namespace ash
 			bool usign = false;
 			Token type = previous;
 			Token identifier;
-			if (memcmp(previous.start, "unsigned", 8) == 0)
+			if (previous.string.compare("unsigned") == 0)
 			{
 				usign = true;
 				consume(TokenType::TYPE, "expected type after 'unsigned.'");
@@ -425,7 +425,7 @@ namespace ash
 				bool usign = false;
 				Token type = previous;
 				Token identifier;
-				if (previous.start == "unsigned")
+				if (previous.string.compare("unsigned") == 0)
 				{
 					usign = true;
 					consume(TokenType::TYPE, "expected type after 'unsigned.'");

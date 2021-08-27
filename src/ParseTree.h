@@ -22,13 +22,6 @@ namespace ash
 			std::cout << std::string(amount*2, ' ');
 		}
 
-		static std::string tokenstring(Token token)
-		{
-			std::string out = std::string(token.start);
-			out.resize(token.length);
-			return out;
-		}
-
 		static std::string categoryToString(category cat)
 		{
 			switch (cat)
@@ -116,7 +109,7 @@ namespace ash
 		std::unordered_map<std::string, Symbol> symbols;
 		std::unordered_map<std::string, std::vector<parameter>> functionParameters;
 		std::unordered_map<std::string, std::vector<parameter>> typeParameters;
-
+		size_t tempVars = 0;
 		virtual NodeType nodeType() override { return NodeType::Scope; }
 
 		virtual void print(int depth) override
@@ -130,7 +123,7 @@ namespace ash
 			for (const auto& symbol : symbols)
 			{
 				util::spaces(depth);
-				std::cout << "[ " << util::categoryToString(symbol.second.cat) << " " << util::tokenstring(symbol.second.type) << " " << symbol.first;
+				std::cout << "[ " << util::categoryToString(symbol.second.cat) << " " << symbol.second.type.string << " " << symbol.first;
 				if (symbol.second.cat == category::Function)
 				{
 					auto& params = functionParameters.at(symbol.first);
@@ -139,7 +132,7 @@ namespace ash
 					for (const auto& param : params)
 					{
 						if (!first) std::cout << ", ";
-						std::cout << util::tokenstring(param.type) << " " << util::tokenstring(param.identifier);
+						std::cout << param.type.string << " " << param.identifier.string;
 						first = false;
 					}
 					std::cout << ")";
@@ -152,7 +145,7 @@ namespace ash
 					for (const auto& param : params)
 					{
 						if (!first) std::cout << ", ";
-						std::cout << util::tokenstring(param.type) << " " << util::tokenstring(param.identifier);
+						std::cout << param.type.string << " " << param.identifier.string;
 						first = false;
 					}
 					std::cout << "}";
@@ -173,7 +166,7 @@ namespace ash
 			util::spaces(depth);
 			std::cout << "Library" << std::endl;
 			util::spaces(depth);
-			std::cout << "Identifier: " << util::tokenstring(libraryIdentifier);
+			std::cout << "Identifier: " << libraryIdentifier.string;
 		}
 	};
 
@@ -194,10 +187,10 @@ namespace ash
 			for (const auto& token : usingList)
 			{
 				if (repeat) std::cout << ", ";
-				std::cout << util::tokenstring(token);
+				std::cout << token.string;
 				repeat = true;
 			}
-			std::cout << " From: " << util::tokenstring(fromIdentifier) << std::endl;
+			std::cout << " From: " << fromIdentifier.string << std::endl;
 		}
 	};
 
@@ -219,14 +212,14 @@ namespace ash
 			util::spaces(depth);
 			std::cout << "Type Declaration" << std::endl;
 			util::spaces(depth);
-			std::cout << "Type: " << util::tokenstring(typeDefined) << std::endl;
+			std::cout << "Type: " << typeDefined.string << std::endl;
 			util::spaces(depth);
 			std::cout << "Fields: ";
 			bool repeat = false;
 			for (const auto& parameter : fields)
 			{
 				if(repeat) std::cout << ", ";
-				std::cout << util::tokenstring(parameter.type) << " " << util::tokenstring(parameter.identifier);
+				std::cout << parameter.type.string << " " << parameter.identifier.string;
 				repeat = true;
 			}
 			std::cout << std::endl;
@@ -246,14 +239,14 @@ namespace ash
 			util::spaces(depth);
 			std::cout << "Type Declaration" << std::endl;
 			util::spaces(depth);
-			std::cout << "Type: " << util::tokenstring(typeDefined) << std::endl;
+			std::cout << "Type: " << typeDefined.string << std::endl;
 			util::spaces(depth);
 			std::cout << "Fields: ";
 			bool repeat = false;
 			for (const auto& parameter : fields)
 			{
 				if (repeat) std::cout << ", ";
-				std::cout << util::tokenstring(parameter.type) << " " << util::tokenstring(parameter.identifier);
+				std::cout << parameter.type.string << " " << parameter.identifier.string;
 				repeat = true;
 			}
 			std::cout << std::endl;
@@ -643,14 +636,14 @@ namespace ash
 			util::spaces(depth);
 			std::cout << "Function Declaration" << std::endl;
 			util::spaces(depth);
-			std::cout << "Function: " << util::tokenstring(type) << " " << util::tokenstring(identifier) << std::endl;
+			std::cout << "Function: " << type.string << " " << identifier.string << std::endl;
 			util::spaces(depth);
 			std::cout << "Parameters: ";
 			bool repeat = false;
 			for (const auto& parameter : parameters)
 			{
 				if (repeat) std::cout << ", ";
-				std::cout << util::tokenstring(parameter.type) << " " << util::tokenstring(parameter.identifier);
+				std::cout << parameter.type.string << " " << parameter.identifier.string;
 				repeat = true;
 			}
 			std::cout << std::endl;
@@ -675,14 +668,14 @@ namespace ash
 			util::spaces(depth);
 			std::cout << "Function Declaration" << std::endl;
 			util::spaces(depth);
-			std::cout << "Function: " << util::tokenstring(type) << " " << util::tokenstring(identifier) << std::endl;
+			std::cout << "Function: " << type.string << " " << identifier.string << std::endl;
 			util::spaces(depth);
 			std::cout << "Parameters: ";
 			bool repeat = false;
 			for (const auto& parameter : parameters)
 			{
 				if (repeat) std::cout << ", ";
-				std::cout << util::tokenstring(parameter.type) << " " << util::tokenstring(parameter.identifier);
+				std::cout << parameter.type.string << " " << parameter.identifier.string;
 				repeat = true;
 			}
 			std::cout << std::endl;
@@ -708,7 +701,7 @@ namespace ash
 			util::spaces(depth);
 			std::cout << "Variable Declaration" << std::endl;
 			util::spaces(depth);
-			std::cout << "Variable: " << util::tokenstring(type) << " " << util::tokenstring(identifier) << std::endl;
+			std::cout << "Variable: " << type.string << " " << identifier.string << std::endl;
 			if (value)
 			{
 				util::spaces(depth);
@@ -733,7 +726,7 @@ namespace ash
 			util::spaces(depth);
 			std::cout << "Variable Declaration" << std::endl;
 			util::spaces(depth);
-			std::cout << "Variable: " << util::tokenstring(type) << " " << util::tokenstring(identifier) << std::endl;
+			std::cout << "Variable: " << type.string << " " << identifier.string << std::endl;
 			if (value)
 			{
 				util::spaces(depth);
@@ -781,8 +774,8 @@ namespace ash
 		std::shared_ptr<FunctionDeclarationNode> convertToFunctionNode()
 		{
 			std::shared_ptr<FunctionDeclarationNode> result = std::make_shared<FunctionDeclarationNode>();
-			result->type = Token{ TokenType::TYPE, "void", 4, 0 };
-			result->identifier = Token{ TokenType::IDENTIFIER, "<program>", 9, 0 };
+			result->type = Token{ TokenType::TYPE, "void", 0 };
+			result->identifier = Token{ TokenType::IDENTIFIER, "<program>", 0 };
 			result->usign = false;
 			std::shared_ptr<BlockNode> programBody = std::make_shared<BlockNode>();
 			programBody->declarations = declarations;
@@ -802,7 +795,7 @@ namespace ash
 		virtual void print(int depth) override
 		{
 			util::spaces(depth);
-			std::cout << "Literal: " << util::tokenstring(primary) << std::endl;
+			std::cout << "Literal: " << primary.string << std::endl;
 		}
 
 		virtual int line() override { return primary.line; }
@@ -824,7 +817,7 @@ namespace ash
 			std::cout << "Called: " << std::endl;
 			left->print(depth + 1);
 			util::spaces(depth);
-			std::cout << "Field: " << util::tokenstring(field) << std::endl;
+			std::cout << "Field: " << field.string << std::endl;
 		}
 
 		virtual int line() override { return left->line(); }
@@ -845,7 +838,7 @@ namespace ash
 			std::cout << "Binary Expression" << std::endl;
 			left->print(depth + 1);
 			util::spaces(depth);
-			std::cout << "Operator: " << util::tokenstring(op) << std::endl;
+			std::cout << "Operator: " << op.string << std::endl;
 			right->print(depth + 1);
 		}
 
@@ -887,12 +880,12 @@ namespace ash
 				case ExpressionNode::ExpressionType::Primary:
 				{
 					CallNode* node = (CallNode*)identifier.get();
-					return util::tokenstring(node->primary);
+					return node->primary.string;
 				}
 				case ExpressionNode::ExpressionType::FieldCall:
 				{
 					FieldCallNode* node = (FieldCallNode*)identifier.get();
-					std::string result = "." + util::tokenstring(node->field);
+					std::string result = "." + node->field.string;
 					bool complete = false;
 					while (!complete)
 					{
@@ -904,12 +897,12 @@ namespace ash
 						else if (node->left->expressionType() == ExpressionNode::ExpressionType::FieldCall)
 						{
 							node = (FieldCallNode*)node->left.get();
-							result = "." + util::tokenstring(node->field) + result;
+							result = "." + node->field.string + result;
 						}
 						else if (node->left->expressionType() == ExpressionNode::ExpressionType::Primary)
 						{
 							CallNode* primaryNode = (CallNode*)node->left.get();
-							result = util::tokenstring(primaryNode->primary) + result;
+							result = primaryNode->primary.string + result;
 							complete = true;
 						}
 					}
@@ -936,7 +929,7 @@ namespace ash
 			util::spaces(depth);
 			std::cout << "Unary Expression" << std::endl;
 			util::spaces(depth);
-			std::cout << "Operator: " << util::tokenstring(op);
+			std::cout << "Operator: " << op.string << std::endl;
 			unary->print(depth + 1);
 		}
 
@@ -962,7 +955,7 @@ namespace ash
 					{
 						CallNode* callNode = (CallNode*)node;
 
-						result += util::tokenstring(callNode->primary);
+						result += callNode->primary.string;
 						node = nullptr;
 						break;
 					}
@@ -970,7 +963,7 @@ namespace ash
 					{
 						FieldCallNode* fieldCallNode = (FieldCallNode*)node;
 
-						result += util::tokenstring(fieldCallNode->field);
+						result += fieldCallNode->field.string;
 						result += ".";
 						node = fieldCallNode->left.get();
 						break;

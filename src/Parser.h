@@ -41,11 +41,11 @@ namespace ash
 		
 		std::vector<ParseRule> rules;
 
-		void errorAt(Token* token, const char* message);
-		void error(const char* message);
-		void errorAtCurrent(const char* message);
+		void errorAt(Token* token, std::string message);
+		void error(std::string message);
+		void errorAtCurrent(std::string message);
 		void advance();
-		void consume(TokenType type, const char* message);
+		void consume(TokenType type, std::string message);
 		bool check(TokenType type);
 		bool match(TokenType type);
 
