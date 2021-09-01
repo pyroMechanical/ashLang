@@ -5,130 +5,6 @@
 namespace ash
 {
 
-	namespace util
-	{
-		static std::shared_ptr<ScopeNode> getScope(ParseNode* node, std::shared_ptr<ScopeNode> scope)
-		{
-			std::shared_ptr<ScopeNode> currentScope;
-
-			if(!node)
-			{
-				return scope;
-			}
-
-			if(node->nodeType() == NodeType::Block)
-			{
-				currentScope = std::make_shared<ScopeNode>();
-				currentScope->parentScope = scope;
-			}
-			else
-			{
-				currentScope = scope;
-			}
-
-			return currentScope;
-		}
-
-		static bool isBasic(Token type)
-		{
-			std::vector<std::string> basicTypes = {
-				std::string("bool"),
-				std::string("byte"),
-				std::string("short"),
-				std::string("int"),
-				std::string("long"),
-				std::string("float"),
-				std::string("double"),
-				std::string("char"),
-				std::string("ubyte"),
-				std::string("ushort"),
-				std::string("uint"),
-				std::string("ulong")
-			};
-
-			for (const auto& string : basicTypes)
-			{
-				if (type.string == string)
-				{
-					return true;
-				}
-			}
-			return false;
-		}
-
-		static Token resolveBasicTypes(Token lhs, Token rhs)
-		{
-			std::string left = lhs.string;
-			std::string right = rhs.string;
-			if (left == right) return lhs;
-
-			if (left.compare("double") == 0)
-			{
-				return lhs;
-			}
-
-			else if (left.compare("float") == 0)
-			{
-				if (right.compare("double") == 0)
-					return rhs;
-				return lhs;
-			}
-
-			else if (left.compare("long") == 0
-				|| left.compare("ulong") == 0)
-			{
-				if (right.compare("double") == 0
-					|| right.compare("float") == 0)
-					return rhs;
-				return lhs;
-			}
-			else if (left.compare("int") == 0
-				|| left.compare("uint") == 0)
-			{
-				if (right.compare("double") == 0
-					|| right.compare("float") == 0
-					|| right.compare("long") == 0
-					|| right.compare("ulong") == 0)
-					return rhs;
-				return lhs;
-			}
-			else if (left.compare("short") == 0
-				|| left.compare("ushort") == 0)
-			{
-				if (right.compare("double") == 0
-					|| right.compare("float") == 0
-					|| right.compare("long") == 0
-					|| right.compare("int") == 0
-					|| right.compare("ulong") == 0
-					|| right.compare("uint") == 0)
-					return rhs;
-				return lhs;
-			}
-			else if (left.compare("byte") == 0
-				|| left.compare("ubyte") == 0)
-			{
-				if (right.compare("double") == 0
-					|| right.compare("float") == 0
-					|| right.compare("long") == 0
-					|| right.compare("int") == 0
-					|| right.compare("short") == 0
-					|| right.compare("ulong") == 0
-					|| right.compare("uint") == 0
-					|| right.compare("ushort") == 0)
-					return rhs;
-				return lhs;
-			}
-
-			else if(left.compare("char") == 0)
-			{
-				if (right.compare("char") != 0)
-					return { TokenType::ERROR, "", lhs.line };
-			}
-
-			return { TokenType::ERROR, "", lhs.line };
-		}
-	}
-	
 	std::shared_ptr<ProgramNode> Semantics::findSymbols(std::shared_ptr<ProgramNode> ast)
 	{
 		std::shared_ptr<ScopeNode> currentScope = ast->globalScope = std::make_shared<ScopeNode>();
@@ -562,6 +438,7 @@ namespace ash
 								return pushError(msg, callNode->primary.line);
 							}
 						}
+						callNode->primaryType = { TokenType::TYPE, "double", callNode->primary.line };
 						return { TokenType::TYPE, "double", callNode->primary.line }; 
 					}
 					case TokenType::INT:
@@ -584,9 +461,14 @@ namespace ash
 								return pushError(msg, callNode->primary.line);
 							}
 						}
+						callNode->primaryType = { TokenType::TYPE, "int", callNode->primary.line };
 						return { TokenType::TYPE, "int", callNode->primary.line };
 					}
-					case TokenType::CHAR: return { TokenType::TYPE, "char",  callNode->primary.line };
+					case TokenType::CHAR: 
+					{
+						callNode->primaryType = { TokenType::TYPE, "char", callNode->primary.line };
+						return { TokenType::TYPE, "char",  callNode->primary.line };
+					}
 					case TokenType::STRING:
 					{
 						if (expected.type != TokenType::ERROR)
@@ -621,6 +503,7 @@ namespace ash
 						return pushError(msg, unaryNode->op.line);
 					}
 				}
+				unaryNode->unaryType = unaryValue;
 				return unaryValue;
 			}
 			case ExpressionNode::ExpressionType::Binary:
@@ -679,9 +562,11 @@ namespace ash
 									return pushError(msg, leftType.line);
 								}
 							}
-							return { TokenType::TYPE, "bool", leftType.line };
+
+							exprType = { TokenType::TYPE, "bool", leftType.line };
 						}
-						else return exprType;
+						binaryNode->binaryType = exprType;
+						return exprType;
 					}
 					case TokenType::PLUS:
 					case TokenType::MINUS:
@@ -702,9 +587,10 @@ namespace ash
 									return pushError(msg, leftType.line);
 								}
 							}
-							return exprType;
+							
 						}
-						else return exprType;
+						binaryNode->binaryType = exprType;
+						return exprType;
 					}
 				}
 			}
@@ -795,7 +681,7 @@ namespace ash
 					}
 
 					Token valueType = expressionTypeInfo((ExpressionNode*)assignmentNode->value.get(), currentScope, expected);
-
+					
 					if (valueType.type == TokenType::ERROR) std::cout << "Error: expression type does not match assigned type!" << std::endl;
 
 					if (valueType.type != TokenType::ERROR && valueType.string != assignedType.string)
@@ -807,7 +693,7 @@ namespace ash
 						msg.append(".");
 						return pushError(msg, assignmentNode->value->line());
 					}
-					
+					assignmentNode->assignmentType = assignedType;
 					return assignedType;
 				}
 			}
@@ -833,6 +719,7 @@ namespace ash
 						{
 							if (field.identifier.string == fieldCallNode->field.string)
 							{
+								fieldCallNode->fieldType = field.type;
 								return field.type;
 							}
 						}
@@ -904,10 +791,14 @@ namespace ash
 									return pushError(msg, functionCallNode->line());
 								}
 							}
-
+							functionCallNode->functionType = scope->symbols.find(funcName)->second.type;
 							return scope->symbols.find(funcName)->second.type;
 						}
 					}
+					std::string msg = { "function " };
+					msg.append(name);
+					msg.append(" not defined!");
+					return pushError(msg, functionCallNode->line());
 				}
 			}
 		}
@@ -923,7 +814,7 @@ namespace ash
 				std::vector<std::shared_ptr<DeclarationNode>> thisBlock;
 				for(const auto& declaration : blockNode->declarations)
 				{
-					linearizeAST((ParseNode*)declaration.get(), thisBlock, blockNode->scope);
+					thisBlock.push_back(linearizeAST((ParseNode*)declaration.get(), thisBlock, blockNode->scope));
 				}
 				auto result = std::make_shared<BlockNode>();
 				result->declarations = thisBlock;
@@ -977,7 +868,7 @@ namespace ash
 				else
 				{
 					auto doStmtBlock = (BlockNode*)whileNode->doStatement.get();
-					stmtBlock = linearizeAST((ParseNode*)doStmtBlock, blockDeclarations, doStmtBlock->scope);
+					stmtBlock = std::dynamic_pointer_cast<BlockNode>(linearizeAST((ParseNode*)doStmtBlock, blockDeclarations, doStmtBlock->scope));
 				}
 				
 				result->doStatement = stmtBlock;
@@ -1000,7 +891,7 @@ namespace ash
 				else
 				{
 					auto forStmtBlock = (BlockNode*)forNode->statement.get();
-					stmtBlock = linearizeAST((ParseNode*)forStmtBlock, stmtDeclarations, forStmtBlock->scope);
+					stmtBlock = std::dynamic_pointer_cast<BlockNode>(linearizeAST((ParseNode*)forStmtBlock, stmtDeclarations, forStmtBlock->scope));
 				}
 				result->statement = stmtBlock;
 				return result;
@@ -1022,7 +913,7 @@ namespace ash
 				else
 				{
 					auto thenStmtBlock = (BlockNode*)ifNode->thenStatement.get();
-					thenBlock = linearizeAST((ParseNode*)thenStmtBlock, thenDeclarations, thenStmtBlock->scope);
+					thenBlock = std::dynamic_pointer_cast<BlockNode>(linearizeAST((ParseNode*)thenStmtBlock, thenDeclarations, thenStmtBlock->scope));
 				}
 		
 				result->thenStatement = thenBlock;
@@ -1037,7 +928,7 @@ namespace ash
 				else
 				{
 					auto elseStmtBlock = (BlockNode*)ifNode->elseStatement.get();
-					elseBlock = linearizeAST((ParseNode*)elseStmtBlock, elseDeclarations, elseStmtBlock->scope);
+					elseBlock = std::dynamic_pointer_cast<BlockNode>(linearizeAST((ParseNode*)elseStmtBlock, elseDeclarations, elseStmtBlock->scope));
 				}
 				result->elseStatement = elseBlock;
 				return result;
@@ -1074,7 +965,7 @@ namespace ash
 				auto assignmentNode = (AssignmentNode*)node;
 				auto result = std::make_shared<AssignmentNode>();
 				result->identifier = pruneBinaryExpressions(assignmentNode->identifier.get(), currentBlock, currentScope);
-				result->identifierType = assignmentNode->identifierType;
+				result->assignmentType = assignmentNode->assignmentType;
 				result->value = pruneBinaryExpressions(assignmentNode->value.get(), currentBlock, currentScope);
 				return result;
 			}
@@ -1084,6 +975,7 @@ namespace ash
 				auto result = std::make_shared<UnaryNode>();
 				result->op = unaryNode->op;
 				result->unary = pruneBinaryExpressions(unaryNode->unary.get(), currentBlock, currentScope);
+				result->unaryType = unaryNode->unaryType;
 				return result;
 			}
 			case ExpressionNode::ExpressionType::FieldCall:

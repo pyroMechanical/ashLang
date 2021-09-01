@@ -401,6 +401,14 @@ namespace ash
 					rFlags[C] &= (REGISTER_HIGH_BITS | REGISTER_HOLDS_SIGNED);
 					break;
 				}
+				case OP_INT_NEGATE:
+				{
+					uint8_t A = RegisterA(instruction);
+					uint8_t B = RegisterB(instruction);
+
+					R[B] = -static_cast<int64_t>(R[A]);
+					rFlags[B] &= (REGISTER_HIGH_BITS | REGISTER_HOLDS_SIGNED);
+				}
 				case OP_UNSIGN_MUL:
 				{
 					uint8_t A = RegisterA(instruction);
@@ -530,6 +538,16 @@ namespace ash
 					rFlags[C] |= REGISTER_HOLDS_FLOAT;
 					break;
 				}
+				case OP_FLOAT_NEGATE:
+				{
+					uint8_t A = RegisterA(instruction);
+					uint8_t B = RegisterB(instruction);
+
+					R[B] = R[A] ^ 0x0000000080000000;
+					rFlags[B] &= REGISTER_HIGH_BITS;
+					rFlags[B] |= REGISTER_HOLDS_FLOAT;
+					break;
+				}
 				case OP_FLOAT_LESS:
 				{
 					uint8_t A = RegisterA(instruction);
@@ -602,6 +620,16 @@ namespace ash
 					R[C] = r_cast<uint64_t>(&temp);
 					rFlags[C] &= REGISTER_HIGH_BITS;
 					rFlags[C] |= REGISTER_HOLDS_DOUBLE;
+					break;
+				}
+				case OP_DOUBLE_NEGATE:
+				{
+					uint8_t A = RegisterA(instruction);
+					uint8_t B = RegisterB(instruction);
+
+					R[B] = R[A] ^ 0x8000000000000000;
+					rFlags[B] &= REGISTER_HIGH_BITS;
+					rFlags[B] |= REGISTER_HOLDS_DOUBLE;
 					break;
 				}
 				case OP_DOUBLE_LESS:

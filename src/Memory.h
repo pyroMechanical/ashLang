@@ -7,7 +7,7 @@ namespace ash
 	struct FieldMetadata
 	{
 		bool isPointer; //replace with uint8_t bit flag later?
-		size_t offset;
+		uint32_t offset;
 	};
 
 	struct TypeMetadata

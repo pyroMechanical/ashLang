@@ -1,9 +1,11 @@
 #pragma once
 
 #include <vector>
+#include <string>
 #include <stdint.h>
 namespace ash
 {
+
 	class Chunk
 	{
 	private:
@@ -35,10 +37,12 @@ namespace ash
 
 		int GetLine(size_t offset);
 
+		
 	};
 
 	enum OpCodes : uint8_t
 	{
+		OP_HALT, //stops program execution
 			//one-register instructions: 8-bit opcode | 8-bit register A | 16 bits space
 		OP_PUSH, //A; push value from R[A] onto stack
 		OP_POP, //A; pop value from stack into R[A]
@@ -72,6 +76,7 @@ namespace ash
 			//signed integers are sign-extended, so one addition/subtraction operation works for both
 		OP_INT_ADD, //A, B, C; R[C] = R[A] + R[B]
 		OP_INT_SUB, //A, B, C; R[C] = R[A] - R[B]
+		OP_INT_NEGATE, //A, B; R[B[ = -R[A]
 			//arithmetic and comparison operations on unsigned integers
 		OP_UNSIGN_MUL, //A, B, C; R[C] = R[A] * R[B]
 		OP_UNSIGN_DIV, //A, B, C; R[C] = R[A] / R[B]
@@ -83,11 +88,13 @@ namespace ash
 		OP_FLOAT_SUB, //A, B, C; R[C] = R[A] - R[B]
 		OP_FLOAT_MUL, //A, B, C; R[C] = R[A] * R[B]
 		OP_FLOAT_DIV, //A, B, C; R[C] = R[A] / R[B]
+		OP_FLOAT_NEGATE, //A, B; R[B] = -R[A];
 			//arithmetic and comparison operators on double-precision floats
 		OP_DOUBLE_ADD, //A, B, C; R[C] = R[A] + R[B]
 		OP_DOUBLE_SUB, //A, B, C; R[C] = R[A] - R[B]
 		OP_DOUBLE_MUL, //A, B, C; R[C] = R[A] * R[B]
 		OP_DOUBLE_DIV, //A, B, C; R[C] = R[A] / R[B]
+		OP_DOUBLE_NEGATE, //A, B; R[B] = -R[A];
 			//comparison operations set the value of the comparison register with their output value
 		OP_UNSIGN_LESS, //A, B, C; R[C] = R[A] < R[B]
 		OP_UNSIGN_GREATER, //A, B, C; R[C] = R[A] > R[B]
@@ -119,5 +126,79 @@ namespace ash
 				//absolute jump instruction: 8-bit opcode | 8-bit register A | 16 bits space
 		OP_REGISTER_JUMP, // instruction pointer = chunk beginning + R[A] 
 		OP_REGISTER_JUMP_IF_TRUE, // if(comparison register) instruciton pointer = chunk beginning + R[A]
-		};
+	};
+
+	static const std::vector<std::string> OpcodeNames = {
+			"OP_HALT",
+			"OP_PUSH",
+			"OP_POP",
+			"OP_RETURN",
+			"OP_OUT",
+			"OP_STORE_IP_OFFSET",
+			"OP_MOVE",
+			"OP_ALLOC",
+			"OP_STORE8",
+			"OP_STORE16",
+			"OP_STORE32",
+			"OP_STORE64",
+			"OP_LOAD8",
+			"OP_LOAD16",
+			"OP_LOAD32",
+			"OP_LOAD64",
+			"OP_CONST_LOW",
+			"OP_CONST_MID_LOW",
+			"OP_CONST_MID_HIGH",
+			"OP_CONST_HIGH",
+			"OP_STORE8_OFFSET", 
+			"OP_STORE16_OFFSET",
+			"OP_STORE32_OFFSET", 
+			"OP_STORE64_OFFSET", 
+			"OP_LOAD8_OFFSET",
+			"OP_LOAD16_OFFSET", 
+			"OP_LOAD32_OFFSET",
+			"OP_LOAD64_OFFSET", 
+			"OP_INT_ADD", 
+			"OP_INT_SUB", 
+			"OP_INT_NEGATE", 
+			"OP_UNSIGN_MUL", 
+			"OP_UNSIGN_DIV", 
+			"OP_SIGN_MUL", 
+			"OP_SIGN_DIV", 
+			"OP_FLOAT_ADD",
+			"OP_FLOAT_SUB",
+			"OP_FLOAT_MUL",
+			"OP_FLOAT_DIV",
+			"OP_FLOAT_NEGATE", 
+			"OP_DOUBLE_ADD", 
+			"OP_DOUBLE_SUB", 
+			"OP_DOUBLE_MUL", 
+			"OP_DOUBLE_DIV", 
+			"OP_DOUBLE_NEGATE", 
+			"OP_UNSIGN_LESS", 
+			"OP_UNSIGN_GREATER",
+			"OP_SIGN_LESS", 
+			"OP_SIGN_GREATER",
+			"OP_INT_EQUAL", 
+			"OP_FLOAT_LESS",
+			"OP_FLOAT_GREATER", 
+			"OP_FLOAT_EQUAL", 
+			"OP_DOUBLE_LESS", 
+			"OP_DOUBLE_GREATER",
+			"OP_DOUBLE_EQUAL", 
+			"OP_INT_TO_FLOAT", 
+			"OP_FLOAT_TO_INT", 
+			"OP_FLOAT_TO_DOUBLE", 
+			"OP_DOUBLE_TO_FLOAT", 
+			"OP_INT_TO_DOUBLE",
+			"OP_DOUBLE_TO_INT",
+			"OP_BITWISE_AND",
+			"OP_BITWISE_OR", 
+			"OP_LOGICAL_AND",
+			"OP_LOGICAL_OR", 
+			"OP_LOGICAL_NOT",
+			"OP_RELATIVE_JUMP", 
+			"OP_RELATIVE_JUMP_IF_TRUE",
+			"OP_REGISTER_JUMP",
+			"OP_REGISTER_JUMP_IF_TRUE"
+	};
 }

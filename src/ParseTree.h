@@ -271,6 +271,8 @@ namespace ash
 		virtual NodeType nodeType() override { return NodeType::Expression; }
 		virtual ExpressionType expressionType() = 0;
 
+		virtual Token typeToken() = 0;
+
 		virtual int line() = 0;
 
 		virtual void print(int depth) override {};
@@ -612,7 +614,8 @@ namespace ash
 		{
 			util::spaces(depth);
 			std::cout << "Block" << std::endl;
-			
+
+			if (declarations)
 				declarations->print(depth);
 			
 
@@ -790,6 +793,8 @@ namespace ash
 		Token primary;
 		Token primaryType;
 
+		virtual Token typeToken() override { return primaryType; }
+
 		virtual ExpressionType expressionType() override { return ExpressionType::Primary; }
 
 		virtual void print(int depth) override
@@ -806,6 +811,8 @@ namespace ash
 		std::shared_ptr<ExpressionNode> left;
 		Token field;
 		Token fieldType;
+
+		virtual Token typeToken() override { return fieldType; }
 
 		virtual ExpressionType expressionType() override { return ExpressionType::FieldCall; }
 
@@ -830,7 +837,11 @@ namespace ash
 		Token op;
 		std::shared_ptr<ExpressionNode> right;
 		Token rightType;
+
+		Token binaryType;
 		virtual ExpressionType expressionType() override { return ExpressionType::Binary; }
+
+		virtual Token typeToken() override { return binaryType; }
 
 		virtual void print(int depth) override
 		{
@@ -848,9 +859,11 @@ namespace ash
 	struct AssignmentNode : public ExpressionNode
 	{
 		std::shared_ptr<ExpressionNode> identifier;
-		Token identifierType;
+		Token assignmentType;
 		std::shared_ptr<ExpressionNode> value;
-		Token valueType;
+
+		virtual Token typeToken() override { return assignmentType; }
+
 		virtual ExpressionType expressionType() override { return ExpressionType::Assignment; }
 
 		virtual void print(int depth) override
@@ -921,6 +934,9 @@ namespace ash
 	{
 		Token op;
 		std::shared_ptr<ExpressionNode> unary; //Unary or Call
+		Token unaryType;
+
+		virtual Token typeToken() override { return unaryType; }
 
 		virtual ExpressionType expressionType() override { return ExpressionType::Unary; }
 
@@ -940,6 +956,9 @@ namespace ash
 	{
 		std::shared_ptr<ExpressionNode> left;
 		std::vector<std::shared_ptr<ExpressionNode>> arguments;
+		Token functionType;
+
+		virtual Token typeToken() override { return functionType; }
 
 		virtual ExpressionType expressionType() override { return ExpressionType::FunctionCall; }
 

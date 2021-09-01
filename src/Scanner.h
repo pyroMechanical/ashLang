@@ -23,6 +23,7 @@ namespace ash
 		IF, WHILE, FOR,
 		RETURN, ELSE,
 		AND, OR,
+		BIT_AND, BIT_OR,
 		BREAK, 
 		//special token for resolving newline semicolons
 		NEWLINE,
