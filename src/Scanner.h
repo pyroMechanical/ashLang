@@ -35,7 +35,7 @@ namespace ash
 	{
 		TokenType type = TokenType::ERROR;
 		std::string string;
-		int line;
+		int line = 0;
 	};
 
 	class Scanner

@@ -264,6 +264,7 @@ namespace ash
 			Binary,
 			Unary,
 			FunctionCall,
+			Constructor,
 			FieldCall,
 			Primary,
 		};
@@ -1009,6 +1010,31 @@ namespace ash
 		}
 
 		virtual int line() override { return left->line(); }
+	};
+
+	struct ConstructorNode : public ExpressionNode
+	{
+		std::vector<std::shared_ptr<ExpressionNode>> arguments;
+		Token ConstructorType;
+		int constructorLine = 0;
+
+		virtual Token typeToken() override { return ConstructorType; }
+
+		virtual ExpressionType expressionType() override { return ExpressionType::Constructor; }
+
+		virtual void print(int depth) override
+		{
+			util::spaces(depth);
+			std::cout << "Constructor Expression" << std::endl;
+			util::spaces(depth);
+			std::cout << "Arguments: " << std::endl;
+			for (const auto& expression : arguments)
+			{
+				expression->print(depth + 1);
+			}
+		}
+
+		virtual int line() override { return constructorLine; }
 	};
 
 	struct ControlFlowGraph

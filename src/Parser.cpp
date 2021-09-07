@@ -15,52 +15,52 @@ namespace ash
 		panicMode = false;
 
 		rules = {
-		{FN(Parser::grouping),FN2(Parser::call), Precedence::CALL},    //[PAREN]
-		{nullptr,                       nullptr, Precedence::NONE},    //[CLOSE_PAREN]
-		{nullptr,                       nullptr, Precedence::NONE},    //[BRACE]
-		{nullptr,                       nullptr, Precedence::NONE},    //[CLOSE_BRACE]
-		{FN(Parser::grouping),          nullptr, Precedence::NONE},    //[BRACKET]
-		{nullptr,                       nullptr, Precedence::NONE},    //[CLOSE_BRACKET]
-		{nullptr,                       nullptr, Precedence::NONE},    //[COMMA]
-		{nullptr,             FN2(Parser::call), Precedence::CALL},    //[DOT]
-		{FN(Parser::unary), FN2(Parser::binary), Precedence::TERM},    //[MINUS]
-		{nullptr,           FN2(Parser::binary), Precedence::TERM},    //[PLUS]
-		{nullptr,           FN2(Parser::assignment), Precedence::ASSIGNMENT},    //[EQUAL]
-		{nullptr,                       nullptr, Precedence::NONE},	   //[SEMICOLON]
-		{nullptr,           FN2(Parser::binary), Precedence::FACTOR},  //[SLASH]
-		{nullptr,           FN2(Parser::binary), Precedence::FACTOR},  //[STAR]
-		{FN(Parser::unary),             nullptr, Precedence::NONE},    //[BANG]
-		{nullptr,           FN2(Parser::binary), Precedence::EQUALITY},    //[BANG_EQUAL]
-		{nullptr,           FN2(Parser::binary), Precedence::EQUALITY},    //[EQUAL_EQUAL]
-		{nullptr,           FN2(Parser::binary), Precedence::COMPARISON},    //[LESS]
-		{nullptr,           FN2(Parser::binary), Precedence::COMPARISON},    //[LESS_EQUAL]
-		{nullptr,           FN2(Parser::binary), Precedence::COMPARISON},    //[GREATER]
-		{nullptr,           FN2(Parser::binary), Precedence::COMPARISON},    //[GREATER_EQUAL]
-		{nullptr,                       nullptr, Precedence::NONE},	   //[TYPE]
-		{nullptr,                       nullptr, Precedence::NONE},	   //[AUTO]
-		{nullptr,                       nullptr, Precedence::NONE},	   //[ANY]
-		{nullptr,                       nullptr, Precedence::NONE},	   //[MULTI]
-		{FN(Parser::literal),           nullptr, Precedence::NONE},	   //[IDENTIFIER]
-		{nullptr,                       nullptr, Precedence::NONE},	   //[DEF]
-		{FN(Parser::literal),           nullptr, Precedence::NONE},	   //[TRUE]
-		{FN(Parser::literal),           nullptr, Precedence::NONE},	   //[FALSE]
-		{FN(Parser::literal),           nullptr, Precedence::NONE},	   //[NULL_]
-		{FN(Parser::literal),           nullptr, Precedence::NONE},	   //[FLOAT]
-		{FN(Parser::literal),           nullptr, Precedence::NONE},	   //[DOUBLE]
-		{FN(Parser::literal),           nullptr, Precedence::NONE},	   //[CHAR]
-		{FN(Parser::literal),           nullptr, Precedence::NONE},	   //[INT]
-		{FN(Parser::literal),           nullptr, Precedence::NONE},	   //[STRING]
-		{nullptr,                       nullptr, Precedence::NONE},	   //[IF]
-		{nullptr,                       nullptr, Precedence::NONE},	   //[WHILE]
-		{nullptr,                       nullptr, Precedence::NONE},	   //[FOR]
-		{nullptr,                       nullptr, Precedence::NONE},	   //[RETURN]
-		{nullptr,                       nullptr, Precedence::NONE},	   //[ELSE]
-		{nullptr,           FN2(Parser::binary), Precedence::AND},	   //[AND]
-		{nullptr,           FN2(Parser::binary), Precedence::OR},	   //[OR]
-		{nullptr,                       nullptr, Precedence::NONE},	   //[BREAK]
-		{nullptr,                       nullptr, Precedence::NONE},	   //[NEWLINE]
-		{nullptr,                       nullptr, Precedence::NONE},	   //[ERROR]
-		{nullptr,                       nullptr, Precedence::NONE},	   //[EOF]
+		{FN(Parser::grouping),FN2(Parser::call),       Precedence::CALL},   //[PAREN]
+		{nullptr,                       nullptr,       Precedence::NONE},   //[CLOSE_PAREN]
+		{nullptr,                       nullptr,       Precedence::NONE},   //[BRACE]
+		{nullptr,                       nullptr,       Precedence::NONE},   //[CLOSE_BRACE]
+		{FN(Parser::constructor),       nullptr,       Precedence::CALL},   //[BRACKET]
+		{nullptr,                       nullptr,       Precedence::NONE},   //[CLOSE_BRACKET]
+		{nullptr,                       nullptr,       Precedence::NONE},   //[COMMA]
+		{nullptr,             FN2(Parser::call),       Precedence::CALL},   //[DOT]
+		{FN(Parser::unary), FN2(Parser::binary),       Precedence::TERM},   //[MINUS]
+		{nullptr,           FN2(Parser::binary),       Precedence::TERM},   //[PLUS]
+		{nullptr,       FN2(Parser::assignment), Precedence::ASSIGNMENT},   //[EQUAL]
+		{nullptr,                       nullptr,       Precedence::NONE},	//[SEMICOLON]
+		{nullptr,           FN2(Parser::binary),     Precedence::FACTOR},   //[SLASH]
+		{nullptr,           FN2(Parser::binary),     Precedence::FACTOR},   //[STAR]
+		{FN(Parser::unary),             nullptr,       Precedence::NONE},   //[BANG]
+		{nullptr,           FN2(Parser::binary),   Precedence::EQUALITY},   //[BANG_EQUAL]
+		{nullptr,           FN2(Parser::binary),   Precedence::EQUALITY},   //[EQUAL_EQUAL]
+		{nullptr,           FN2(Parser::binary), Precedence::COMPARISON},   //[LESS]
+		{nullptr,           FN2(Parser::binary), Precedence::COMPARISON},   //[LESS_EQUAL]
+		{nullptr,           FN2(Parser::binary), Precedence::COMPARISON},   //[GREATER]
+		{nullptr,           FN2(Parser::binary), Precedence::COMPARISON},   //[GREATER_EQUAL]
+		{nullptr,                       nullptr,       Precedence::NONE},	//[TYPE]
+		{nullptr,                       nullptr,       Precedence::NONE},	//[AUTO]
+		{nullptr,                       nullptr,       Precedence::NONE},	//[ANY]
+		{nullptr,                       nullptr,       Precedence::NONE},	//[MULTI]
+		{FN(Parser::literal),           nullptr,       Precedence::NONE},	//[IDENTIFIER]
+		{nullptr,                       nullptr,       Precedence::NONE},	//[DEF]
+		{FN(Parser::literal),           nullptr,       Precedence::NONE},	//[TRUE]
+		{FN(Parser::literal),           nullptr,       Precedence::NONE},	//[FALSE]
+		{FN(Parser::literal),           nullptr,       Precedence::NONE},	//[NULL_]
+		{FN(Parser::literal),           nullptr,       Precedence::NONE},	//[FLOAT]
+		{FN(Parser::literal),           nullptr,       Precedence::NONE},	//[DOUBLE]
+		{FN(Parser::literal),           nullptr,       Precedence::NONE},	//[CHAR]
+		{FN(Parser::literal),           nullptr,       Precedence::NONE},	//[INT]
+		{FN(Parser::literal),           nullptr,       Precedence::NONE},	//[STRING]
+		{nullptr,                       nullptr,       Precedence::NONE},	//[IF]
+		{nullptr,                       nullptr,       Precedence::NONE},	//[WHILE]
+		{nullptr,                       nullptr,       Precedence::NONE},	//[FOR]
+		{nullptr,                       nullptr,       Precedence::NONE},	//[RETURN]
+		{nullptr,                       nullptr,       Precedence::NONE},	//[ELSE]
+		{nullptr,           FN2(Parser::binary),        Precedence::AND},	//[AND]
+		{nullptr,           FN2(Parser::binary),         Precedence::OR},	//[OR]
+		{nullptr,                       nullptr,       Precedence::NONE},	//[BREAK]
+		{nullptr,                       nullptr,       Precedence::NONE},	//[NEWLINE]
+		{nullptr,                       nullptr,       Precedence::NONE},	//[ERROR]
+		{nullptr,                       nullptr,       Precedence::NONE},	//[EOF]
 
 
 		};
@@ -126,6 +126,7 @@ namespace ash
 			TokenType::PAREN,
 			TokenType::CLOSE_BRACE,
 			TokenType::FOR,
+			TokenType::DEF,
 			TokenType::IF,
 			TokenType::TYPE,
 			TokenType::IDENTIFIER,
@@ -158,6 +159,7 @@ namespace ash
 			if (previousValid && nextValid)
 			{
 				current.type = TokenType::SEMICOLON;
+				current.string = std::string(";");
 			}
 			else
 			{
@@ -189,7 +191,7 @@ namespace ash
 
 		for (;;)
 		{
-			next = scanner.scanToken(); 
+			next = scanner.scanToken();
 			if (next.type != TokenType::ERROR) break;
 			errorAtCurrent(next.string);
 		}
@@ -233,7 +235,7 @@ namespace ash
 
 	std::shared_ptr<ExpressionNode> Parser::binary(std::shared_ptr<ExpressionNode> lhs, bool canAssign)
 	{
-		std::shared_ptr<BinaryNode> node = std::make_shared<BinaryNode>();
+		auto node = std::make_shared<BinaryNode>();
 		node->left = lhs;
 		node->op = previous;
 		ParseRule* rule = getRule(previous.type);
@@ -243,7 +245,7 @@ namespace ash
 
 	std::shared_ptr<ExpressionNode> Parser::assignment(std::shared_ptr<ExpressionNode> lhs, bool canAssign)
 	{
-		std::shared_ptr<AssignmentNode> node = std::make_shared<AssignmentNode>();
+		auto node = std::make_shared<AssignmentNode>();
 		node->identifier = lhs;
 		node->value = expression();
 		return node;
@@ -254,7 +256,7 @@ namespace ash
 		//TODO: field calls
 		if (previous.type == TokenType::PAREN)
 		{
-			std::shared_ptr<FunctionCallNode> node = std::make_shared<FunctionCallNode>();
+			auto node = std::make_shared<FunctionCallNode>();
 			node->left = lhs;
 			if (!match(TokenType::CLOSE_PAREN))
 			{
@@ -273,7 +275,7 @@ namespace ash
 		}
 		else if (previous.type == TokenType::DOT)
 		{
-			std::shared_ptr<FieldCallNode> node = std::make_shared<FieldCallNode>();
+			auto node = std::make_shared<FieldCallNode>();
 			node->left = lhs;
 			if (check(TokenType::IDENTIFIER))
 			{
@@ -282,6 +284,10 @@ namespace ash
 			consume(TokenType::IDENTIFIER, "expected type field after '.'");
 
 			return node;
+		}
+		else
+		{
+			error("expected '(' or '.' for function or field call.");
 		}
 	}
 
@@ -294,17 +300,36 @@ namespace ash
 
 	std::shared_ptr<ExpressionNode> Parser::literal(bool canAssign)
 	{
-		std::shared_ptr<CallNode> node = std::make_shared<CallNode>();
+		auto node = std::make_shared<CallNode>();
 		node->primary = previous;
 		return node;
 	}
 
 	std::shared_ptr<ExpressionNode> Parser::unary(bool canAssign)
 	{
-		std::shared_ptr<UnaryNode> node = std::make_shared<UnaryNode>();
+		auto node = std::make_shared<UnaryNode>();
 		node->op = previous;
 
 		node->unary = ParsePrecedence(Precedence::UNARY);
+
+		return node;
+	}
+
+	std::shared_ptr<ExpressionNode> Parser::constructor(bool canAssign)
+	{
+		auto node = std::make_shared<ConstructorNode>();
+		if (!match(TokenType::CLOSE_BRACKET))
+		{
+			while (!check(TokenType::CLOSE_BRACKET))
+			{
+				node->arguments.push_back(expression());
+				if (!check(TokenType::CLOSE_BRACKET))
+				{
+					consume(TokenType::COMMA, "expected ',' between arguments.");
+				}
+			}
+			consume(TokenType::CLOSE_BRACKET, "expected ']' after final argument.");
+		}
 
 		return node;
 	}

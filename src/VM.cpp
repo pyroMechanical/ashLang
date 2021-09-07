@@ -187,7 +187,7 @@ namespace ash
 
 					auto alloc = reinterpret_cast<Allocation*>(R[B]);
 					auto addr = reinterpret_cast<uint8_t*>(alloc->memory);
-					*addr = R[A];
+					*addr = static_cast<uint8_t>(R[A]);
 					break;
 				}
 				case OP_STORE16:
@@ -198,7 +198,7 @@ namespace ash
 
 					auto alloc = reinterpret_cast<Allocation*>(R[B]);
 					auto addr = reinterpret_cast<uint16_t*>(alloc->memory);
-					*addr = R[A];
+					*addr = static_cast<uint16_t>(R[A]);
 					break;
 				}
 				case OP_STORE32:
@@ -209,7 +209,7 @@ namespace ash
 
 					auto alloc = reinterpret_cast<Allocation*>(R[B]);
 					auto addr = reinterpret_cast<uint32_t*>(alloc->memory);
-					*addr = R[A];
+					*addr = static_cast<uint32_t>(R[A]);
 					break;
 				}
 				case OP_STORE64:
@@ -276,7 +276,7 @@ namespace ash
 
 					auto alloc = reinterpret_cast<Allocation*>(R[B]);
 					auto addr = reinterpret_cast<uint8_t*>(alloc->memory + R[C]);
-					*addr = R[A];
+					*addr = static_cast<uint8_t>(R[A]);
 					break;
 				}
 				case OP_STORE16_OFFSET:
@@ -288,7 +288,7 @@ namespace ash
 
 					auto alloc = reinterpret_cast<Allocation*>(R[B]);
 					auto addr = reinterpret_cast<uint16_t*>(alloc->memory + R[C]);
-					*addr = R[A];
+					*addr = static_cast<uint16_t>(R[A]);
 					break;
 				}
 				case OP_STORE32_OFFSET:
@@ -300,7 +300,7 @@ namespace ash
 
 					auto alloc = reinterpret_cast<Allocation*>(R[B]);
 					auto addr = reinterpret_cast<uint32_t*>(alloc->memory + R[C]);
-					*addr = R[A];
+					*addr = static_cast<uint32_t>(R[A]);
 					break;
 				}
 				case OP_STORE64_OFFSET:
@@ -781,7 +781,7 @@ namespace ash
 				case OP_RELATIVE_JUMP:
 				{
 					int32_t jump = (int32_t)JumpOffset(instruction);
-					if((ip - chunk->code()) + jump - 1 > chunk->size() || (ip - chunk->code()) + jump - 1 < 0) return error("attempted jump beyond code bounds!");
+					if((ip - chunk->code()) + jump - 1 > static_cast<int64_t>(chunk->size()) || (ip - chunk->code()) + jump - 1 < 0) return error("attempted jump beyond code bounds!");
 					ip += jump - 1;
 					break;
 				}
@@ -791,7 +791,7 @@ namespace ash
 					{
 						comparisonRegister = false;
 						int32_t jump = (int32_t)JumpOffset(instruction);
-						if ((ip - chunk->code()) + jump - 1 > chunk->size() || (ip - chunk->code()) + jump - 1 < 0) return error("attempted jump beyond code bounds!");
+						if (((ip - chunk->code()) + jump - 1) > static_cast<int64_t>(chunk->size()) || ((ip - chunk->code()) + jump - 1) < 0) return error("attempted jump beyond code bounds!");
 						ip += jump - 1;
 					}
 					break;
@@ -838,8 +838,10 @@ namespace ash
 		if (newSize > oldSize)
 #ifdef STRESSTEST_GC
 			collectGarbage();
+#else
+			//TODO: find a heuristic for calling the garbage collector
 #endif
-
+		
 		if (newSize == 0)
 		{
 			free(pointer);
@@ -847,13 +849,13 @@ namespace ash
 		}
 
 		void* result = realloc(pointer, newSize);
-		memset(result, 0, newSize);
 		if (result == nullptr) exit(1);
+		memset((void*)(((char*)result)+oldSize), 0, newSize-oldSize);
 		Allocation* allocation = new Allocation();
+		//std::cout << sizeof(Allocation) << std::endl;
 		allocation->memory = static_cast<char*>(result);
 		allocation->next = allocationList;
 		allocationList = allocation;
-
 		return (void*)allocation;
 	}
 

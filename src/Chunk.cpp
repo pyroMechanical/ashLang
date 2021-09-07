@@ -106,8 +106,8 @@ namespace ash
 	}
 	void Chunk::WriteU32(uint8_t A, uint32_t constant)
 	{
-		uint16_t constant_high = constant >> 16;
-		uint16_t constant_low = constant;
+		uint16_t constant_high = static_cast<uint16_t>(constant >> 16);
+		uint16_t constant_low = static_cast<uint16_t>(constant);
 
 		uint32_t result_high = OP_CONST_MID_LOW;
 		result_high = (result_high << 8) + A;
@@ -122,10 +122,10 @@ namespace ash
 	}
 	void Chunk::WriteU64(uint8_t A, uint64_t constant)
 	{
-		uint16_t constant_high = constant >> 48;
-		uint16_t constant_mid_high = constant >> 32;
-		uint16_t constant_mid_low = constant >> 16;
-		uint16_t constant_low = constant;
+		uint16_t constant_high = static_cast<uint16_t>(constant >> 48);
+		uint16_t constant_mid_high = static_cast<uint16_t>(constant >> 32);
+		uint16_t constant_mid_low = static_cast<uint16_t>(constant >> 16);
+		uint16_t constant_low = static_cast<uint16_t>(constant);
 
 		uint32_t result_high = OP_CONST_HIGH;
 		result_high = (result_high << 8) + A;

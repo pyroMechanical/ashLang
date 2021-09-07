@@ -4,15 +4,19 @@
 #include <vector>
 namespace ash
 {
-	struct FieldMetadata
-	{
-		bool isPointer; //replace with uint8_t bit flag later?
-		uint32_t offset;
-	};
 
 	struct TypeMetadata
 	{
-		std::vector<FieldMetadata> offsets;
+		TypeMetadata* parent;
+		std::vector<uint8_t> fields;
+		/*
+			0x00: 1 byte
+			0x01: 2 bytes
+			0x02: 4 bytes
+			0x04: 8 bytes
+			0x08: pointer
+			0x80: array; will be the only field in TypeMetadata.fields
+		*/
 	};
 
 	struct Allocation

@@ -71,6 +71,7 @@ namespace ash
 		std::shared_ptr<ExpressionNode> assignment(std::shared_ptr<ExpressionNode> node, bool assign);
 		std::shared_ptr<ExpressionNode> literal(bool assign);
 		std::shared_ptr<ExpressionNode> unary(bool assign);
+		std::shared_ptr<ExpressionNode> constructor(bool assign);
 
 		std::shared_ptr<ProgramNode> parse();
 	};

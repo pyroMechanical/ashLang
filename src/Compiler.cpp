@@ -79,21 +79,22 @@ namespace ash
 
 		Semantics analyzer;
 
-		//ast->print(0);
+		ast->print(0);
 
 		ast = analyzer.findSymbols(ast);
 		temporaries = analyzer.temporaries;
+		if (ast->hadError) return false;
 
 		//ast->print(0);
 
-		ControlFlowAnalysis cfa;
+		/*ControlFlowAnalysis cfa;
 
 		std::shared_ptr<ControlFlowGraph> cfg = cfa.createCFG(ast);
 
-		//for (const auto func : cfg->basicBlocks)
-		//{
-		//	func->print(0);
-		//}
+		for (const auto func : cfg->basicBlocks)
+		{
+			func->print(0);
+		}*/
 
 		pseudochunk result = precompile(ast);
 		
@@ -104,7 +105,7 @@ namespace ash
 			instruction->print();
 		}
 
-		return false;
+		return true;
 	}
 
 	pseudochunk Compiler::precompile(std::shared_ptr<ProgramNode> ast)
@@ -113,7 +114,7 @@ namespace ash
 		for (const auto& declaration : ast->declarations)
 		{
 			auto nextCode = compileNode((ParseNode*)declaration.get(), nullptr);
-			chunk.code.insert(chunk.code.end(), nextCode.begin(), nextCode.end());
+			if(nextCode.size()) chunk.code.insert(chunk.code.end(), nextCode.begin(), nextCode.end());
 		}
 		auto halt = std::make_shared<pseudocode>();
 		halt->op = OP_HALT;
@@ -154,6 +155,11 @@ namespace ash
 				ifChunk.push_back(exitLabel);
 
 				return ifChunk;
+			}
+			case NodeType::TypeDeclaration:
+			{
+				std::vector<std::shared_ptr<assembly>> defChunk;
+				return defChunk;
 			}
 
 			case NodeType::WhileStatement:

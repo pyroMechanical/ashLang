@@ -45,38 +45,38 @@ namespace ash
 		OP_HALT, //stops program execution
 			//one-register instructions: 8-bit opcode | 8-bit register A | 16 bits space
 		OP_PUSH, //A; push value from R[A] onto stack
-		OP_POP, //A; pop value from stack into R[A]
-		OP_RETURN, // A, outputs value of register in terminal
-		OP_OUT,
+		OP_POP,  //A; pop value from stack into R[A]
+		OP_RETURN, 
+		OP_OUT,  // A, outputs value of R[A] in terminal
 		OP_STORE_IP_OFFSET, // A; R[A] = instruction pointer - chunk beginning
 			//two-register instructions: 8-bit opcode | 8-bit register A | 8-bit register B | 8 bits space
-		OP_MOVE, // A, B; move value from R[A] to R[B]
-		OP_ALLOC, // A, B; allocate R[A] bytes of memory on the heap, store address in R[B]
-		OP_STORE8, // A, B; store value from R[A] in memory address R[B]
+		OP_MOVE,    // A, B; move value from R[A] to R[B]
+		OP_ALLOC,   // A, B; allocate R[A] bytes of memory on the heap, store address in R[B]
+		OP_STORE8,  // A, B; store value from R[A] in memory address R[B]
 		OP_STORE16, // A, B; store value from R[A] in memory address R[B]
 		OP_STORE32, // A, B; store value from R[A] in memory address R[B]
 		OP_STORE64, // A, B; store value from R[A] in memory address R[B]
-		OP_LOAD8, // A, B; load value from address R[B] to R[A]
+		OP_LOAD8,  // A, B; load value from address R[B] to R[A]
 		OP_LOAD16, // A, B; load value from address R[B] to R[A]
 		OP_LOAD32, // A, B; load value from address R[B] to R[A]
 		OP_LOAD64, // A, B; load value from address R[B] to R[A]
 		OP_CONST_LOW, // A, clears R[A], then writes to bottom two bytes
-		OP_CONST_MID_LOW, // A, writes to second lowest two bytes
+		OP_CONST_MID_LOW,  // A, writes to second lowest two bytes
 		OP_CONST_MID_HIGH, // A, writes to second higest two bytes
 		OP_CONST_HIGH, // A, writes to highest two bytes
 			//three-register instructions: 8-bit opcode | 8-bit register A | 8-bit register B | 8-bit register C
-		OP_STORE8_OFFSET, // A, B, C; store value from R[A] in memory address R[B] + R[C]
+		OP_STORE8_OFFSET,  // A, B, C; store value from R[A] in memory address R[B] + R[C]
 		OP_STORE16_OFFSET, // A, B, C; store value from R[A] in memory address R[B] + R[C]
 		OP_STORE32_OFFSET, // A, B, C; store value from R[A] in memory address R[B] + R[C]
 		OP_STORE64_OFFSET, // A, B, C; store value from R[A] in memory address R[B] + R[C]
-		OP_LOAD8_OFFSET, // A, B, C; load value from address R[B] + R[C] to R[A]
+		OP_LOAD8_OFFSET,  // A, B, C; load value from address R[B] + R[C] to R[A]
 		OP_LOAD16_OFFSET, // A, B, C; load value from address R[B] + R[C] to R[A]
 		OP_LOAD32_OFFSET, // A, B, C; load value from address R[B] + R[C] to R[A]
 		OP_LOAD64_OFFSET, // A, B, C; load value from address R[B] + R[C] to R[A]
 			//signed integers are sign-extended, so one addition/subtraction operation works for both
 		OP_INT_ADD, //A, B, C; R[C] = R[A] + R[B]
 		OP_INT_SUB, //A, B, C; R[C] = R[A] - R[B]
-		OP_INT_NEGATE, //A, B; R[B[ = -R[A]
+		OP_INT_NEGATE, //A, B; R[B] = -R[A]
 			//arithmetic and comparison operations on unsigned integers
 		OP_UNSIGN_MUL, //A, B, C; R[C] = R[A] * R[B]
 		OP_UNSIGN_DIV, //A, B, C; R[C] = R[A] / R[B]
@@ -88,13 +88,13 @@ namespace ash
 		OP_FLOAT_SUB, //A, B, C; R[C] = R[A] - R[B]
 		OP_FLOAT_MUL, //A, B, C; R[C] = R[A] * R[B]
 		OP_FLOAT_DIV, //A, B, C; R[C] = R[A] / R[B]
-		OP_FLOAT_NEGATE, //A, B; R[B] = -R[A];
+		OP_FLOAT_NEGATE, //A, B; R[B] = -R[A]
 			//arithmetic and comparison operators on double-precision floats
 		OP_DOUBLE_ADD, //A, B, C; R[C] = R[A] + R[B]
 		OP_DOUBLE_SUB, //A, B, C; R[C] = R[A] - R[B]
 		OP_DOUBLE_MUL, //A, B, C; R[C] = R[A] * R[B]
 		OP_DOUBLE_DIV, //A, B, C; R[C] = R[A] / R[B]
-		OP_DOUBLE_NEGATE, //A, B; R[B] = -R[A];
+		OP_DOUBLE_NEGATE, //A, B; R[B] = -R[A]
 			//comparison operations set the value of the comparison register with their output value
 		OP_UNSIGN_LESS, //A, B, C; R[C] = R[A] < R[B]
 		OP_UNSIGN_GREATER, //A, B, C; R[C] = R[A] > R[B]
