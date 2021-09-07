@@ -8,7 +8,7 @@
 #include <Windows.h>
 #endif
 
-#define TEST_VM_OPERATIONS
+//#define TEST_VM_OPERATIONS
 
 using namespace ash;
 

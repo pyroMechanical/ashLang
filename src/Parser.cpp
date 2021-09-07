@@ -13,13 +13,14 @@ namespace ash
 #define	FN2(fn) (std::bind(&fn, this, std::placeholders::_1, std::placeholders::_2))
 		hadError = false;
 		panicMode = false;
+		inExpression = 0;
 
 		rules = {
 		{FN(Parser::grouping),FN2(Parser::call),       Precedence::CALL},   //[PAREN]
 		{nullptr,                       nullptr,       Precedence::NONE},   //[CLOSE_PAREN]
-		{nullptr,                       nullptr,       Precedence::NONE},   //[BRACE]
+		{FN(Parser::constructor),       nullptr,       Precedence::CALL},   //[BRACE]
 		{nullptr,                       nullptr,       Precedence::NONE},   //[CLOSE_BRACE]
-		{FN(Parser::constructor),       nullptr,       Precedence::CALL},   //[BRACKET]
+		{nullptr,                       nullptr,       Precedence::NONE},   //[BRACKET]
 		{nullptr,                       nullptr,       Precedence::NONE},   //[CLOSE_BRACKET]
 		{nullptr,                       nullptr,       Precedence::NONE},   //[COMMA]
 		{nullptr,             FN2(Parser::call),       Precedence::CALL},   //[DOT]
@@ -149,6 +150,10 @@ namespace ash
 			for (int i = 0; i < ValidPrevious.size(); i++)
 			{
 				previousValid |= (previous.type == ValidPrevious[i]);
+			}
+			if (inExpression > 0)
+			{
+				previousValid |= (previous.type == TokenType::CLOSE_BRACE);
 			}
 			bool nextValid = false;
 			for (int i = 0; i < ValidNext.size(); i++)
@@ -318,17 +323,18 @@ namespace ash
 	std::shared_ptr<ExpressionNode> Parser::constructor(bool canAssign)
 	{
 		auto node = std::make_shared<ConstructorNode>();
-		if (!match(TokenType::CLOSE_BRACKET))
+		if (!match(TokenType::CLOSE_BRACE))
 		{
-			while (!check(TokenType::CLOSE_BRACKET))
+			while (!check(TokenType::CLOSE_BRACE))
 			{
 				node->arguments.push_back(expression());
-				if (!check(TokenType::CLOSE_BRACKET))
+				match(TokenType::SEMICOLON); //removes unwanted semicolons because of extra newlines in badly-written code
+				if (!check(TokenType::CLOSE_BRACE))
 				{
 					consume(TokenType::COMMA, "expected ',' between arguments.");
 				}
 			}
-			consume(TokenType::CLOSE_BRACKET, "expected ']' after final argument.");
+			consume(TokenType::CLOSE_BRACE, "expected '}' after final argument.");
 		}
 
 		return node;
@@ -549,7 +555,9 @@ namespace ash
 
 	std::shared_ptr<ExpressionNode> Parser::expression()
 	{
+		inExpression++;
 		return ParsePrecedence(Precedence::ASSIGNMENT);
+		inExpression--;
 	}
 
 	std::shared_ptr<ExpressionNode> Parser::ParsePrecedence(Precedence precedence)

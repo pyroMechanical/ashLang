@@ -37,6 +37,7 @@ namespace ash
 		Token previous;
 		bool hadError;
 		bool panicMode;
+		int inExpression;
 		Scanner scanner;
 		
 		std::vector<ParseRule> rules;
