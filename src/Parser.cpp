@@ -20,7 +20,7 @@ namespace ash
 		{nullptr,                       nullptr,       Precedence::NONE},   //[CLOSE_PAREN]
 		{FN(Parser::constructor),       nullptr,       Precedence::CALL},   //[BRACE]
 		{nullptr,                       nullptr,       Precedence::NONE},   //[CLOSE_BRACE]
-		{nullptr,                       nullptr,       Precedence::NONE},   //[BRACKET]
+		{nullptr,                       nullptr,       Precedence::CALL},   //[BRACKET]
 		{nullptr,                       nullptr,       Precedence::NONE},   //[CLOSE_BRACKET]
 		{nullptr,                       nullptr,       Precedence::NONE},   //[COMMA]
 		{nullptr,             FN2(Parser::call),       Precedence::CALL},   //[DOT]
@@ -328,7 +328,7 @@ namespace ash
 			while (!check(TokenType::CLOSE_BRACE))
 			{
 				node->arguments.push_back(expression());
-				match(TokenType::SEMICOLON); //removes unwanted semicolons because of extra newlines in badly-written code
+				match(TokenType::SEMICOLON); //removes unwanted semicolons because of extra newlines in badly-formatted code
 				if (!check(TokenType::CLOSE_BRACE))
 				{
 					consume(TokenType::COMMA, "expected ',' between arguments.");

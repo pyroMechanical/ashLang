@@ -18,12 +18,13 @@ using namespace ash;
 #ifdef TEST_VM_OPERATIONS
         Disassembler debug;
         Chunk chunk;
-        chunk.WriteU8(1, 16);
-        chunk.WriteU8(3, 1);
-        chunk.WriteU16(2, 65535);
-        chunk.WriteAB(OP_ALLOC, 1, 4, 0);
-        chunk.WriteABC(OP_STORE16_OFFSET, 2, 4, 3, 0);
-        chunk.WriteABC(OP_LOAD16_OFFSET, 0, 4, 3, 0);
+        chunk.WriteU8(1, 13);
+        chunk.WriteU8(3, 2);
+        chunk.WriteU8(4, 1);
+        chunk.WriteU16(2, 16);
+        chunk.WriteABC(OP_ALLOC_ARRAY, 2, 3, 5, 0);
+        chunk.WriteABC(OP_ARRAY_STORE, 1, 5, 4, 0);
+        chunk.WriteABC(OP_ARRAY_LOAD, 0, 5, 4, 0);
         chunk.WriteA(OP_OUT, 0, 0);
         chunk.WriteOp(OP_RETURN);
 

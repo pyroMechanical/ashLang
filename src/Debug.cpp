@@ -54,6 +54,9 @@ namespace ash
 			case OP_LOAD16_OFFSET: return ABCInstruction("OP_LOAD16_OFFSET", offset);
 			case OP_LOAD32_OFFSET: return ABCInstruction("OP_LOAD32_OFFSET", offset);
 			case OP_LOAD64_OFFSET: return ABCInstruction("OP_LOAD64_OFFSET", offset);
+			case OP_ALLOC_ARRAY: return ABCInstruction("OP_ALLOC_ARRAY", offset);
+			case OP_ARRAY_STORE: return ABCInstruction("OP_ARRAY_STORE", offset);
+			case OP_ARRAY_LOAD:	 return ABCInstruction("OP_ARRAY_LOAD", offset);
 			case OP_INT_ADD: return ABCInstruction("OP_INT_ADD", offset);
 			case OP_INT_SUB: return ABCInstruction("OP_INT_SUB", offset);
 			case OP_INT_NEGATE: return ABInstruction("OP_INT_NEGATE", offset);

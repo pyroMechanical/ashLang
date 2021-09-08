@@ -21,7 +21,8 @@ namespace ash
 		REGISTER_HOLDS_SIGNED = 0x02,
 		REGISTER_HOLDS_FLOAT = 0x04,
 		REGISTER_HOLDS_DOUBLE = 0x08,
-		REGISTER_HIGH_BITS = 0xF0
+		REGISTER_HOLDS_ARRAY = 0x10,
+		REGISTER_HIGH_BITS = 0xE0
 	};
 
 	class VM
@@ -50,6 +51,8 @@ namespace ash
 		InterpretResult error(const char* msg);
 
 		void* allocate(void* pointer, size_t oldSize, size_t newSize);
+
+		void* allocateArray(void* pointer, size_t oldCount, size_t newCount, uint8_t span);
 
 		void freeAllocation(Allocation* alloc);
 

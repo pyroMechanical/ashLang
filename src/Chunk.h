@@ -73,6 +73,9 @@ namespace ash
 		OP_LOAD16_OFFSET, // A, B, C; load value from address R[B] + R[C] to R[A]
 		OP_LOAD32_OFFSET, // A, B, C; load value from address R[B] + R[C] to R[A]
 		OP_LOAD64_OFFSET, // A, B, C; load value from address R[B] + R[C] to R[A]
+		OP_ALLOC_ARRAY, //A, B, C; allocate array with length R[A] and span R[B] and store pointer in R[C]
+		OP_ARRAY_STORE, //A, B, C; write value from R[A] in array R[B] with index R[C]
+		OP_ARRAY_LOAD, //A, B, C; load value from array R[B] with index R[C] to R[A]
 			//signed integers are sign-extended, so one addition/subtraction operation works for both
 		OP_INT_ADD, //A, B, C; R[C] = R[A] + R[B]
 		OP_INT_SUB, //A, B, C; R[C] = R[A] - R[B]

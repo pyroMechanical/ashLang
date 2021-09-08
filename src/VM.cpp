@@ -6,6 +6,8 @@
 
 #define STRESSTEST_GC
 //#def LOG_GC
+#define ARRAY_SIZE_OFFSET 1
+#define ARRAY_BEGIN_OFFSET 9
 
 namespace ash
 {
@@ -145,6 +147,20 @@ namespace ash
 					R[B] = reinterpret_cast<uint64_t>(alloc);
 					rFlags[B] &= REGISTER_HIGH_BITS;
 					rFlags[B] |= REGISTER_HOLDS_POINTER;
+					break;
+				}
+				case OP_ALLOC_ARRAY:
+				{
+					uint8_t A = RegisterA(instruction);
+					uint8_t B = RegisterB(instruction);
+					uint8_t C = RegisterC(instruction);
+					size_t count = R[A];
+					uint8_t span = static_cast<uint8_t>(R[B]);
+					void* alloc = allocateArray(nullptr, 0, count, span);
+					R[C] = reinterpret_cast<uint64_t>(alloc);
+					rFlags[C] &= REGISTER_HIGH_BITS;
+					rFlags[C] |= REGISTER_HOLDS_POINTER;
+					rFlags[C] |= REGISTER_HOLDS_ARRAY;
 					break;
 				}
 				case OP_CONST_LOW:
@@ -361,6 +377,90 @@ namespace ash
 					auto alloc = reinterpret_cast<Allocation*>(R[B]);
 					auto addr = reinterpret_cast<uint64_t*>(alloc->memory + R[C]);
 					R[A] = *addr;
+					break;
+				}
+				case OP_ARRAY_STORE:
+				{
+					uint8_t A = RegisterA(instruction);
+					uint8_t B = RegisterB(instruction);
+					uint8_t C = RegisterC(instruction);
+					if ((rFlags[B] & REGISTER_HOLDS_POINTER) == 0) return error("register not a memory address!");
+					if ((rFlags[B] & REGISTER_HOLDS_ARRAY) == 0) return error("pointer held in register is not an array!");
+
+					auto alloc = reinterpret_cast<Allocation*>(R[B]);
+					uint8_t span = (*alloc->memory) & 0x7F;
+					uint64_t arrayCount = *reinterpret_cast<uint64_t*>(alloc->memory + ARRAY_SIZE_OFFSET);
+					if (R[C] >= arrayCount) return error("array index out of bounds!");
+					uint64_t offset = span * R[C];
+					switch (span)
+					{
+					case 1:
+					{
+						auto addr = reinterpret_cast<uint8_t*>(alloc->memory + ARRAY_BEGIN_OFFSET + offset);
+						*addr = static_cast<uint8_t>(R[A]);
+						break;
+					}
+					case 2:
+					{
+						auto addr = reinterpret_cast<uint16_t*>(alloc->memory + ARRAY_BEGIN_OFFSET + offset);
+						*addr = static_cast<uint16_t>(R[A]);
+						break;
+					}
+					case 4:
+					{
+						auto addr = reinterpret_cast<uint32_t*>(alloc->memory + ARRAY_BEGIN_OFFSET + offset);
+						*addr = static_cast<uint32_t>(R[A]);
+						break;
+					}
+					case 8:
+					{
+						auto addr = reinterpret_cast<uint64_t*>(alloc->memory + ARRAY_BEGIN_OFFSET + offset);
+						*addr = R[A];
+						break;
+					}
+					}
+					break;
+				}
+				case OP_ARRAY_LOAD:
+				{
+					uint8_t A = RegisterA(instruction);
+					uint8_t B = RegisterB(instruction);
+					uint8_t C = RegisterC(instruction);
+					if ((rFlags[B] & REGISTER_HOLDS_POINTER) == 0) return error("register not a memory address!");
+					if ((rFlags[B] & REGISTER_HOLDS_ARRAY) == 0) return error("pointer held in register is not an array!");
+
+					auto alloc = reinterpret_cast<Allocation*>(R[B]);
+					uint8_t span = (*alloc->memory) & 0x7F;
+					uint64_t arrayCount = *reinterpret_cast<uint64_t*>(alloc->memory + ARRAY_SIZE_OFFSET);
+					if (R[C] >= arrayCount) return error("array index out of bounds!");
+					uint64_t offset = span * R[C];
+					switch (span)
+					{
+					case 1:
+					{
+						auto addr = reinterpret_cast<uint8_t*>(alloc->memory + ARRAY_BEGIN_OFFSET + offset);
+						R[A] = *addr;
+						break;
+					}
+					case 2:
+					{
+						auto addr = reinterpret_cast<uint16_t*>(alloc->memory + ARRAY_BEGIN_OFFSET + offset);
+						R[A] = *addr;
+						break;
+					}
+					case 4:
+					{
+						auto addr = reinterpret_cast<uint32_t*>(alloc->memory + ARRAY_BEGIN_OFFSET + offset);
+						R[A] = *addr;
+						break;
+					}
+					case 8:
+					{
+						auto addr = reinterpret_cast<uint64_t*>(alloc->memory + ARRAY_BEGIN_OFFSET + offset);
+						R[A] = *addr;
+						break;
+					}
+					}
 					break;
 				}
 				case OP_PUSH:
@@ -662,7 +762,6 @@ namespace ash
 					rFlags[C] |= REGISTER_HOLDS_DOUBLE;
 					break;
 				}
-
 				case OP_INT_TO_FLOAT:
 				{
 					uint8_t A = RegisterA(instruction);
@@ -858,6 +957,39 @@ namespace ash
 		allocationList = allocation;
 		return (void*)allocation;
 	}
+
+	void* VM::allocateArray(void* pointer, size_t oldCount, size_t newCount, uint8_t span)
+	{
+		if (newCount > oldCount)
+#ifdef STRESSTEST_GC
+			collectGarbage();
+#else
+			//TODO: find a heuristic for calling the garbage collector
+#endif
+		size_t oldSize = 0;
+		if (pointer)
+		{
+		
+			uint8_t* oldArray = (uint8_t*)pointer;
+			span = *oldArray;
+			oldSize = 9 + (oldCount * (span & 0x7F)); //1 byte for span, 8 bytes for capacity
+		}
+		size_t newSize = 9 + (newCount * (span & 0x7F)); //1 byte for span, 8 bytes for capacity
+		
+		void* result = realloc(pointer, newSize);
+		if (result == nullptr) exit(1);
+		memset((void*)(((char*)result) + oldSize), 0, newSize - oldSize);
+		uint8_t* newArray = (uint8_t*)result;
+		*newArray = span;
+		uint64_t* count = reinterpret_cast<uint64_t*>(newArray + 1);
+		*count = newCount;
+		Allocation* allocation = new Allocation();
+		allocation->memory = (char*)newArray;
+		allocation->next = allocationList;
+		allocationList = allocation;
+		return (void*)allocation;
+	}
+
 
 	void VM::freeAllocation(Allocation* alloc)
 	{

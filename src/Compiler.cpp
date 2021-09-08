@@ -81,20 +81,20 @@ namespace ash
 
 		ast->print(0);
 
-		ast = analyzer.findSymbols(ast);
+		/*ast = analyzer.findSymbols(ast);
 		temporaries = analyzer.temporaries;
 		if (ast->hadError) return false;
 
 		//ast->print(0);
 
-		/*ControlFlowAnalysis cfa;
+		//ControlFlowAnalysis cfa;
 
-		std::shared_ptr<ControlFlowGraph> cfg = cfa.createCFG(ast);
+		//std::shared_ptr<ControlFlowGraph> cfg = cfa.createCFG(ast);
 
-		for (const auto func : cfg->basicBlocks)
-		{
-			func->print(0);
-		}*/
+		//for (const auto func : cfg->basicBlocks)
+		//{
+		//	func->print(0);
+		//}
 
 		pseudochunk result = precompile(ast);
 		
@@ -103,9 +103,9 @@ namespace ash
 		for(const auto& instruction : result.code)
 		{
 			instruction->print();
-		}
+		}*/
 
-		return true;
+		return false;
 	}
 
 	pseudochunk Compiler::precompile(std::shared_ptr<ProgramNode> ast)

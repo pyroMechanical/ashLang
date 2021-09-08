@@ -266,6 +266,7 @@ namespace ash
 			FunctionCall,
 			Constructor,
 			FieldCall,
+			ArrayIndex,
 			Primary,
 		};
 
@@ -829,6 +830,29 @@ namespace ash
 		}
 
 		virtual int line() override { return left->line(); }
+	};
+
+	struct ArrayIndexNode : public ExpressionNode
+	{
+		std::shared_ptr<ExpressionNode> left;
+		std::shared_ptr<ExpressionNode> index;
+		Token arrayType;
+
+		virtual Token typeToken() override { return arrayType; }
+
+		virtual ExpressionType expressionType() override { return ExpressionType::ArrayIndex; }
+
+		virtual void print(int depth) override
+		{
+			util::spaces(depth);
+			std::cout << "Array Index" << std::endl;
+			util::spaces(depth);
+			std::cout << "Array: " << std::endl;
+			left->print(depth + 1);
+			util::spaces(depth);
+			std::cout << "Index: " << std::endl;
+			index->print(depth + 1);
+		}
 	};
 
 	struct BinaryNode : public ExpressionNode
