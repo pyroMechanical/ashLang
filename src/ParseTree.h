@@ -850,9 +850,14 @@ namespace ash
 			std::cout << "Array: " << std::endl;
 			left->print(depth + 1);
 			util::spaces(depth);
-			std::cout << "Index: " << std::endl;
-			index->print(depth + 1);
+			if (index)
+			{
+				std::cout << "Index: " << std::endl;
+				index->print(depth + 1);
+			}
 		}
+
+		virtual int line() override { return left->line(); }
 	};
 
 	struct BinaryNode : public ExpressionNode

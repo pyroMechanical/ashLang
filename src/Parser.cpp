@@ -20,7 +20,7 @@ namespace ash
 		{nullptr,                       nullptr,       Precedence::NONE},   //[CLOSE_PAREN]
 		{FN(Parser::constructor),       nullptr,       Precedence::CALL},   //[BRACE]
 		{nullptr,                       nullptr,       Precedence::NONE},   //[CLOSE_BRACE]
-		{nullptr,                       nullptr,       Precedence::CALL},   //[BRACKET]
+		{nullptr,       FN2(Parser::arrayIndex),       Precedence::CALL},   //[BRACKET]
 		{nullptr,                       nullptr,       Precedence::NONE},   //[CLOSE_BRACKET]
 		{nullptr,                       nullptr,       Precedence::NONE},   //[COMMA]
 		{nullptr,             FN2(Parser::call),       Precedence::CALL},   //[DOT]
@@ -74,11 +74,11 @@ namespace ash
 	{
 		if (panicMode) return;
 		panicMode = true;
-		std::cerr << token->line << " Error" << std::endl;
+		std::cerr << token->line << " Error ";
 
 		if(token->type == TokenType::EOF_)
 		{
-			std::cerr << " at end";
+			std::cerr << " at end: ";
 		}
 		else if (token->type == TokenType::ERROR)
 		{
@@ -86,7 +86,7 @@ namespace ash
 		}
 		else
 		{
-			std::cerr << "at " << token->string << std::endl;
+			std::cerr << "at " << token->string << ": ";
 		}
 
 		std::cerr << message << std::endl;
@@ -258,7 +258,6 @@ namespace ash
 
 	std::shared_ptr<ExpressionNode> Parser::call(std::shared_ptr<ExpressionNode> lhs, bool canAssign)
 	{
-		//TODO: field calls
 		if (previous.type == TokenType::PAREN)
 		{
 			auto node = std::make_shared<FunctionCallNode>();
@@ -294,6 +293,16 @@ namespace ash
 		{
 			error("expected '(' or '.' for function or field call.");
 		}
+	}
+
+	std::shared_ptr<ExpressionNode> Parser::arrayIndex(std::shared_ptr<ExpressionNode> lhs, bool canAssign)
+	{
+		auto node = std::make_shared<ArrayIndexNode>();
+		node->left = lhs;
+		if(!check(TokenType::CLOSE_BRACKET))
+		node->index = expression();
+		consume(TokenType::CLOSE_BRACKET, "expected ']' after array index.");
+		return node;
 	}
 
 	std::shared_ptr<ExpressionNode> Parser::grouping(bool canAssign)
