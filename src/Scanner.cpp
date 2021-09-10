@@ -236,7 +236,7 @@ namespace ash
 				}
 			break;
 		case 'i': return checkKeyword(1, 1, "f", TokenType::IF);
-		case 'n': return checkKeyword(1, 3, "ull", TokenType::NULL_);
+		case 'n': return checkKeyword(1, 2, "ot", TokenType::NOT);
 		case 'o': return checkKeyword(1, 1, "r", TokenType::OR);
 		case 'r': return checkKeyword(1, 5, "eturn", TokenType::RETURN);
 		case 't': return checkKeyword(1, 3, "rue", TokenType::TRUE);

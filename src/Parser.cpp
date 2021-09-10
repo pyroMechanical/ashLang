@@ -45,7 +45,6 @@ namespace ash
 		{nullptr,                       nullptr,       Precedence::NONE},	//[DEF]
 		{FN(Parser::literal),           nullptr,       Precedence::NONE},	//[TRUE]
 		{FN(Parser::literal),           nullptr,       Precedence::NONE},	//[FALSE]
-		{FN(Parser::literal),           nullptr,       Precedence::NONE},	//[NULL_]
 		{FN(Parser::literal),           nullptr,       Precedence::NONE},	//[FLOAT]
 		{FN(Parser::literal),           nullptr,       Precedence::NONE},	//[DOUBLE]
 		{FN(Parser::literal),           nullptr,       Precedence::NONE},	//[CHAR]
@@ -58,6 +57,7 @@ namespace ash
 		{nullptr,                       nullptr,       Precedence::NONE},	//[ELSE]
 		{nullptr,           FN2(Parser::binary),        Precedence::AND},	//[AND]
 		{nullptr,           FN2(Parser::binary),         Precedence::OR},	//[OR]
+		{FN(Parser::unary),             nullptr,       Precedence::NONE},	//[NOT]
 		{nullptr,                       nullptr,       Precedence::NONE},	//[BREAK]
 		{nullptr,                       nullptr,       Precedence::NONE},	//[NEWLINE]
 		{nullptr,                       nullptr,       Precedence::NONE},	//[ERROR]
@@ -112,7 +112,6 @@ namespace ash
 			TokenType::IDENTIFIER,
 			TokenType::TRUE,
 			TokenType::FALSE,
-			TokenType::NULL_,
 			TokenType::FLOAT,
 			TokenType::DOUBLE,
 			TokenType::CHAR,
@@ -135,7 +134,6 @@ namespace ash
 			TokenType::WHILE,
 			TokenType::TRUE,
 			TokenType::FALSE,
-			TokenType::NULL_,
 			TokenType::FLOAT,
 			TokenType::DOUBLE,
 			TokenType::CHAR,
@@ -325,7 +323,37 @@ namespace ash
 		node->op = previous;
 
 		node->unary = ParsePrecedence(Precedence::UNARY);
+		if(node->op.type == TokenType::MINUS)
+		{
+		if (node->unary->expressionType() == ExpressionNode::ExpressionType::Primary
+			&& (((CallNode*)node->unary.get())->primary.type == TokenType::INT)
+			|| (((CallNode*)node->unary.get())->primary.type == TokenType::FLOAT)
+			|| (((CallNode*)node->unary.get())->primary.type == TokenType::DOUBLE))
+			{
+				auto primaryNode = std::dynamic_pointer_cast<CallNode>(node->unary);
+				primaryNode->primary.string = std::string("-").append(primaryNode->primary.string);
+				return primaryNode;
+			}
+		}
+		else if (node->op.type == TokenType::NOT)
+		{
+			if (node->unary->expressionType() == ExpressionNode::ExpressionType::Primary)
+			{
+				auto primaryNode = std::dynamic_pointer_cast<CallNode>(node->unary);
+				if (((CallNode*)node->unary.get())->primary.type == TokenType::TRUE)
+				{
+					primaryNode->primary.type = TokenType::FALSE;
+					primaryNode->primary.string = std::string("false");
+				}
+				else if (((CallNode*)node->unary.get())->primary.type == TokenType::FALSE)
+				{
+					primaryNode->primary.type = TokenType::TRUE;
+					primaryNode->primary.string = std::string("true");
+				}
 
+				return primaryNode;
+			}
+		}
 		return node;
 	}
 
@@ -404,6 +432,7 @@ namespace ash
 			bool usign = false;
 			Token type = previous;
 			Token identifier;
+			std::shared_ptr<ExpressionNode> arraySize;
 			if (previous.string.compare("unsigned") == 0)
 			{
 				usign = true;
@@ -413,6 +442,11 @@ namespace ash
 			
 			consume(TokenType::IDENTIFIER, "expected identifier after type.");
 			identifier = previous;
+			if (match(TokenType::BRACKET))
+			{
+				arraySize = expression();
+				consume(TokenType::CLOSE_BRACKET, "expected ']' after array size expression.");
+			}
 			{
 				if (match(TokenType::PAREN))
 				{
@@ -433,6 +467,7 @@ namespace ash
 					node->usign = usign;
 					node->type = type;
 					node->identifier = identifier;
+					node->arraySize = arraySize;
 					if (match(TokenType::EQUAL))
 					{
 						node->value = expression();
@@ -473,10 +508,17 @@ namespace ash
 				}
 				consume(TokenType::IDENTIFIER, "expected identifier after type.");
 				identifier = previous;
+				std::shared_ptr<ExpressionNode> arraySize;
+				if (match(TokenType::BRACKET))
+				{
+					arraySize = expression();
+					consume(TokenType::CLOSE_BRACKET, "expected ']' after array size expression.");
+				}
 				std::shared_ptr<VariableDeclarationNode> declaration = std::make_shared<VariableDeclarationNode>();
 				declaration->usign = usign;
 				declaration->type = type;
 				declaration->identifier = identifier;
+				declaration->arraySize = arraySize;
 				if (match(TokenType::EQUAL))
 				{
 					declaration->value = expression();

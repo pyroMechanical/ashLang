@@ -26,10 +26,10 @@ namespace ash
 		{
 			switch (cat)
 			{
-			case category::Module: return "Module";
-			case category::Function: return "Function";
-			case category::Variable: return "Variable";
-			case category::Type: return "Type";
+				case category::Module: return "Module";
+				case category::Function: return "Function";
+				case category::Variable: return "Variable";
+				case category::Type: return "Type";
 			}
 			std::cout << "Category not recognized!";
 			return "";
@@ -695,6 +695,7 @@ namespace ash
 		bool usign = false;
 		Token type;
 		Token identifier;
+		std::shared_ptr<ExpressionNode> arraySize;
 		std::shared_ptr<ExpressionNode> value;
 
 		virtual NodeType nodeType() override { return NodeType::VariableDeclaration; }
@@ -721,6 +722,7 @@ namespace ash
 		bool usign = false;
 		Token type;
 		Token identifier;
+		std::shared_ptr<ExpressionNode> arraySize;
 		std::shared_ptr<ExpressionNode> value;
 		std::shared_ptr<ParseNode> next;
 

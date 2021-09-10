@@ -17,12 +17,12 @@ namespace ash
 		AUTO, ANY, MULTI,
 		IDENTIFIER, DEF,
 		//Literals
-		TRUE, FALSE, NULL_,
+		TRUE, FALSE, 
 		FLOAT, DOUBLE, CHAR, INT, STRING,
 		//Keywords
 		IF, WHILE, FOR,
 		RETURN, ELSE,
-		AND, OR,
+		AND, OR, NOT,
 		BIT_AND, BIT_OR,
 		BREAK, 
 		//special token for resolving newline semicolons

@@ -406,11 +406,6 @@ namespace ash
 						callNode->primaryType = { TokenType::TYPE, "bool", callNode->primary.line };
 						return { TokenType::TYPE, "bool", callNode->primary.line };
 					}
-						
-					case TokenType::NULL_:
-					{
-						return { TokenType::TYPE, "nulltype", callNode->primary.line };
-					}
 					case TokenType::FLOAT: 
 					{
 						if (expected.type != TokenType::ERROR)
