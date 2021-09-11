@@ -6,8 +6,8 @@
 
 #define STRESSTEST_GC
 //#def LOG_GC
-#define ARRAY_SIZE_OFFSET 1
-#define ARRAY_BEGIN_OFFSET 9
+#define ARRAY_SIZE_OFFSET 8
+#define ARRAY_BEGIN_OFFSET 10
 
 namespace ash
 {
@@ -115,7 +115,7 @@ namespace ash
 	{
 		this->chunk = chunk;
 		ip = chunk->code();
-
+		//this->types = chunk->types;
 		return run();
 	}
 
@@ -932,26 +932,42 @@ namespace ash
 		}
 	}
 
-	void* VM::allocate(void* pointer, size_t oldSize, size_t newSize)
+	void* VM::allocate(uint64_t typeID)
 	{
-		if (newSize > oldSize)
 #ifdef STRESSTEST_GC
 			collectGarbage();
 #else
 			//TODO: find a heuristic for calling the garbage collector
 #endif
+		TypeMetadata* typeInfo = types[typeID].get();
 		
-		if (newSize == 0)
+		size_t dataSize;
+		size_t size;
+		uint8_t spacing;
+		spacing = (size_t)(typeInfo->fields[0] & 0x7F) - 2;
+		if (typeInfo->fields[0] & 0x80) spacing = alignof(void*) - 2;
+		if (spacing < 0) spacing = 0;
+		for (const auto typeData : typeInfo->fields)
 		{
-			free(pointer);
-			return nullptr;
+			dataSize += (typeData & 0x7F);
 		}
 
-		void* result = realloc(pointer, newSize);
+		size = 10 + spacing + dataSize; //8 bytes TypeMetadata*, 1 byte for spacing offset, 1 byte for refcount
+		if (size % sizeof(void*))
+		{
+			size /= sizeof(void*);
+			size += sizeof(void*);
+		}
+		void* result = malloc(size);
 		if (result == nullptr) exit(1);
-		memset((void*)(((char*)result)+oldSize), 0, newSize-oldSize);
+		memset(result, 0, size);
+		auto typePtr = (TypeMetadata**)result;
+		*typePtr = typeInfo;
+		auto spaceInfo = (uint8_t*)result + 8;
+		*spaceInfo = spacing;
+		auto refCount = (uint8_t*)result + 9;
+		*refCount = 1;
 		Allocation* allocation = new Allocation();
-		//std::cout << sizeof(Allocation) << std::endl;
 		allocation->memory = static_cast<char*>(result);
 		allocation->next = allocationList;
 		allocationList = allocation;
@@ -966,25 +982,30 @@ namespace ash
 #else
 			//TODO: find a heuristic for calling the garbage collector
 #endif
+		int64_t padding = (span & 0x7F) - 2;
+		if (span & 0x80) padding = alignof(void*) - 2;
+		if (padding < 0) padding = 0;
 		size_t oldSize = 0;
 		if (pointer)
 		{
 		
 			uint8_t* oldArray = (uint8_t*)pointer;
 			span = *oldArray;
-			oldSize = 9 + (oldCount * (span & 0x7F)); //1 byte for span, 8 bytes for capacity
+			oldSize = 10 + padding + (oldCount * (span & 0x7F)); //8 bytes for capacity, 1 byte for span, 1 byte for refcount
 		}
-		size_t newSize = 9 + (newCount * (span & 0x7F)); //1 byte for span, 8 bytes for capacity
+		size_t newSize = 10 + padding + (newCount * (span & 0x7F)); // 8 bytes for capacity, 1 byte for span, 1 byte for refcount
 		
 		void* result = realloc(pointer, newSize);
 		if (result == nullptr) exit(1);
 		memset((void*)(((char*)result) + oldSize), 0, newSize - oldSize);
-		uint8_t* newArray = (uint8_t*)result;
-		*newArray = span;
-		uint64_t* count = reinterpret_cast<uint64_t*>(newArray + 1);
+		uint64_t* count = reinterpret_cast<uint64_t*>(result);
 		*count = newCount;
+		uint8_t* arraySpan = ((uint8_t*)result) + 8;
+		*arraySpan = span;
+		uint8_t* refCount = ((uint8_t*)result + 9);
+		*refCount = 1;
 		Allocation* allocation = new Allocation();
-		allocation->memory = (char*)newArray;
+		allocation->memory = (char*)result;
 		allocation->next = allocationList;
 		allocationList = allocation;
 		return (void*)allocation;

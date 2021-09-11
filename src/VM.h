@@ -5,6 +5,7 @@
 #include <array>
 #include <list>
 #include <unordered_map>
+#include <memory>
 
 namespace ash
 {
@@ -33,6 +34,7 @@ namespace ash
 		std::array<uint8_t, 256> rFlags;
 		std::vector<uint64_t> stack;
 		std::vector<size_t> stackPointers;
+		std::vector<std::unique_ptr<TypeMetadata>> types;
 		Allocation* allocationList = nullptr;
 		friend class Memory;
 

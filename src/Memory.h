@@ -23,6 +23,5 @@ namespace ash
 		char* memory;
 		Allocation* next;
 		bool marked = false;
-		TypeMetadata* offsets;
 	};
 }
