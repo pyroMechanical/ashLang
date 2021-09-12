@@ -3,6 +3,8 @@
 
 #include <iostream>
 #include <bitset>
+#include <typeinfo>
+#include <typeindex>
 
 #define STRESSTEST_GC
 //#def LOG_GC
@@ -137,8 +139,7 @@ namespace ash
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					if (rFlags[B] & REGISTER_HOLDS_POINTER) refDecrement(reinterpret_cast<Allocation*>(R[B]));
-					R[B] = R[A];
-					rFlags[B] = rFlags[A];
+					setRegister(B, R[A]);
 					break;
 				}
 				case OP_ALLOC:
@@ -147,10 +148,7 @@ namespace ash
 					uint8_t B = RegisterB(instruction);
 					uint64_t typeID = R[A];
 					void* alloc = allocate(typeID);
-					if (rFlags[B] & REGISTER_HOLDS_POINTER) refDecrement(reinterpret_cast<Allocation*>(R[B]));
-					R[B] = reinterpret_cast<uint64_t>(alloc);
-					rFlags[B] &= REGISTER_HIGH_BITS;
-					rFlags[B] |= REGISTER_HOLDS_POINTER;
+					setRegister(B, alloc);
 					break;
 				}
 				case OP_ALLOC_ARRAY:
@@ -161,44 +159,35 @@ namespace ash
 					size_t count = R[A];
 					uint8_t span = static_cast<uint8_t>(R[B]);
 					void* alloc = allocateArray(nullptr, 0, count, span);
-					if (rFlags[C] & REGISTER_HOLDS_POINTER) refDecrement(reinterpret_cast<Allocation*>(R[C]));
-					R[C] = reinterpret_cast<uint64_t>(alloc);
-					rFlags[C] &= REGISTER_HIGH_BITS;
-					rFlags[C] |= REGISTER_HOLDS_POINTER;
-					rFlags[C] |= REGISTER_HOLDS_ARRAY;
+					setRegister(C, alloc);
 					break;
 				}
 				case OP_CONST_LOW:
 				{
 					uint8_t A = RegisterA(instruction);
-					uint16_t value = Value(instruction);
-					if (rFlags[A] & REGISTER_HOLDS_POINTER) refDecrement(reinterpret_cast<Allocation*>(R[A]));
-					R[A] = value;
-					rFlags[A] = rFlags[A] & (~REGISTER_HOLDS_POINTER);
+					uint64_t value = Value(instruction);
+					setRegister(A, value);
 					break;
 				}
 				case OP_CONST_MID_LOW:
 				{
 					uint8_t A = RegisterA(instruction);
 					uint16_t value = Value(instruction);
-					R[A] = (R[A] & 0xFFFFFFFF0000FFFF) + (((uint64_t)value) <<16);
-					rFlags[A] = rFlags[A] & (~REGISTER_HOLDS_POINTER);
+					setRegister(A, (R[A] & 0xFFFFFFFF0000FFFF) + (((uint64_t)value) <<16));
 					break;
 				}
 				case OP_CONST_MID_HIGH:
 				{
 					uint8_t A = RegisterA(instruction);
 					uint16_t value = Value(instruction);
-					R[A] = (R[A] & 0xFFFF0000FFFFFFFF) + (((uint64_t)value) << 32);
-					rFlags[A] = rFlags[A] & (~REGISTER_HOLDS_POINTER);
+					setRegister(A, (R[A] & 0xFFFF0000FFFFFFFF) + (((uint64_t)value) << 32));
 					break;
 				}
 				case OP_CONST_HIGH:
 				{
 					uint8_t A = RegisterA(instruction);
 					uint16_t value = Value(instruction);
-					R[A] = (R[A] & 0x0000FFFFFFFFFFFF) + (((uint64_t)value) << 48);
-					rFlags[A] = rFlags[A] & (~REGISTER_HOLDS_POINTER);
+					setRegister(A,(R[A] & 0x0000FFFFFFFFFFFF) + (((uint64_t)value) << 48));
 					break;
 				}
 				case OP_STORE8:
@@ -259,7 +248,7 @@ namespace ash
 					auto alloc = reinterpret_cast<Allocation*>(R[B]);
 					auto spacing = *(alloc->memory + STRUCT_SPACING_OFFSET);
 					auto addr = reinterpret_cast<uint8_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing);
-					R[A] = *addr;
+					setRegister(A, *addr);
 					break;
 				}
 				case OP_LOAD16:
@@ -271,7 +260,7 @@ namespace ash
 					auto alloc = reinterpret_cast<Allocation*>(R[B]);
 					auto spacing = *(alloc->memory + STRUCT_SPACING_OFFSET);
 					auto addr = reinterpret_cast<uint16_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing);
-					R[A] = *addr;
+					setRegister(A, *addr);
 					break;
 				}
 				case OP_LOAD32:
@@ -1025,9 +1014,9 @@ namespace ash
 		
 			uint8_t* oldArray = (uint8_t*)pointer;
 			span = *oldArray;
-			oldSize = 10 + padding + (oldCount * (span & 0x7F)); //8 bytes for capacity, 1 byte for span, 1 byte for refcount
+			oldSize = OBJECT_BEGIN_OFFSET + padding + (oldCount * (span & 0x7F)); //8 bytes for capacity, 1 byte for span, 1 byte for refcount
 		}
-		size_t newSize = 10 + padding + (newCount * (span & 0x7F)); // 8 bytes for capacity, 1 byte for span, 1 byte for refcount
+		size_t newSize = OBJECT_BEGIN_OFFSET + padding + (newCount * (span & 0x7F)); // 8 bytes for capacity, 1 byte for span, 1 byte for refcount
 		
 		if (newSize % sizeof(void*))
 		{
@@ -1179,6 +1168,44 @@ namespace ash
 #ifdef LOG_GC
 		std::cout << "> end gc" << std::endl;
 #endif
+	}
+
+	template<typename T>
+	void VM::setRegister(uint8_t _register, T value)
+	{
+		if (rFlags[_register] & (REGISTER_HOLDS_POINTER))
+		{
+			refDecrement(reinterpret_cast<Allocation*>(R[_register]));
+		}
+
+		switch(typeid(T).name())
+		{
+			case "uint64_t":
+			{
+				rFlags[_register] &= REGISTER_HIGH_BITS;
+				R[A] = value;
+			}
+			case "int64_t":
+			{
+				rFlags[_register] &= REGISTER_HIGH_BITS;
+				rFlags[_register] |= ((REGISTER_HOLDS_SIGNED) * (value < 0));
+				R[A] = value;
+			}
+			case "float":
+			{
+				rFlags[_register] &= REGISTER_HIGH_BITS;
+				rFlags[_register] |= REGISTER_HOLDS_FLOAT;
+				R[A] = *reinterpret_cast<uint64_t*>(&value);
+			}
+			case "double":
+			{
+				rFlags[_register] &= REGISTER_HIGHT_BITS;
+				rFlags[_register] |= REGISTER_HOLDS_DOUBLE;
+				R[A] = *reinterpret_cast<uint64_t*>(&value);
+			}
+			default:
+				std::cout << typeid(T).name() << std::endl;
+		}
 	}
 
 	void VM::refIncrement(Allocation* ref)

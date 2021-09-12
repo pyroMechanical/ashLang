@@ -66,6 +66,9 @@ namespace ash
 
 		void refDecrement(Allocation* ref);
 
+		template<typename T>
+		void setRegister(uint8_t _register, T value);
+
 		bool isTruthy(uint8_t _register);
 	};
 }

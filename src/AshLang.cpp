@@ -25,6 +25,7 @@ using namespace ash;
         chunk.WriteABC(OP_ALLOC_ARRAY, 2, 3, 5, 0);
         chunk.WriteABC(OP_ARRAY_STORE, 1, 5, 4, 0);
         chunk.WriteABC(OP_ARRAY_LOAD, 0, 5, 4, 0);
+        chunk.WriteU8(5, 0xF0);
         chunk.WriteA(OP_OUT, 0, 0);
         chunk.WriteOp(OP_RETURN);
 
