@@ -52,7 +52,7 @@ namespace ash
 
 		InterpretResult error(const char* msg);
 
-		void* allocate(void* pointer, size_t oldSize, size_t newSize);
+		void* allocate(uint64_t typeID);
 
 		void* allocateArray(void* pointer, size_t oldCount, size_t newCount, uint8_t span);
 
@@ -61,6 +61,10 @@ namespace ash
 		void freeAllocations();
 
 		void collectGarbage();
+
+		void refIncrement(Allocation* ref);
+
+		void refDecrement(Allocation* ref);
 
 		bool isTruthy(uint8_t _register);
 	};

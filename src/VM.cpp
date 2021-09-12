@@ -6,8 +6,10 @@
 
 #define STRESSTEST_GC
 //#def LOG_GC
-#define ARRAY_SIZE_OFFSET 8
-#define ARRAY_BEGIN_OFFSET 10
+#define ARRAY_TYPE_OFFSET 8
+#define STRUCT_SPACING_OFFSET 8
+#define REFCOUNT_OFFSET 9
+#define OBJECT_BEGIN_OFFSET 10
 
 namespace ash
 {
@@ -134,6 +136,7 @@ namespace ash
 				{
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
+					if (rFlags[B] & REGISTER_HOLDS_POINTER) refDecrement(reinterpret_cast<Allocation*>(R[B]));
 					R[B] = R[A];
 					rFlags[B] = rFlags[A];
 					break;
@@ -142,8 +145,9 @@ namespace ash
 				{
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
-					size_t toAllocate = R[A];
-					void* alloc = allocate(nullptr, 0, toAllocate);
+					uint64_t typeID = R[A];
+					void* alloc = allocate(typeID);
+					if (rFlags[B] & REGISTER_HOLDS_POINTER) refDecrement(reinterpret_cast<Allocation*>(R[B]));
 					R[B] = reinterpret_cast<uint64_t>(alloc);
 					rFlags[B] &= REGISTER_HIGH_BITS;
 					rFlags[B] |= REGISTER_HOLDS_POINTER;
@@ -157,6 +161,7 @@ namespace ash
 					size_t count = R[A];
 					uint8_t span = static_cast<uint8_t>(R[B]);
 					void* alloc = allocateArray(nullptr, 0, count, span);
+					if (rFlags[C] & REGISTER_HOLDS_POINTER) refDecrement(reinterpret_cast<Allocation*>(R[C]));
 					R[C] = reinterpret_cast<uint64_t>(alloc);
 					rFlags[C] &= REGISTER_HIGH_BITS;
 					rFlags[C] |= REGISTER_HOLDS_POINTER;
@@ -167,6 +172,7 @@ namespace ash
 				{
 					uint8_t A = RegisterA(instruction);
 					uint16_t value = Value(instruction);
+					if (rFlags[A] & REGISTER_HOLDS_POINTER) refDecrement(reinterpret_cast<Allocation*>(R[A]));
 					R[A] = value;
 					rFlags[A] = rFlags[A] & (~REGISTER_HOLDS_POINTER);
 					break;
@@ -200,9 +206,9 @@ namespace ash
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					if ((rFlags[B] & REGISTER_HOLDS_POINTER) == 0) return error("register not a memory address!");
-
 					auto alloc = reinterpret_cast<Allocation*>(R[B]);
-					auto addr = reinterpret_cast<uint8_t*>(alloc->memory);
+					auto spacing = *(alloc->memory + STRUCT_SPACING_OFFSET);
+					auto addr = reinterpret_cast<uint8_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing);
 					*addr = static_cast<uint8_t>(R[A]);
 					break;
 				}
@@ -213,7 +219,8 @@ namespace ash
 					if ((rFlags[B] & REGISTER_HOLDS_POINTER) == 0) return error("register not a memory address!");
 
 					auto alloc = reinterpret_cast<Allocation*>(R[B]);
-					auto addr = reinterpret_cast<uint16_t*>(alloc->memory);
+					auto spacing = *(alloc->memory + STRUCT_SPACING_OFFSET);
+					auto addr = reinterpret_cast<uint16_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing);
 					*addr = static_cast<uint16_t>(R[A]);
 					break;
 				}
@@ -222,9 +229,11 @@ namespace ash
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					if ((rFlags[B] & REGISTER_HOLDS_POINTER) == 0) return error("register not a memory address!");
+					if (rFlags[A] & REGISTER_HOLDS_POINTER) refIncrement(reinterpret_cast<Allocation*>(R[A]));
 
 					auto alloc = reinterpret_cast<Allocation*>(R[B]);
-					auto addr = reinterpret_cast<uint32_t*>(alloc->memory);
+					auto spacing = *(alloc->memory + STRUCT_SPACING_OFFSET);
+					auto addr = reinterpret_cast<uint32_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing);
 					*addr = static_cast<uint32_t>(R[A]);
 					break;
 				}
@@ -233,9 +242,11 @@ namespace ash
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					if ((rFlags[B] & REGISTER_HOLDS_POINTER) == 0) return error("register not a memory address!");
+					if (rFlags[A] & REGISTER_HOLDS_POINTER) refIncrement(reinterpret_cast<Allocation*>(R[A]));
 
 					auto alloc = reinterpret_cast<Allocation*>(R[B]);
-					auto addr = reinterpret_cast<uint64_t*>(alloc->memory);
+					auto spacing = *(alloc->memory + STRUCT_SPACING_OFFSET);
+					auto addr = reinterpret_cast<uint64_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing);
 					*addr = R[A];
 					break;
 				}
@@ -246,7 +257,8 @@ namespace ash
 					if ((rFlags[B] & REGISTER_HOLDS_POINTER) == 0) return error("register not a memory address!");
 
 					auto alloc = reinterpret_cast<Allocation*>(R[B]);
-					auto addr = reinterpret_cast<uint8_t*>(alloc->memory);
+					auto spacing = *(alloc->memory + STRUCT_SPACING_OFFSET);
+					auto addr = reinterpret_cast<uint8_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing);
 					R[A] = *addr;
 					break;
 				}
@@ -257,7 +269,8 @@ namespace ash
 					if ((rFlags[B] & REGISTER_HOLDS_POINTER) == 0) return error("register not a memory address!");
 
 					auto alloc = reinterpret_cast<Allocation*>(R[B]);
-					auto addr = reinterpret_cast<uint16_t*>(alloc->memory);
+					auto spacing = *(alloc->memory + STRUCT_SPACING_OFFSET);
+					auto addr = reinterpret_cast<uint16_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing);
 					R[A] = *addr;
 					break;
 				}
@@ -268,7 +281,8 @@ namespace ash
 					if ((rFlags[B] & REGISTER_HOLDS_POINTER) == 0) return error("register not a memory address!");
 
 					auto alloc = reinterpret_cast<Allocation*>(R[B]);
-					auto addr = reinterpret_cast<uint32_t*>(alloc->memory);
+					auto spacing = *(alloc->memory + STRUCT_SPACING_OFFSET);
+					auto addr = reinterpret_cast<uint32_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing);
 					R[A] = *addr;
 					break;
 				}
@@ -279,7 +293,8 @@ namespace ash
 					if ((rFlags[B] & REGISTER_HOLDS_POINTER) == 0) return error("register not a memory address!");
 
 					auto alloc = reinterpret_cast<Allocation*>(R[B]);
-					auto addr = reinterpret_cast<uint64_t*>(alloc->memory);
+					auto spacing = *(alloc->memory + STRUCT_SPACING_OFFSET);
+					auto addr = reinterpret_cast<uint64_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing);
 					R[A] = *addr;
 					break;
 				}
@@ -291,7 +306,8 @@ namespace ash
 					if ((rFlags[B] & REGISTER_HOLDS_POINTER) == 0) return error("register not a memory address!");
 
 					auto alloc = reinterpret_cast<Allocation*>(R[B]);
-					auto addr = reinterpret_cast<uint8_t*>(alloc->memory + R[C]);
+					auto spacing = *(alloc->memory + STRUCT_SPACING_OFFSET);
+					auto addr = reinterpret_cast<uint8_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + R[C]);
 					*addr = static_cast<uint8_t>(R[A]);
 					break;
 				}
@@ -303,7 +319,8 @@ namespace ash
 					if ((rFlags[B] & REGISTER_HOLDS_POINTER) == 0) return error("register not a memory address!");
 
 					auto alloc = reinterpret_cast<Allocation*>(R[B]);
-					auto addr = reinterpret_cast<uint16_t*>(alloc->memory + R[C]);
+					auto spacing = *(alloc->memory + STRUCT_SPACING_OFFSET);
+					auto addr = reinterpret_cast<uint16_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + R[C]);
 					*addr = static_cast<uint16_t>(R[A]);
 					break;
 				}
@@ -315,7 +332,8 @@ namespace ash
 					if ((rFlags[B] & REGISTER_HOLDS_POINTER) == 0) return error("register not a memory address!");
 
 					auto alloc = reinterpret_cast<Allocation*>(R[B]);
-					auto addr = reinterpret_cast<uint32_t*>(alloc->memory + R[C]);
+					auto spacing = *(alloc->memory + STRUCT_SPACING_OFFSET);
+					auto addr = reinterpret_cast<uint32_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + R[C]);
 					*addr = static_cast<uint32_t>(R[A]);
 					break;
 				}
@@ -327,7 +345,8 @@ namespace ash
 					if ((rFlags[B] & REGISTER_HOLDS_POINTER) == 0) return error("register not a memory address!");
 					
 					auto alloc = reinterpret_cast<Allocation*>(R[B]);
-					auto addr = reinterpret_cast<uint64_t*>(alloc->memory + R[C]);
+					auto spacing = *(alloc->memory + STRUCT_SPACING_OFFSET);
+					auto addr = reinterpret_cast<uint64_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + R[C]);
 					*addr = R[A];
 					break;
 				}
@@ -339,7 +358,8 @@ namespace ash
 					if ((rFlags[B] & REGISTER_HOLDS_POINTER) == 0) return error("register not a memory address!");
 					
 					auto alloc = reinterpret_cast<Allocation*>(R[B]);
-					auto addr = reinterpret_cast<uint8_t*>(alloc->memory + R[C]);
+					auto spacing = *(alloc->memory + STRUCT_SPACING_OFFSET);
+					auto addr = reinterpret_cast<uint8_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + R[C]);
 					R[A] = *addr;
 					break;
 				}
@@ -351,7 +371,8 @@ namespace ash
 					if ((rFlags[B] & REGISTER_HOLDS_POINTER) == 0) return error("register not a memory address!");
 					
 					auto alloc = reinterpret_cast<Allocation*>(R[B]);
-					auto addr = reinterpret_cast<uint16_t*>(alloc->memory + R[C]);
+					auto spacing = *(alloc->memory + STRUCT_SPACING_OFFSET);
+					auto addr = reinterpret_cast<uint16_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + R[C]);
 					R[A] = *addr;
 					break;
 				}
@@ -363,7 +384,8 @@ namespace ash
 					if ((rFlags[B] & REGISTER_HOLDS_POINTER) == 0) return error("register not a memory address!");
 					
 					auto alloc = reinterpret_cast<Allocation*>(R[B]);
-					auto addr = reinterpret_cast<uint32_t*>(alloc->memory + R[C]);
+					auto spacing = *(alloc->memory + STRUCT_SPACING_OFFSET);
+					auto addr = reinterpret_cast<uint32_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + R[C]);
 					R[A] = *addr;
 					break;
 				}
@@ -375,7 +397,8 @@ namespace ash
 					if ((rFlags[B] & REGISTER_HOLDS_POINTER) == 0) return error("register not a memory address!");
 					
 					auto alloc = reinterpret_cast<Allocation*>(R[B]);
-					auto addr = reinterpret_cast<uint64_t*>(alloc->memory + R[C]);
+					auto spacing = *(alloc->memory + STRUCT_SPACING_OFFSET);
+					auto addr = reinterpret_cast<uint64_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + R[C]);
 					R[A] = *addr;
 					break;
 				}
@@ -388,33 +411,33 @@ namespace ash
 					if ((rFlags[B] & REGISTER_HOLDS_ARRAY) == 0) return error("pointer held in register is not an array!");
 
 					auto alloc = reinterpret_cast<Allocation*>(R[B]);
-					uint8_t span = (*alloc->memory) & 0x7F;
-					uint64_t arrayCount = *reinterpret_cast<uint64_t*>(alloc->memory + ARRAY_SIZE_OFFSET);
+					uint8_t span = (*((char*)alloc->memory + ARRAY_TYPE_OFFSET)) & 0x7F;
+					uint64_t arrayCount = *reinterpret_cast<uint64_t*>(alloc->memory);
 					if (R[C] >= arrayCount) return error("array index out of bounds!");
 					uint64_t offset = span * R[C];
 					switch (span)
 					{
 					case 1:
 					{
-						auto addr = reinterpret_cast<uint8_t*>(alloc->memory + ARRAY_BEGIN_OFFSET + offset);
+						auto addr = reinterpret_cast<uint8_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + offset);
 						*addr = static_cast<uint8_t>(R[A]);
 						break;
 					}
 					case 2:
 					{
-						auto addr = reinterpret_cast<uint16_t*>(alloc->memory + ARRAY_BEGIN_OFFSET + offset);
+						auto addr = reinterpret_cast<uint16_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + offset);
 						*addr = static_cast<uint16_t>(R[A]);
 						break;
 					}
 					case 4:
 					{
-						auto addr = reinterpret_cast<uint32_t*>(alloc->memory + ARRAY_BEGIN_OFFSET + offset);
+						auto addr = reinterpret_cast<uint32_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + offset);
 						*addr = static_cast<uint32_t>(R[A]);
 						break;
 					}
 					case 8:
 					{
-						auto addr = reinterpret_cast<uint64_t*>(alloc->memory + ARRAY_BEGIN_OFFSET + offset);
+						auto addr = reinterpret_cast<uint64_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + offset);
 						*addr = R[A];
 						break;
 					}
@@ -428,38 +451,52 @@ namespace ash
 					uint8_t C = RegisterC(instruction);
 					if ((rFlags[B] & REGISTER_HOLDS_POINTER) == 0) return error("register not a memory address!");
 					if ((rFlags[B] & REGISTER_HOLDS_ARRAY) == 0) return error("pointer held in register is not an array!");
-
+					if (rFlags[A] & REGISTER_HOLDS_POINTER) refDecrement(reinterpret_cast<Allocation*>(R[A]));
 					auto alloc = reinterpret_cast<Allocation*>(R[B]);
-					uint8_t span = (*alloc->memory) & 0x7F;
-					uint64_t arrayCount = *reinterpret_cast<uint64_t*>(alloc->memory + ARRAY_SIZE_OFFSET);
+					uint8_t span = (*((char*)alloc->memory + ARRAY_TYPE_OFFSET)) & 0x7F;
+					bool isPtr = (*((char*)alloc->memory + ARRAY_TYPE_OFFSET)) & 0x80;
+					uint64_t arrayCount = *reinterpret_cast<uint64_t*>(alloc->memory);
 					if (R[C] >= arrayCount) return error("array index out of bounds!");
 					uint64_t offset = span * R[C];
 					switch (span)
 					{
 					case 1:
 					{
-						auto addr = reinterpret_cast<uint8_t*>(alloc->memory + ARRAY_BEGIN_OFFSET + offset);
+						auto addr = reinterpret_cast<uint8_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + offset);
 						R[A] = *addr;
 						break;
 					}
 					case 2:
 					{
-						auto addr = reinterpret_cast<uint16_t*>(alloc->memory + ARRAY_BEGIN_OFFSET + offset);
+						auto addr = reinterpret_cast<uint16_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + offset);
 						R[A] = *addr;
 						break;
 					}
 					case 4:
 					{
-						auto addr = reinterpret_cast<uint32_t*>(alloc->memory + ARRAY_BEGIN_OFFSET + offset);
+						auto addr = reinterpret_cast<uint32_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + offset);
 						R[A] = *addr;
 						break;
 					}
 					case 8:
 					{
-						auto addr = reinterpret_cast<uint64_t*>(alloc->memory + ARRAY_BEGIN_OFFSET + offset);
+						auto addr = reinterpret_cast<uint64_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + offset);
 						R[A] = *addr;
 						break;
 					}
+					}
+					if (isPtr)
+					{
+						auto objectAddress = reinterpret_cast<Allocation*>(R[A]);
+						rFlags[A] &= REGISTER_HIGH_BITS;
+						switch (objectAddress->type())
+						{
+						case AllocationType::Array:
+							rFlags[A] |= REGISTER_HOLDS_ARRAY;
+						case AllocationType::Type:
+							rFlags[A] |= REGISTER_HOLDS_POINTER;
+						}
+						refIncrement(objectAddress);
 					}
 					break;
 				}
@@ -941,22 +978,19 @@ namespace ash
 #endif
 		TypeMetadata* typeInfo = types[typeID].get();
 		
-		size_t dataSize;
-		size_t size;
-		uint8_t spacing;
-		spacing = (size_t)(typeInfo->fields[0] & 0x7F) - 2;
-		if (typeInfo->fields[0] & 0x80) spacing = alignof(void*) - 2;
-		if (spacing < 0) spacing = 0;
+		size_t dataSize = 0;
+		size_t size = 0;
 		for (const auto typeData : typeInfo->fields)
 		{
 			dataSize += (typeData & 0x7F);
 		}
 
-		size = 10 + spacing + dataSize; //8 bytes TypeMetadata*, 1 byte for spacing offset, 1 byte for refcount
+		size = 10 + (size_t)typeInfo->spacing + dataSize; //8 bytes TypeMetadata*, 1 byte for spacing offset, 1 byte for refcount
 		if (size % sizeof(void*))
 		{
 			size /= sizeof(void*);
-			size += sizeof(void*);
+			size += 1;
+			size *= sizeof(void*);
 		}
 		void* result = malloc(size);
 		if (result == nullptr) exit(1);
@@ -964,10 +998,10 @@ namespace ash
 		auto typePtr = (TypeMetadata**)result;
 		*typePtr = typeInfo;
 		auto spaceInfo = (uint8_t*)result + 8;
-		*spaceInfo = spacing;
+		*spaceInfo = typeInfo->spacing;
 		auto refCount = (uint8_t*)result + 9;
 		*refCount = 1;
-		Allocation* allocation = new Allocation();
+		Allocation* allocation = new TypeAllocation();
 		allocation->memory = static_cast<char*>(result);
 		allocation->next = allocationList;
 		allocationList = allocation;
@@ -982,7 +1016,7 @@ namespace ash
 #else
 			//TODO: find a heuristic for calling the garbage collector
 #endif
-		int64_t padding = (span & 0x7F) - 2;
+		int64_t padding = (int64_t)(span & 0x7F) - 2;
 		if (span & 0x80) padding = alignof(void*) - 2;
 		if (padding < 0) padding = 0;
 		size_t oldSize = 0;
@@ -995,6 +1029,13 @@ namespace ash
 		}
 		size_t newSize = 10 + padding + (newCount * (span & 0x7F)); // 8 bytes for capacity, 1 byte for span, 1 byte for refcount
 		
+		if (newSize % sizeof(void*))
+		{
+			newSize /= sizeof(void*);
+			newSize += 1;
+			newSize *= sizeof(void*);
+		}
+
 		void* result = realloc(pointer, newSize);
 		if (result == nullptr) exit(1);
 		memset((void*)(((char*)result) + oldSize), 0, newSize - oldSize);
@@ -1004,7 +1045,7 @@ namespace ash
 		*arraySpan = span;
 		uint8_t* refCount = ((uint8_t*)result + 9);
 		*refCount = 1;
-		Allocation* allocation = new Allocation();
+		Allocation* allocation = new ArrayAllocation();
 		allocation->memory = (char*)result;
 		allocation->next = allocationList;
 		allocationList = allocation;
@@ -1014,6 +1055,44 @@ namespace ash
 
 	void VM::freeAllocation(Allocation* alloc)
 	{
+		switch (alloc->type())
+		{
+			case AllocationType::Type:
+			{
+				TypeAllocation* typeAlloc = (TypeAllocation*)alloc;
+				char* mem = typeAlloc->memory;
+				TypeMetadata* metadata = (TypeMetadata*)typeAlloc->memory;
+				size_t currentOffset = OBJECT_BEGIN_OFFSET + (size_t)metadata->spacing;
+				for (const auto field : metadata->fields)
+				{
+					if (field & 0x80)
+					{
+						Allocation* fieldObject = (Allocation*)(mem + currentOffset);
+						if (fieldObject != nullptr)
+							refDecrement(fieldObject);
+					}
+					currentOffset += (field & 0x7F);
+				}
+				break;
+			}
+			case AllocationType::Array:
+			{
+				ArrayAllocation* arrayAlloc = (ArrayAllocation*)alloc;
+				uint8_t span = (*(arrayAlloc->memory + ARRAY_TYPE_OFFSET) & 0x7F);
+				uint8_t spacing = (span - 2) * (span - 2 > 0);
+				char* indexZero = arrayAlloc->memory + OBJECT_BEGIN_OFFSET + spacing;
+				bool nonbasic = (*(arrayAlloc->memory + ARRAY_TYPE_OFFSET) & 0x80);
+				if (nonbasic)
+				{
+					for (size_t i = 0; i < *(size_t*)arrayAlloc->memory; i++)
+					{
+						Allocation* ref = (Allocation*)(indexZero + (span * i));
+						if (ref != nullptr)
+							refDecrement(ref);
+					}
+				}
+			}
+		}
 		delete alloc->memory;
 		delete alloc;
 	}
@@ -1100,5 +1179,24 @@ namespace ash
 #ifdef LOG_GC
 		std::cout << "> end gc" << std::endl;
 #endif
+	}
+
+	void VM::refIncrement(Allocation* ref)
+	{
+		uint8_t* refCount = (uint8_t*)(ref->memory + REFCOUNT_OFFSET);
+		if (*refCount == 255) return;
+		(*refCount)++;
+	}
+
+	void VM::refDecrement(Allocation* ref)
+	{
+		uint8_t* refCount = (uint8_t*)(ref->memory + REFCOUNT_OFFSET);
+		if (*refCount == 255) return;
+		if (*refCount == 0 || *refCount == 1)
+		{
+			freeAllocation(ref);
+			return;
+		}
+		(*refCount)--;
 	}
 }
