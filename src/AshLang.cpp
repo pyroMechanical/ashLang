@@ -18,7 +18,7 @@ using namespace ash;
 #ifdef TEST_VM_OPERATIONS
         Disassembler debug;
         Chunk chunk;
-        chunk.WriteU8(1, 13);
+        chunk.WriteI8(1, -13);
         chunk.WriteU8(3, 2);
         chunk.WriteU8(4, 1);
         chunk.WriteU16(2, 16);

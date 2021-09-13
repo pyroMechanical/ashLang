@@ -61,6 +61,7 @@ namespace ash
 		OP_LOAD32, // A, B; load value from address R[B] to R[A]
 		OP_LOAD64, // A, B; load value from address R[B] to R[A]
 		OP_CONST_LOW, // A, clears R[A], then writes to bottom two bytes
+		OP_CONST_LOW_NEGATIVE, // A, clears R[A] to all ones then overwrites the bottom two bytes
 		OP_CONST_MID_LOW,  // A, writes to second lowest two bytes
 		OP_CONST_MID_HIGH, // A, writes to second higest two bytes
 		OP_CONST_HIGH, // A, writes to highest two bytes

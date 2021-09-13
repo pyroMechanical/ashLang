@@ -73,11 +73,28 @@ namespace ash
 	}
 	void Chunk::WriteI16(uint8_t A, int16_t constant)
 	{
-		WriteU16(A, static_cast<uint16_t>(constant));
+		uint32_t result = 0;
+		result = constant >> 15 ? OP_CONST_LOW_NEGATIVE : OP_CONST_LOW;
+		result = (result << 8) + A;
+		result = (result << 16) + constant;
+
+		opcode.push_back(result);
 	}
 	void Chunk::WriteI32(uint8_t A, int32_t constant)
 	{
-		WriteU32(A, static_cast<uint32_t>(constant));
+		uint16_t constant_high = static_cast<uint16_t>(constant >> 16);
+		uint16_t constant_low = static_cast<uint16_t>(constant);
+
+		uint32_t result_high = OP_CONST_MID_LOW;
+		result_high = (result_high << 8) + A;
+		result_high = (result_high << 16) + constant_high;
+
+		uint32_t result_low = constant >> 31 ? OP_CONST_LOW_NEGATIVE : OP_CONST_LOW;
+		result_low = (result_low << 8) + A;
+		result_low = (result_low << 16) + constant_low;
+
+		opcode.push_back(result_low);
+		opcode.push_back(result_high);
 	}
 	void Chunk::WriteFloat(uint8_t A, float constant)
 	{
@@ -85,7 +102,31 @@ namespace ash
 	}
 	void Chunk::WriteI64(uint8_t A, int64_t constant)
 	{
-		WriteU64(A, static_cast<uint64_t>(constant));
+		uint16_t constant_high = static_cast<uint16_t>(constant >> 48);
+		uint16_t constant_mid_high = static_cast<uint16_t>(constant >> 32);
+		uint16_t constant_mid_low = static_cast<uint16_t>(constant >> 16);
+		uint16_t constant_low = static_cast<uint16_t>(constant);
+
+		uint32_t result_high = OP_CONST_HIGH;
+		result_high = (result_high << 8) + A;
+		result_high = (result_high << 16) + constant_high;
+
+		uint32_t result_mid_high = OP_CONST_MID_HIGH;
+		result_mid_high = (result_mid_high << 8) + A;
+		result_mid_high = (result_mid_high << 16) + constant_mid_high;
+
+		uint32_t result_mid_low = OP_CONST_MID_LOW;
+		result_mid_low = (result_mid_low << 8) + A;
+		result_mid_low = (result_mid_low << 16) + constant_mid_low;
+
+		uint32_t result_low = constant >> 63 ? OP_CONST_LOW_NEGATIVE : OP_CONST_LOW;
+		result_low = (result_low << 8) + A;
+		result_low = (result_low << 16) + constant_low;
+
+		opcode.push_back(result_low);
+		opcode.push_back(result_mid_low);
+		opcode.push_back(result_mid_high);
+		opcode.push_back(result_high);
 	}
 	void Chunk::WriteDouble(uint8_t A, double constant)
 	{

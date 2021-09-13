@@ -169,6 +169,12 @@ namespace ash
 					setRegister(A, value);
 					break;
 				}
+				case OP_CONST_LOW_NEGATIVE:
+				{
+					uint8_t A = RegisterA(instruction);
+					uint64_t value = Value(instruction) | 0xFFFFFFFFFFFF0000;
+					setRegister(A, value);
+				}
 				case OP_CONST_MID_LOW:
 				{
 					uint8_t A = RegisterA(instruction);
@@ -1199,7 +1205,7 @@ namespace ash
 			}
 			case "double":
 			{
-				rFlags[_register] &= REGISTER_HIGHT_BITS;
+				rFlags[_register] &= REGISTER_HIGH_BITS;
 				rFlags[_register] |= REGISTER_HOLDS_DOUBLE;
 				R[A] = *reinterpret_cast<uint64_t*>(&value);
 			}

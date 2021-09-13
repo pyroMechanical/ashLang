@@ -43,6 +43,7 @@ namespace ash
 			case OP_LOAD32: return ABInstruction("OP_LOAD32", offset);
 			case OP_LOAD64: return ABInstruction("OP_LOAD64", offset);
 			case OP_CONST_LOW: return ConstantInstruction("OP_CONST_LOW", offset);
+			case OP_CONST_LOW_NEGATIVE: return ConstantInstruction("OP_CONST_LOW_NEGATIVE", offset);
 			case OP_CONST_MID_LOW:  return ConstantInstruction("OP_CONST_MID_LOW", offset);
 			case OP_CONST_MID_HIGH: return ConstantInstruction("OP_CONST_MID_HIGH", offset);
 			case OP_CONST_HIGH: return ConstantInstruction("OP_CONST_HIGH", offset);
