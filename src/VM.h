@@ -33,6 +33,7 @@ namespace ash
 		std::array<uint64_t, 256> R;
 		std::array<uint8_t, 256> rFlags;
 		std::vector<uint64_t> stack;
+		std::vector<uint8_t> stackFlags;
 		std::vector<size_t> stackPointers;
 		std::vector<std::unique_ptr<TypeMetadata>> types;
 		Allocation* allocationList = nullptr;
@@ -65,6 +66,9 @@ namespace ash
 		void refIncrement(Allocation* ref);
 
 		void refDecrement(Allocation* ref);
+
+		uint8_t refCount(Allocation* ref);
+
 		void setRegister(uint8_t _register, bool value);
 		void setRegister(uint8_t _register, uint64_t value);
 		void setRegister(uint8_t _register, int64_t value);

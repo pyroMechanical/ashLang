@@ -28,7 +28,8 @@ namespace ash
 	{
 		char* memory;
 		Allocation* next;
-		bool marked = false;
+		Allocation* previous;
+		uint64_t size;
 
 		virtual AllocationType type() = 0;
 	};

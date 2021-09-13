@@ -2,6 +2,7 @@
 #include "Compiler.h"
 
 #include <iostream>
+#include <queue>
 #include <bitset>
 #include <typeinfo>
 #include <typeindex>
@@ -82,11 +83,11 @@ namespace ash
 		bool result = false;
 		if (rFlags[_register] & REGISTER_HOLDS_FLOAT)
 		{
-			result = ( 0x7FFFFFFF & R[_register]);
+			result = (*reinterpret_cast<float*>(&R[_register]) == 0.0f || *reinterpret_cast<float*>(&R[_register]) == -0.0f);
 		}
 		else if (rFlags[_register] & REGISTER_HOLDS_DOUBLE)
 		{
-			result = (0x7FFFFFFFFFFFFFFF & R[_register]);
+			result = (*reinterpret_cast<double*>(&R[_register]) == 0.0 || *reinterpret_cast<double*>(&R[_register]) == -0.0);
 		}
 		else
 		{
@@ -402,20 +403,27 @@ namespace ash
 				{
 					uint8_t A = RegisterA(instruction);
 					stack.push_back(R[A]);
-					if ((rFlags[A] & REGISTER_HOLDS_POINTER) != 0) stackPointers.push_back(stack.size() - 1);
+					stackFlags.push_back(rFlags[A]);
+					if ((rFlags[A] & REGISTER_HOLDS_POINTER) != 0)
+					{
+						stackPointers.push_back(stack.size() - 1);
+						refIncrement(*reinterpret_cast<Allocation**>(&R[A]));
+					}
 					rFlags[A] = 0;
 					break;
 				}
 				case OP_POP:
 				{
 					uint8_t A = RegisterA(instruction);
-					R[A] = stack.back();
+					R[A] =  stack.back();
+					rFlags[A] = stackFlags.back();
 					if (stackPointers.back() == stack.size() - 1)
 					{
-						rFlags[A] = REGISTER_HOLDS_POINTER;
 						stackPointers.pop_back();
+						//no need to decrement: register holds value, no net change in refcount
 					}
 					stack.pop_back();
+					stackFlags.pop_back();
 					break;
 				}
 				case OP_INT_ADD:
@@ -942,18 +950,25 @@ namespace ash
 #ifdef LOG_GC
 		std::cout << "> begin gc" << std::endl;
 #endif
+		Allocation* ptr = allocationList;
+		while (ptr)
+		{
+			uint8_t* refCount = (uint8_t*)(ptr->memory + REFCOUNT_OFFSET);
+			*refCount = 0;
+			ptr = ptr->next;
+		}
 
 #ifdef LOG_GC
 		std::cout << "> marking registers" << std::endl;
 #endif
-		std::vector<Allocation*> greyset;
+		std::queue<Allocation*> greyset;
 		for (int i = 0; i < R.size(); i++)
 		{
 			if ((rFlags[i] & REGISTER_HOLDS_POINTER) != 0)
 			{
 				auto alloc = reinterpret_cast<Allocation*>(R[i]);
-				alloc->marked = true;
-				greyset.push_back(alloc);
+				refIncrement(alloc);
+				greyset.push(alloc);
 			}
 		}
 #ifdef LOG_GC
@@ -962,40 +977,85 @@ namespace ash
 		for (int i = 0; i < stackPointers.size(); i++)
 		{
 			auto alloc = reinterpret_cast<Allocation*>(stack[stackPointers[i]]);
-			alloc->marked = true;
-			greyset.push_back(alloc);
+			refIncrement(alloc);
+			greyset.push(alloc);
 		}
 #ifdef LOG_GC
 		std::cout << "> marking from roots" << std::endl;
 #endif
-
-		//TODO: implement marking pointers in object memory!
+		while(greyset.size())
+		{
+			auto current = greyset.front();
+			switch (current->type())
+			{
+				case AllocationType::Array:
+				{
+					uint8_t span = *(uint8_t*)(current->memory + ARRAY_TYPE_OFFSET);
+					if (span & 0x80)
+					{
+						size_t size = *(uint64_t*)current->memory;
+						uint8_t spacing = sizeof(Allocation*) - 2;
+						auto mem = current->memory + OBJECT_BEGIN_OFFSET + spacing;
+						for (int i = 0; i < size; i++)
+						{
+							Allocation* ptr = (Allocation*)(mem + sizeof(Allocation*) * i);
+							if (ptr)
+							{
+								refIncrement(ptr);
+								greyset.push(ptr);
+							}
+						}
+					}
+					break;
+				}
+				case AllocationType::Type:
+				{
+					TypeMetadata* metadata = (TypeMetadata*)current->memory;
+					if (metadata == nullptr)
+					{
+						throw std::runtime_error("Invalid type object!");
+					}
+					size_t offset = 0;
+					uint8_t spacing = *(uint8_t*)(current->memory + STRUCT_SPACING_OFFSET);
+					auto mem = current->memory + OBJECT_BEGIN_OFFSET + spacing;
+					for (const auto field : metadata->fields)
+					{
+						if (field & 0x80)
+						{
+							Allocation* ptr = (Allocation*)(mem + offset);
+							if (ptr)
+							{
+								refIncrement(ptr);
+								greyset.push(ptr);
+							}
+						}
+						offset += field & 0x7F;
+					}
+					break;
+				}
+			}
+			greyset.pop();
+		}
 
 #ifdef LOG_GC
 		std::cout << "> begin sweep" << std::endl;
 #endif
-		Allocation* previous = nullptr;
 		Allocation* alloc = allocationList;
 		while (alloc != nullptr)
 		{
-			if (alloc->marked)
-			{
-				alloc->marked = false;
-				previous = alloc;
-				alloc = alloc->next;
-			}
-			else
+			if(refCount(alloc) == 0)
 			{
 				auto white = alloc;
 				alloc = alloc->next;
+				if (alloc) alloc->previous = white->previous;
 				freeAllocation(white);
-				if (previous == nullptr)
+				if (white->previous == nullptr)
 				{
 					allocationList = alloc;
 				}
 				else
 				{
-					previous->next = alloc;
+					white->previous->next = alloc;
 				}
 			}
 		}
@@ -1029,33 +1089,6 @@ namespace ash
 	{
 		if (rFlags[_register] & (REGISTER_HOLDS_POINTER))
 		{
-<<<<<<< HEAD
-			case "uint64_t":
-			{
-				rFlags[_register] &= REGISTER_HIGH_BITS;
-				R[A] = value;
-			}
-			case "int64_t":
-			{
-				rFlags[_register] &= REGISTER_HIGH_BITS;
-				rFlags[_register] |= ((REGISTER_HOLDS_SIGNED) * (value < 0));
-				R[A] = value;
-			}
-			case "float":
-			{
-				rFlags[_register] &= REGISTER_HIGH_BITS;
-				rFlags[_register] |= REGISTER_HOLDS_FLOAT;
-				R[A] = *reinterpret_cast<uint64_t*>(&value);
-			}
-			case "double":
-			{
-				rFlags[_register] &= REGISTER_HIGH_BITS;
-				rFlags[_register] |= REGISTER_HOLDS_DOUBLE;
-				R[A] = *reinterpret_cast<uint64_t*>(&value);
-			}
-			default:
-				std::cout << typeid(T).name() << std::endl;
-=======
 			refDecrement(reinterpret_cast<Allocation*>(R[_register]));
 		}
 
@@ -1100,7 +1133,6 @@ namespace ash
 		if (((Allocation*)value)->type() == AllocationType::Array)
 		{
 			rFlags[_register] |= REGISTER_HOLDS_ARRAY;
->>>>>>> 196c34da099ef7559f6100be49f5b2d0bf52740f
 		}
 		R[_register] = *reinterpret_cast<uint64_t*>(&value);
 	}
@@ -1122,5 +1154,10 @@ namespace ash
 			return;
 		}
 		(*refCount)--;
+	}
+
+	uint8_t VM::refCount(Allocation* ref)
+	{
+		return *(uint8_t*)(ref->memory + REFCOUNT_OFFSET);
 	}
 }
