@@ -147,7 +147,7 @@ namespace ash
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint64_t typeID = R[A];
-					void* alloc = allocate(typeID);
+					Allocation* alloc = allocate(typeID);
 					setRegister(B, alloc);
 					break;
 				}
@@ -158,7 +158,7 @@ namespace ash
 					uint8_t C = RegisterC(instruction);
 					size_t count = R[A];
 					uint8_t span = static_cast<uint8_t>(R[B]);
-					void* alloc = allocateArray(nullptr, 0, count, span);
+					Allocation* alloc = allocateArray(nullptr, 0, count, span);
 					setRegister(C, alloc);
 					break;
 				}
@@ -190,103 +190,6 @@ namespace ash
 					setRegister(A,(R[A] & 0x0000FFFFFFFFFFFF) + (((uint64_t)value) << 48));
 					break;
 				}
-				case OP_STORE8:
-				{
-					uint8_t A = RegisterA(instruction);
-					uint8_t B = RegisterB(instruction);
-					if ((rFlags[B] & REGISTER_HOLDS_POINTER) == 0) return error("register not a memory address!");
-					auto alloc = reinterpret_cast<Allocation*>(R[B]);
-					auto spacing = *(alloc->memory + STRUCT_SPACING_OFFSET);
-					auto addr = reinterpret_cast<uint8_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing);
-					*addr = static_cast<uint8_t>(R[A]);
-					break;
-				}
-				case OP_STORE16:
-				{
-					uint8_t A = RegisterA(instruction);
-					uint8_t B = RegisterB(instruction);
-					if ((rFlags[B] & REGISTER_HOLDS_POINTER) == 0) return error("register not a memory address!");
-
-					auto alloc = reinterpret_cast<Allocation*>(R[B]);
-					auto spacing = *(alloc->memory + STRUCT_SPACING_OFFSET);
-					auto addr = reinterpret_cast<uint16_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing);
-					*addr = static_cast<uint16_t>(R[A]);
-					break;
-				}
-				case OP_STORE32:
-				{
-					uint8_t A = RegisterA(instruction);
-					uint8_t B = RegisterB(instruction);
-					if ((rFlags[B] & REGISTER_HOLDS_POINTER) == 0) return error("register not a memory address!");
-					if (rFlags[A] & REGISTER_HOLDS_POINTER) refIncrement(reinterpret_cast<Allocation*>(R[A]));
-
-					auto alloc = reinterpret_cast<Allocation*>(R[B]);
-					auto spacing = *(alloc->memory + STRUCT_SPACING_OFFSET);
-					auto addr = reinterpret_cast<uint32_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing);
-					*addr = static_cast<uint32_t>(R[A]);
-					break;
-				}
-				case OP_STORE64:
-				{
-					uint8_t A = RegisterA(instruction);
-					uint8_t B = RegisterB(instruction);
-					if ((rFlags[B] & REGISTER_HOLDS_POINTER) == 0) return error("register not a memory address!");
-					if (rFlags[A] & REGISTER_HOLDS_POINTER) refIncrement(reinterpret_cast<Allocation*>(R[A]));
-
-					auto alloc = reinterpret_cast<Allocation*>(R[B]);
-					auto spacing = *(alloc->memory + STRUCT_SPACING_OFFSET);
-					auto addr = reinterpret_cast<uint64_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing);
-					*addr = R[A];
-					break;
-				}
-				case OP_LOAD8:
-				{
-					uint8_t A = RegisterA(instruction);
-					uint8_t B = RegisterB(instruction);
-					if ((rFlags[B] & REGISTER_HOLDS_POINTER) == 0) return error("register not a memory address!");
-
-					auto alloc = reinterpret_cast<Allocation*>(R[B]);
-					auto spacing = *(alloc->memory + STRUCT_SPACING_OFFSET);
-					auto addr = reinterpret_cast<uint8_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing);
-					setRegister(A, *addr);
-					break;
-				}
-				case OP_LOAD16:
-				{
-					uint8_t A = RegisterA(instruction);
-					uint8_t B = RegisterB(instruction);
-					if ((rFlags[B] & REGISTER_HOLDS_POINTER) == 0) return error("register not a memory address!");
-
-					auto alloc = reinterpret_cast<Allocation*>(R[B]);
-					auto spacing = *(alloc->memory + STRUCT_SPACING_OFFSET);
-					auto addr = reinterpret_cast<uint16_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing);
-					setRegister(A, *addr);
-					break;
-				}
-				case OP_LOAD32:
-				{
-					uint8_t A = RegisterA(instruction);
-					uint8_t B = RegisterB(instruction);
-					if ((rFlags[B] & REGISTER_HOLDS_POINTER) == 0) return error("register not a memory address!");
-
-					auto alloc = reinterpret_cast<Allocation*>(R[B]);
-					auto spacing = *(alloc->memory + STRUCT_SPACING_OFFSET);
-					auto addr = reinterpret_cast<uint32_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing);
-					R[A] = *addr;
-					break;
-				}
-				case OP_LOAD64:
-				{
-					uint8_t A = RegisterA(instruction);
-					uint8_t B = RegisterB(instruction);
-					if ((rFlags[B] & REGISTER_HOLDS_POINTER) == 0) return error("register not a memory address!");
-
-					auto alloc = reinterpret_cast<Allocation*>(R[B]);
-					auto spacing = *(alloc->memory + STRUCT_SPACING_OFFSET);
-					auto addr = reinterpret_cast<uint64_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing);
-					R[A] = *addr;
-					break;
-				}
 				case OP_STORE8_OFFSET:
 				{
 					uint8_t A = RegisterA(instruction);
@@ -295,7 +198,7 @@ namespace ash
 					if ((rFlags[B] & REGISTER_HOLDS_POINTER) == 0) return error("register not a memory address!");
 
 					auto alloc = reinterpret_cast<Allocation*>(R[B]);
-					auto spacing = *(alloc->memory + STRUCT_SPACING_OFFSET);
+					auto spacing = *(alloc->memory + STRUCT_SPACING_OFFSET); 
 					auto addr = reinterpret_cast<uint8_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + R[C]);
 					*addr = static_cast<uint8_t>(R[A]);
 					break;
@@ -514,8 +417,7 @@ namespace ash
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
-					R[C] = R[A] + R[B];
-					rFlags[C] &= (REGISTER_HIGH_BITS | REGISTER_HOLDS_SIGNED);
+					setRegister(C,static_cast<int64_t>(R[A] + R[B]));
 					break;
 				}
 				case OP_INT_SUB:
@@ -523,8 +425,7 @@ namespace ash
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
-					R[C] = R[A] - R[B];
-					rFlags[C] &= (REGISTER_HIGH_BITS | REGISTER_HOLDS_SIGNED);
+					setRegister(C, static_cast<int64_t>(R[A] - R[B]));
 					break;
 				}
 				case OP_INT_NEGATE:
@@ -532,16 +433,14 @@ namespace ash
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 
-					R[B] = -static_cast<int64_t>(R[A]);
-					rFlags[B] &= (REGISTER_HIGH_BITS | REGISTER_HOLDS_SIGNED);
+					setRegister(B, -static_cast<int64_t>(R[A]));
 				}
 				case OP_UNSIGN_MUL:
 				{
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
-					R[C] = R[A] * R[B];
-					rFlags[C] &= REGISTER_HIGH_BITS;
+					setRegister(C, R[A] * R[B]);
 					break;
 				}
 				case OP_UNSIGN_DIV:
@@ -549,8 +448,7 @@ namespace ash
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
-					R[C] = R[A] / R[B];
-					rFlags[C] &= REGISTER_HIGH_BITS;
+					setRegister(C, R[A] / R[B]);
 					break;
 				}
 				case OP_UNSIGN_LESS:
@@ -558,8 +456,7 @@ namespace ash
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
-					R[C] = comparisonRegister = R[A] < R[B];
-					rFlags[C] &= REGISTER_HIGH_BITS;
+					setRegister(C, comparisonRegister = R[A] < R[B]);
 					break;
 				}
 				case OP_INT_EQUAL:
@@ -567,8 +464,7 @@ namespace ash
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
-					R[C] = comparisonRegister = R[A] == R[B];
-					rFlags[C] &= (REGISTER_HIGH_BITS | REGISTER_HOLDS_SIGNED);
+					setRegister(C, comparisonRegister = R[A] == R[B]);
 					break;
 				}
 				case OP_UNSIGN_GREATER:
@@ -576,8 +472,7 @@ namespace ash
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
-					R[C] = comparisonRegister = R[A] > R[B];
-					rFlags[C] &= REGISTER_HIGH_BITS;
+					setRegister(C, comparisonRegister = R[A] > R[B]);
 					break;
 				}
 				case OP_SIGN_MUL:
@@ -585,9 +480,7 @@ namespace ash
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
-					R[C] = static_cast<uint64_t>((static_cast<int64_t>(R[A]) * static_cast<int64_t>(R[B])));
-					rFlags[C] &= REGISTER_HIGH_BITS;
-					rFlags[C] |= REGISTER_HOLDS_SIGNED;
+					setRegister(C, (static_cast<int64_t>(R[A]) * static_cast<int64_t>(R[B])));
 					break;
 				}
 				case OP_SIGN_DIV:
@@ -595,9 +488,7 @@ namespace ash
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
-					R[C] = static_cast<uint64_t>((static_cast<int64_t>(R[A]) * static_cast<int64_t>(R[B])));
-					rFlags[C] &= REGISTER_HIGH_BITS;
-					rFlags[C] |= REGISTER_HOLDS_SIGNED;
+					setRegister(C, (static_cast<int64_t>(R[A]) / static_cast<int64_t>(R[B])));
 					break;
 				}
 				case OP_SIGN_LESS:
@@ -606,9 +497,7 @@ namespace ash
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
 					
-					R[C] = comparisonRegister = (static_cast<int64_t>(R[A]) < static_cast<int64_t>(R[B]));
-					rFlags[C] &= REGISTER_HIGH_BITS;
-					rFlags[C] |= REGISTER_HOLDS_SIGNED;
+					setRegister(C, comparisonRegister = (static_cast<int64_t>(R[A]) < static_cast<int64_t>(R[B])));
 					break;
 				}
 				case OP_SIGN_GREATER:
@@ -616,8 +505,7 @@ namespace ash
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
-					R[C] = comparisonRegister = (static_cast<int64_t>(R[A]) > static_cast<int64_t>(R[B]));
-					rFlags[C] = 0;
+					setRegister(C, comparisonRegister = (static_cast<int64_t>(R[A]) > static_cast<int64_t>(R[B])));
 					break;
 				}
 				case OP_FLOAT_ADD:
@@ -625,10 +513,7 @@ namespace ash
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
-					float temp = (r_cast<float>(&R[A]) + r_cast<float>(&R[B]));
-					R[C] = r_cast<uint64_t>(&temp);
-					rFlags[C] &= REGISTER_HIGH_BITS;
-					rFlags[C] |= REGISTER_HOLDS_FLOAT;
+					setRegister(C, (*reinterpret_cast<float*>(&R[A]) + *reinterpret_cast<float*>(&R[B])));
 					break;
 				}
 				case OP_FLOAT_SUB:
@@ -636,10 +521,7 @@ namespace ash
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
-					float temp = (r_cast<float>(&R[A]) - r_cast<float>(&R[B]));
-					R[C] = r_cast<uint64_t>(&temp);
-					rFlags[C] &= REGISTER_HIGH_BITS;
-					rFlags[C] |= REGISTER_HOLDS_FLOAT;
+					setRegister(C, (*reinterpret_cast<float*>(&R[A]) - *reinterpret_cast<float*>(&R[B])));
 					break;
 				}
 				case OP_FLOAT_MUL:
@@ -647,10 +529,7 @@ namespace ash
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
-					float temp = (r_cast<float>(&R[A]) * r_cast<float>(&R[B]));
-					R[C] = r_cast<uint64_t>(&temp);
-					rFlags[C] &= REGISTER_HIGH_BITS;
-					rFlags[C] |= REGISTER_HOLDS_FLOAT;
+					setRegister(C, (*reinterpret_cast<float*>(&R[A]) * *reinterpret_cast<float*>(&R[B])));
 					break;
 				}
 				case OP_FLOAT_DIV:
@@ -658,10 +537,7 @@ namespace ash
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
-					float temp = (r_cast<float>(&R[A]) / r_cast<float>(&R[B]));
-					R[C] = r_cast<uint64_t>(&temp);
-					rFlags[C] &= REGISTER_HIGH_BITS;
-					rFlags[C] |= REGISTER_HOLDS_FLOAT;
+					setRegister(C, (*reinterpret_cast<float*>(&R[A]) / *reinterpret_cast<float*>(&R[B])));
 					break;
 				}
 				case OP_FLOAT_NEGATE:
@@ -669,9 +545,7 @@ namespace ash
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 
-					R[B] = R[A] ^ 0x0000000080000000;
-					rFlags[B] &= REGISTER_HIGH_BITS;
-					rFlags[B] |= REGISTER_HOLDS_FLOAT;
+					setRegister(B, -*reinterpret_cast<float*>(&R[A]));
 					break;
 				}
 				case OP_FLOAT_LESS:
@@ -679,9 +553,7 @@ namespace ash
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
-					R[C] = comparisonRegister = (r_cast<float>(&R[A]) < r_cast<float>(&R[B]));
-					rFlags[C] &= REGISTER_HIGH_BITS;
-					rFlags[C] |= REGISTER_HOLDS_FLOAT;
+					setRegister(C, comparisonRegister = (*reinterpret_cast<float*>(&R[A]) < *reinterpret_cast<float*>(&R[B])));
 					break;
 				}
 				case OP_FLOAT_GREATER:
@@ -689,9 +561,7 @@ namespace ash
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
-					R[C] = comparisonRegister = (r_cast<float>(&R[A]) > r_cast<float>(&R[B]));
-					rFlags[C] &= REGISTER_HIGH_BITS;
-					rFlags[C] |= REGISTER_HOLDS_FLOAT;
+					setRegister(C, comparisonRegister = (*reinterpret_cast<float*>(&R[A]) > *reinterpret_cast<float*>(&R[B])));
 					break;
 				}
 				case OP_FLOAT_EQUAL:
@@ -699,9 +569,7 @@ namespace ash
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
-					R[C] = comparisonRegister = (r_cast<float>(&R[A]) == r_cast<float>(&R[B]));
-					rFlags[C] &= REGISTER_HIGH_BITS;
-					rFlags[C] |= REGISTER_HOLDS_FLOAT;
+					setRegister(C, comparisonRegister = (*reinterpret_cast<float*>(&R[A]) == *reinterpret_cast<float*>(&R[B])));
 					break;
 				}
 				case OP_DOUBLE_ADD:
@@ -709,10 +577,7 @@ namespace ash
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
-					double temp = (r_cast<double>(&R[A]) + r_cast<double>(&R[B]));
-					R[C] = r_cast<uint64_t>(&temp);
-					rFlags[C] &= REGISTER_HIGH_BITS;
-					rFlags[C] |= REGISTER_HOLDS_DOUBLE;
+					setRegister(C, (*reinterpret_cast<double*>(&R[A]) + *reinterpret_cast<double*>(&R[B])));
 					break;
 				}
 				case OP_DOUBLE_SUB:
@@ -720,10 +585,7 @@ namespace ash
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
-					double temp = (r_cast<double>(&R[A]) - r_cast<double>(&R[B]));
-					R[C] = r_cast<uint64_t>(&temp);
-					rFlags[C] &= REGISTER_HIGH_BITS;
-					rFlags[C] |= REGISTER_HOLDS_DOUBLE;
+					setRegister(C, (*reinterpret_cast<double*>(&R[A]) - *reinterpret_cast<double*>(&R[B])));
 					break;
 				}
 				case OP_DOUBLE_MUL:
@@ -731,10 +593,7 @@ namespace ash
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
-					double temp = (r_cast<double>(&R[A]) * r_cast<double>(&R[B]));
-					R[C] = r_cast<uint64_t>(&temp);
-					rFlags[C] &= REGISTER_HIGH_BITS;
-					rFlags[C] |= REGISTER_HOLDS_DOUBLE;
+					setRegister(C, (*reinterpret_cast<double*>(&R[A]) * *reinterpret_cast<double*>(&R[B])));
 					break;
 				}
 				case OP_DOUBLE_DIV:
@@ -742,10 +601,7 @@ namespace ash
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
-					double temp = (r_cast<double>(&R[A]) / r_cast<double>(&R[B]));
-					R[C] = r_cast<uint64_t>(&temp);
-					rFlags[C] &= REGISTER_HIGH_BITS;
-					rFlags[C] |= REGISTER_HOLDS_DOUBLE;
+					setRegister(C, (*reinterpret_cast<double*>(&R[A]) / *reinterpret_cast<double*>(&R[B])));
 					break;
 				}
 				case OP_DOUBLE_NEGATE:
@@ -753,9 +609,7 @@ namespace ash
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 
-					R[B] = R[A] ^ 0x8000000000000000;
-					rFlags[B] &= REGISTER_HIGH_BITS;
-					rFlags[B] |= REGISTER_HOLDS_DOUBLE;
+					setRegister(B, *reinterpret_cast<double*>(&R[A]));
 					break;
 				}
 				case OP_DOUBLE_LESS:
@@ -763,9 +617,7 @@ namespace ash
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
-					R[C] = comparisonRegister = (r_cast<double>(&R[A]) < r_cast<double>(&R[B]));
-					rFlags[C] &= REGISTER_HIGH_BITS;
-					rFlags[C] |= REGISTER_HOLDS_DOUBLE;
+					setRegister(C, comparisonRegister = (r_cast<double>(&R[A]) < r_cast<double>(&R[B])));
 					break;
 				}
 				case OP_DOUBLE_GREATER:
@@ -773,9 +625,7 @@ namespace ash
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
-					R[C] = comparisonRegister = (r_cast<double>(&R[A]) > r_cast<double>(&R[B]));
-					rFlags[C] &= REGISTER_HIGH_BITS;
-					rFlags[C] |= REGISTER_HOLDS_DOUBLE;
+					setRegister(C, comparisonRegister = (r_cast<double>(&R[A]) > r_cast<double>(&R[B])));
 					break;
 				}
 				case OP_DOUBLE_EQUAL:
@@ -783,66 +633,49 @@ namespace ash
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
-					R[C] = comparisonRegister = (r_cast<double>(&R[A]) == r_cast<double>(&R[B]));
-					rFlags[C] &= REGISTER_HIGH_BITS;
-					rFlags[C] |= REGISTER_HOLDS_DOUBLE;
+					setRegister(C, comparisonRegister = (r_cast<double>(&R[A]) == r_cast<double>(&R[B])));
 					break;
 				}
 				case OP_INT_TO_FLOAT:
 				{
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
-					float temp = static_cast<float>(static_cast<int64_t>(R[A]));
-					R[B] = r_cast<uint64_t>(&temp);
-					rFlags[B] = 0;
+					setRegister(B, (static_cast<float>(static_cast<int64_t>(R[A]))));
 					break;
 				}
 				case OP_FLOAT_TO_INT:
 				{
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
-					R[B] = static_cast<uint64_t>(static_cast<int64_t>(static_cast<float>(R[A])));
-					rFlags[B] &= REGISTER_HIGH_BITS;
-					rFlags[B] |= REGISTER_HOLDS_FLOAT;
+					setRegister(B, static_cast<uint64_t>(static_cast<int64_t>(static_cast<float>(R[A]))));
 					break;
 				}
 				case OP_FLOAT_TO_DOUBLE:
 				{
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
-					double temp = static_cast<double>(r_cast<float>(&R[A]));
-					R[B] = r_cast<uint64_t>(&temp);
-					rFlags[B] &= REGISTER_HIGH_BITS;
-					rFlags[B] |= REGISTER_HOLDS_DOUBLE;
+					setRegister(B, static_cast<double>(*reinterpret_cast<float*>(&R[A])));
 					break;
 				}
 				case OP_DOUBLE_TO_FLOAT:
 				{
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
-					float temp = static_cast<float>(r_cast<double>(&R[A]));
-					R[B] = r_cast<uint64_t>(&temp);
-					rFlags[B] &= REGISTER_HIGH_BITS;
-					rFlags[B] |= REGISTER_HOLDS_FLOAT;
+					setRegister(B, static_cast<float>(*reinterpret_cast<double*>(&R[A])));
 					break;
 				}
 				case OP_INT_TO_DOUBLE:
 				{
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
-					double temp = static_cast<double>(static_cast<int64_t>(R[A]));
-					R[B] = r_cast<uint64_t>(&temp);
-					rFlags[B] &= REGISTER_HIGH_BITS;
-					rFlags[B] |= REGISTER_HOLDS_DOUBLE;
+					setRegister(B, static_cast<double>(static_cast<int64_t>(R[A])));
 					break;
 				}
 				case OP_DOUBLE_TO_INT:
 				{
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
-					R[B] = static_cast<uint64_t>(static_cast<int64_t>(static_cast<double>(R[A])));
-					rFlags[B] &= REGISTER_HIGH_BITS;
-					rFlags[B] |= REGISTER_HOLDS_SIGNED;
+					setRegister(B, static_cast<uint64_t>(static_cast<int64_t>(static_cast<double>(R[A]))));
 					break;
 				}
 				case OP_BITWISE_AND:
@@ -850,8 +683,9 @@ namespace ash
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
-					R[C] = R[A] & R[B];
-					rFlags[C] &= REGISTER_HIGH_BITS;
+					uint8_t flags = rFlags[C];
+					setRegister(C, R[A] & R[B]);
+					rFlags[C] = flags;
 					break;
 				}
 				case OP_BITWISE_OR:
@@ -859,8 +693,9 @@ namespace ash
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
-					R[C] = R[A] | R[B];
-					rFlags[C] &= REGISTER_HIGH_BITS;
+					uint8_t flags = rFlags[C];
+					setRegister(C, R[A] | R[B]);
+					rFlags[C] = flags;
 					break;
 				}
 				case OP_LOGICAL_AND:
@@ -871,8 +706,7 @@ namespace ash
 					bool isATruthy = isTruthy(A);
 					bool isBTruthy = isTruthy(B);
 
-					R[C] = comparisonRegister = isATruthy && isBTruthy;
-					rFlags[C] &= REGISTER_HIGH_BITS;
+					setRegister(C, comparisonRegister = isATruthy && isBTruthy);
 					break;
 				}
 				case OP_LOGICAL_OR:
@@ -883,8 +717,7 @@ namespace ash
 					bool isATruthy = isTruthy(A);
 					bool isBTruthy = isTruthy(B);
 
-					R[C] = comparisonRegister = isATruthy || isBTruthy;
-					rFlags[C] &= REGISTER_HIGH_BITS;
+					setRegister(C, comparisonRegister = isATruthy || isBTruthy);
 					break;
 				}
 				case OP_LOGICAL_NOT:
@@ -893,14 +726,14 @@ namespace ash
 					uint8_t B = RegisterB(instruction);
 					bool isATruthy = isTruthy(A);
 
-					R[B] = comparisonRegister = !isATruthy;
-					rFlags[B] &= REGISTER_HIGH_BITS;
+					setRegister(B, comparisonRegister = !isATruthy);
 					break;
 				}
 				case OP_STORE_IP_OFFSET:
 				{
 					uint8_t A = RegisterA(instruction);
-					R[A] = ip - chunk->code();
+					uint64_t temp = ip - chunk->code();
+					setRegister(A, temp);
 					break;
 				}
 				case OP_RELATIVE_JUMP:
@@ -958,7 +791,7 @@ namespace ash
 		}
 	}
 
-	void* VM::allocate(uint64_t typeID)
+	Allocation* VM::allocate(uint64_t typeID)
 	{
 #ifdef STRESSTEST_GC
 			collectGarbage();
@@ -994,10 +827,10 @@ namespace ash
 		allocation->memory = static_cast<char*>(result);
 		allocation->next = allocationList;
 		allocationList = allocation;
-		return (void*)allocation;
+		return allocation;
 	}
 
-	void* VM::allocateArray(void* pointer, size_t oldCount, size_t newCount, uint8_t span)
+	Allocation* VM::allocateArray(ArrayAllocation* pointer, size_t oldCount, size_t newCount, uint8_t span)
 	{
 		if (newCount > oldCount)
 #ifdef STRESSTEST_GC
@@ -1038,7 +871,7 @@ namespace ash
 		allocation->memory = (char*)result;
 		allocation->next = allocationList;
 		allocationList = allocation;
-		return (void*)allocation;
+		return allocation;
 	}
 
 
@@ -1170,42 +1003,72 @@ namespace ash
 #endif
 	}
 
-	template<typename T>
-	void VM::setRegister(uint8_t _register, T value)
+	void VM::setRegister(uint8_t _register, bool value)
+	{
+		setRegister(_register, static_cast<uint64_t>(value));
+	}
+
+	void VM::setRegister(uint8_t _register, uint64_t value)
 	{
 		if (rFlags[_register] & (REGISTER_HOLDS_POINTER))
 		{
 			refDecrement(reinterpret_cast<Allocation*>(R[_register]));
 		}
 
-		switch(typeid(T).name())
+		rFlags[_register] &= REGISTER_HIGH_BITS;
+		R[_register] = value;
+	}
+
+	void VM::setRegister(uint8_t _register, int64_t value)
+	{
+		if (rFlags[_register] & (REGISTER_HOLDS_POINTER))
 		{
-			case "uint64_t":
-			{
-				rFlags[_register] &= REGISTER_HIGH_BITS;
-				R[A] = value;
-			}
-			case "int64_t":
-			{
-				rFlags[_register] &= REGISTER_HIGH_BITS;
-				rFlags[_register] |= ((REGISTER_HOLDS_SIGNED) * (value < 0));
-				R[A] = value;
-			}
-			case "float":
-			{
-				rFlags[_register] &= REGISTER_HIGH_BITS;
-				rFlags[_register] |= REGISTER_HOLDS_FLOAT;
-				R[A] = *reinterpret_cast<uint64_t*>(&value);
-			}
-			case "double":
-			{
-				rFlags[_register] &= REGISTER_HIGHT_BITS;
-				rFlags[_register] |= REGISTER_HOLDS_DOUBLE;
-				R[A] = *reinterpret_cast<uint64_t*>(&value);
-			}
-			default:
-				std::cout << typeid(T).name() << std::endl;
+			refDecrement(reinterpret_cast<Allocation*>(R[_register]));
 		}
+
+		rFlags[_register] &= REGISTER_HIGH_BITS;
+		rFlags[_register] |= ((REGISTER_HOLDS_SIGNED) * (value < 0));
+		R[_register] = value;
+	}
+
+	void VM::setRegister(uint8_t _register, float value)
+	{
+		if (rFlags[_register] & (REGISTER_HOLDS_POINTER))
+		{
+			refDecrement(reinterpret_cast<Allocation*>(R[_register]));
+		}
+
+		rFlags[_register] &= REGISTER_HIGH_BITS;
+		rFlags[_register] |= REGISTER_HOLDS_FLOAT;
+		R[_register] = *reinterpret_cast<uint64_t*>(&value);
+	}
+			
+	void VM::setRegister(uint8_t _register, double value)
+	{
+		if (rFlags[_register] & (REGISTER_HOLDS_POINTER))
+		{
+			refDecrement(reinterpret_cast<Allocation*>(R[_register]));
+		}
+
+		rFlags[_register] &= REGISTER_HIGH_BITS;
+		rFlags[_register] |= REGISTER_HOLDS_DOUBLE;
+		R[_register] = *reinterpret_cast<uint64_t*>(&value);
+	}
+
+	void VM::setRegister(uint8_t _register, Allocation* value)
+	{
+		if (rFlags[_register] & (REGISTER_HOLDS_POINTER))
+		{
+			refDecrement(reinterpret_cast<Allocation*>(R[_register]));
+		}
+
+		rFlags[_register] &= REGISTER_HIGH_BITS;
+		rFlags[_register] |= REGISTER_HOLDS_POINTER;
+		if (((Allocation*)value)->type() == AllocationType::Array)
+		{
+			rFlags[_register] |= REGISTER_HOLDS_ARRAY;
+		}
+		R[_register] = *reinterpret_cast<uint64_t*>(&value);
 	}
 
 	void VM::refIncrement(Allocation* ref)

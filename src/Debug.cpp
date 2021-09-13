@@ -34,14 +34,6 @@ namespace ash
 			case OP_STORE_IP_OFFSET: return AInstruction("OP_STORE_IP_OFFSET", offset);
 			case OP_MOVE: return ABInstruction("OP_MOVE", offset);
 			case OP_ALLOC: return ABInstruction("OP_ALLOC", offset);
-			case OP_STORE8:  return ABInstruction("OP_STORE8", offset);
-			case OP_STORE16: return ABInstruction("OP_STORE16", offset);
-			case OP_STORE32: return ABInstruction("OP_STORE32", offset);
-			case OP_STORE64: return ABInstruction("OP_STORE64", offset);
-			case OP_LOAD8:  return ABInstruction("OP_LOAD8", offset);
-			case OP_LOAD16: return ABInstruction("OP_LOAD16", offset);
-			case OP_LOAD32: return ABInstruction("OP_LOAD32", offset);
-			case OP_LOAD64: return ABInstruction("OP_LOAD64", offset);
 			case OP_CONST_LOW: return ConstantInstruction("OP_CONST_LOW", offset);
 			case OP_CONST_MID_LOW:  return ConstantInstruction("OP_CONST_MID_LOW", offset);
 			case OP_CONST_MID_HIGH: return ConstantInstruction("OP_CONST_MID_HIGH", offset);

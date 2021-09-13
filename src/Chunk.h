@@ -52,14 +52,6 @@ namespace ash
 			//two-register instructions: 8-bit opcode | 8-bit register A | 8-bit register B | 8 bits space
 		OP_MOVE,    // A, B; move value from R[A] to R[B]
 		OP_ALLOC,   // A, B; allocate R[A] bytes of memory on the heap, store address in R[B]
-		OP_STORE8,  // A, B; store value from R[A] in memory address R[B]
-		OP_STORE16, // A, B; store value from R[A] in memory address R[B]
-		OP_STORE32, // A, B; store value from R[A] in memory address R[B]
-		OP_STORE64, // A, B; store value from R[A] in memory address R[B]
-		OP_LOAD8,  // A, B; load value from address R[B] to R[A]
-		OP_LOAD16, // A, B; load value from address R[B] to R[A]
-		OP_LOAD32, // A, B; load value from address R[B] to R[A]
-		OP_LOAD64, // A, B; load value from address R[B] to R[A]
 		OP_CONST_LOW, // A, clears R[A], then writes to bottom two bytes
 		OP_CONST_MID_LOW,  // A, writes to second lowest two bytes
 		OP_CONST_MID_HIGH, // A, writes to second higest two bytes
