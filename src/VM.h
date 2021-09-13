@@ -52,9 +52,9 @@ namespace ash
 
 		InterpretResult error(const char* msg);
 
-		void* allocate(uint64_t typeID);
+		Allocation* allocate(uint64_t typeID);
 
-		void* allocateArray(void* pointer, size_t oldCount, size_t newCount, uint8_t span);
+		Allocation* allocateArray(ArrayAllocation* pointer, size_t oldCount, size_t newCount, uint8_t span);
 
 		void freeAllocation(Allocation* alloc);
 
@@ -65,9 +65,13 @@ namespace ash
 		void refIncrement(Allocation* ref);
 
 		void refDecrement(Allocation* ref);
+		void setRegister(uint8_t _register, bool value);
+		void setRegister(uint8_t _register, uint64_t value);
+		void setRegister(uint8_t _register, int64_t value);
+		void setRegister(uint8_t _register, float value);
+		void setRegister(uint8_t _register, double value);
+		void setRegister(uint8_t _register, Allocation* value);
 
-		template<typename T>
-		void setRegister(uint8_t _register, T value);
 
 		bool isTruthy(uint8_t _register);
 	};
