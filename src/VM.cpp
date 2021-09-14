@@ -197,20 +197,7 @@ namespace ash
 					setRegister(A,(R[A] & 0x0000FFFFFFFFFFFF) + (((uint64_t)value) << 48));
 					break;
 				}
-				case OP_STORE8_OFFSET:
-				{
-					uint8_t A = RegisterA(instruction);
-					uint8_t B = RegisterB(instruction);
-					uint8_t C = RegisterC(instruction);
-					if ((rFlags[B] & REGISTER_HOLDS_POINTER) == 0) return error("register not a memory address!");
-
-					auto alloc = reinterpret_cast<Allocation*>(R[B]);
-					auto spacing = *(alloc->memory + STRUCT_SPACING_OFFSET); 
-					auto addr = reinterpret_cast<uint8_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + R[C]);
-					*addr = static_cast<uint8_t>(R[A]);
-					break;
-				}
-				case OP_STORE16_OFFSET:
+				case OP_STORE_OFFSET:
 				{
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
@@ -219,37 +206,51 @@ namespace ash
 
 					auto alloc = reinterpret_cast<Allocation*>(R[B]);
 					auto spacing = *(alloc->memory + STRUCT_SPACING_OFFSET);
-					auto addr = reinterpret_cast<uint16_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + R[C]);
-					*addr = static_cast<uint16_t>(R[A]);
+					TypeMetadata* metadata = (TypeMetadata*)alloc->memory;
+					if (R[C] >= metadata->fields.size()) return error("field out of bounds!");
+					size_t offset = metadata->fields[R[C]].offset;
+					FieldType type = metadata->fields[R[C]].type;
+					if (type == FieldType::Array || type == FieldType::Struct)
+					{
+						Allocation* ref = *reinterpret_cast<Allocation**>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + offset);
+						if(ref)
+							refDecrement(ref);
+					}
+					if (rFlags[A] & REGISTER_HOLDS_POINTER)
+					{
+						Allocation* ref = *reinterpret_cast<Allocation**>(&R[A]);
+						refIncrement(ref);
+					}
+					switch (fieldSize(type))
+					{
+					case 1:
+					{
+						auto addr = reinterpret_cast<uint8_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + offset);
+						*addr = static_cast<uint8_t>(R[A]);
+						break;
+					}
+					case 2:
+					{
+						auto addr = reinterpret_cast<uint16_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + offset);
+						*addr = static_cast<uint16_t>(R[A]);
+						break;
+					}
+					case 4:
+					{
+						auto addr = reinterpret_cast<uint32_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + offset);
+						*addr = static_cast<uint32_t>(R[A]);
+						break;
+					}
+					case 8:
+					{
+						auto addr = reinterpret_cast<uint64_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + offset);
+						*addr = static_cast<uint64_t>(R[A]);
+						break;
+					}
+					}
 					break;
 				}
-				case OP_STORE32_OFFSET:
-				{
-					uint8_t A = RegisterA(instruction);
-					uint8_t B = RegisterB(instruction);
-					uint8_t C = RegisterC(instruction);
-					if ((rFlags[B] & REGISTER_HOLDS_POINTER) == 0) return error("register not a memory address!");
-
-					auto alloc = reinterpret_cast<Allocation*>(R[B]);
-					auto spacing = *(alloc->memory + STRUCT_SPACING_OFFSET);
-					auto addr = reinterpret_cast<uint32_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + R[C]);
-					*addr = static_cast<uint32_t>(R[A]);
-					break;
-				}
-				case OP_STORE64_OFFSET:
-				{
-					uint8_t A = RegisterA(instruction);
-					uint8_t B = RegisterB(instruction);
-					uint8_t C = RegisterC(instruction);
-					if ((rFlags[B] & REGISTER_HOLDS_POINTER) == 0) return error("register not a memory address!");
-					
-					auto alloc = reinterpret_cast<Allocation*>(R[B]);
-					auto spacing = *(alloc->memory + STRUCT_SPACING_OFFSET);
-					auto addr = reinterpret_cast<uint64_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + R[C]);
-					*addr = R[A];
-					break;
-				}
-				case OP_LOAD8_OFFSET:
+				case OP_LOAD_OFFSET:
 				{
 					uint8_t A = fetch_instruction(ip);
 					uint8_t B = fetch_instruction(ip);
@@ -258,47 +259,82 @@ namespace ash
 					
 					auto alloc = reinterpret_cast<Allocation*>(R[B]);
 					auto spacing = *(alloc->memory + STRUCT_SPACING_OFFSET);
-					auto addr = reinterpret_cast<uint8_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + R[C]);
-					R[A] = *addr;
-					break;
-				}
-				case OP_LOAD16_OFFSET:
-				{
-					uint8_t A = RegisterA(instruction);
-					uint8_t B = RegisterB(instruction);
-					uint8_t C = RegisterC(instruction);
-					if ((rFlags[B] & REGISTER_HOLDS_POINTER) == 0) return error("register not a memory address!");
-					
-					auto alloc = reinterpret_cast<Allocation*>(R[B]);
-					auto spacing = *(alloc->memory + STRUCT_SPACING_OFFSET);
-					auto addr = reinterpret_cast<uint16_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + R[C]);
-					R[A] = *addr;
-					break;
-				}
-				case OP_LOAD32_OFFSET:
-				{
-					uint8_t A = RegisterA(instruction);
-					uint8_t B = RegisterB(instruction);
-					uint8_t C = RegisterC(instruction);
-					if ((rFlags[B] & REGISTER_HOLDS_POINTER) == 0) return error("register not a memory address!");
-					
-					auto alloc = reinterpret_cast<Allocation*>(R[B]);
-					auto spacing = *(alloc->memory + STRUCT_SPACING_OFFSET);
-					auto addr = reinterpret_cast<uint32_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + R[C]);
-					R[A] = *addr;
-					break;
-				}
-				case OP_LOAD64_OFFSET:
-				{
-					uint8_t A = RegisterA(instruction);
-					uint8_t B = RegisterB(instruction);
-					uint8_t C = RegisterC(instruction);
-					if ((rFlags[B] & REGISTER_HOLDS_POINTER) == 0) return error("register not a memory address!");
-					
-					auto alloc = reinterpret_cast<Allocation*>(R[B]);
-					auto spacing = *(alloc->memory + STRUCT_SPACING_OFFSET);
-					auto addr = reinterpret_cast<uint64_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + R[C]);
-					R[A] = *addr;
+					TypeMetadata* metadata = (TypeMetadata*)alloc->memory;
+					if (R[C] >= metadata->fields.size()) return error("field out of bounds!");
+					size_t offset = metadata->fields[R[C]].offset;
+					FieldType type = metadata->fields[R[C]].type;
+					switch (type)
+					{
+						case FieldType::Bool:
+						case FieldType::UByte:
+						{
+							auto addr = reinterpret_cast<uint8_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + R[C]);
+							setRegister(A, (uint64_t)*addr);
+							break;
+						}
+						case FieldType::UShort:
+						{
+							auto addr = reinterpret_cast<uint16_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + R[C]);
+							setRegister(A, (uint64_t)*addr);
+							break;
+						}
+
+						case FieldType::UInt:
+						{
+							auto addr = reinterpret_cast<uint32_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + R[C]);
+							setRegister(A, (uint64_t)*addr);
+							break;
+						}
+						case FieldType::ULong:
+						{
+							auto addr = reinterpret_cast<uint64_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + R[C]);
+							setRegister(A, *addr);
+							break;
+						}
+						case FieldType::Byte:
+						{
+							auto addr = reinterpret_cast<int8_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + R[C]);
+							setRegister(A, (int64_t)*addr);
+							break;
+						}
+						case FieldType::Short:
+						{
+							auto addr = reinterpret_cast<int16_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + R[C]);
+							setRegister(A, (int64_t)*addr);
+							break;
+						}
+						case FieldType::Int:
+						{
+							auto addr = reinterpret_cast<int32_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + R[C]);
+							setRegister(A, (int64_t)*addr);
+							break;
+						}
+						case FieldType::Long:
+						{
+							auto addr = reinterpret_cast<int64_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + R[C]);
+							setRegister(A, *addr);
+							break;
+						}
+						case FieldType::Float:
+						{
+							auto addr = reinterpret_cast<float*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + R[C]);
+							setRegister(A, *addr);
+							break;
+						}
+						case FieldType::Double:
+						{
+							auto addr = reinterpret_cast<double*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + R[C]);
+							setRegister(A, *addr);
+							break;
+						}
+						case FieldType::Struct:
+						case FieldType::Array:
+						{
+							auto addr = reinterpret_cast<Allocation**>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + R[C]);
+							setRegister(A, *addr);
+							break;
+						}
+					}
 					break;
 				}
 				case OP_ARRAY_STORE:
@@ -311,6 +347,7 @@ namespace ash
 
 					auto alloc = reinterpret_cast<Allocation*>(R[B]);
 					uint8_t span = (*((char*)alloc->memory + ARRAY_TYPE_OFFSET)) & 0x7F;
+					uint8_t spacing = (span - 2) * ((span - 2) > 0);
 					uint64_t arrayCount = *reinterpret_cast<uint64_t*>(alloc->memory);
 					if (R[C] >= arrayCount) return error("array index out of bounds!");
 					uint64_t offset = span * R[C];
@@ -318,25 +355,25 @@ namespace ash
 					{
 					case 1:
 					{
-						auto addr = reinterpret_cast<uint8_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + offset);
+						auto addr = reinterpret_cast<uint8_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + offset);
 						*addr = static_cast<uint8_t>(R[A]);
 						break;
 					}
 					case 2:
 					{
-						auto addr = reinterpret_cast<uint16_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + offset);
+						auto addr = reinterpret_cast<uint16_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + offset);
 						*addr = static_cast<uint16_t>(R[A]);
 						break;
 					}
 					case 4:
 					{
-						auto addr = reinterpret_cast<uint32_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + offset);
+						auto addr = reinterpret_cast<uint32_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + offset);
 						*addr = static_cast<uint32_t>(R[A]);
 						break;
 					}
 					case 8:
 					{
-						auto addr = reinterpret_cast<uint64_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + offset);
+						auto addr = reinterpret_cast<uint64_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + offset);
 						*addr = R[A];
 						break;
 					}
@@ -353,6 +390,7 @@ namespace ash
 					if (rFlags[A] & REGISTER_HOLDS_POINTER) refDecrement(reinterpret_cast<Allocation*>(R[A]));
 					auto alloc = reinterpret_cast<Allocation*>(R[B]);
 					uint8_t span = (*((char*)alloc->memory + ARRAY_TYPE_OFFSET)) & 0x7F;
+					uint8_t spacing = (span - 2) * ((span - 2) > 0);
 					bool isPtr = (*((char*)alloc->memory + ARRAY_TYPE_OFFSET)) & 0x80;
 					uint64_t arrayCount = *reinterpret_cast<uint64_t*>(alloc->memory);
 					if (R[C] >= arrayCount) return error("array index out of bounds!");
@@ -361,25 +399,25 @@ namespace ash
 					{
 					case 1:
 					{
-						auto addr = reinterpret_cast<uint8_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + offset);
+						auto addr = reinterpret_cast<uint8_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + offset);
 						R[A] = *addr;
 						break;
 					}
 					case 2:
 					{
-						auto addr = reinterpret_cast<uint16_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + offset);
+						auto addr = reinterpret_cast<uint16_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + offset);
 						R[A] = *addr;
 						break;
 					}
 					case 4:
 					{
-						auto addr = reinterpret_cast<uint32_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + offset);
+						auto addr = reinterpret_cast<uint32_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + offset);
 						R[A] = *addr;
 						break;
 					}
 					case 8:
 					{
-						auto addr = reinterpret_cast<uint64_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + offset);
+						auto addr = reinterpret_cast<uint64_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + offset);
 						R[A] = *addr;
 						break;
 					}
@@ -814,13 +852,8 @@ namespace ash
 #endif
 		TypeMetadata* typeInfo = types[typeID].get();
 		
-		size_t dataSize = 0;
+		size_t dataSize = typeInfo->fields.back().offset + util::fieldSize(typeInfo->fields.back().type);
 		size_t size = 0;
-		for (const auto typeData : typeInfo->fields)
-		{
-			dataSize += (typeData & 0x7F);
-		}
-
 		size = 10 + (size_t)typeInfo->spacing + dataSize; //8 bytes TypeMetadata*, 1 byte for spacing offset, 1 byte for refcount
 		if (size % sizeof(void*))
 		{
@@ -901,13 +934,13 @@ namespace ash
 				size_t currentOffset = OBJECT_BEGIN_OFFSET + (size_t)metadata->spacing;
 				for (const auto field : metadata->fields)
 				{
-					if (field & 0x80)
+					if (field.type == FieldType::Struct || field.type == FieldType::Array)
 					{
 						Allocation* fieldObject = (Allocation*)(mem + currentOffset);
 						if (fieldObject != nullptr)
 							refDecrement(fieldObject);
 					}
-					currentOffset += (field & 0x7F);
+					currentOffset += (util::fieldSize(field.type));
 				}
 				break;
 			}
@@ -922,7 +955,7 @@ namespace ash
 				{
 					for (size_t i = 0; i < *(size_t*)arrayAlloc->memory; i++)
 					{
-						Allocation* ref = (Allocation*)(indexZero + (span * i));
+						Allocation* ref = *(Allocation**)(indexZero + (span * i));
 						if (ref != nullptr)
 							refDecrement(ref);
 					}
@@ -998,7 +1031,7 @@ namespace ash
 						auto mem = current->memory + OBJECT_BEGIN_OFFSET + spacing;
 						for (int i = 0; i < size; i++)
 						{
-							Allocation* ptr = (Allocation*)(mem + sizeof(Allocation*) * i);
+							Allocation* ptr = *(Allocation**)(mem + sizeof(Allocation*) * i);
 							if (ptr)
 							{
 								refIncrement(ptr);
@@ -1018,18 +1051,18 @@ namespace ash
 					size_t offset = 0;
 					uint8_t spacing = *(uint8_t*)(current->memory + STRUCT_SPACING_OFFSET);
 					auto mem = current->memory + OBJECT_BEGIN_OFFSET + spacing;
-					for (const auto field : metadata->fields)
+					for (const auto& field : metadata->fields)
 					{
-						if (field & 0x80)
+						if (field.type == FieldType::Struct || field.type == FieldType::Array)
 						{
-							Allocation* ptr = (Allocation*)(mem + offset);
+							Allocation* ptr = *(Allocation**)(mem + offset);
 							if (ptr)
 							{
 								refIncrement(ptr);
 								greyset.push(ptr);
 							}
 						}
-						offset += field & 0x7F;
+						offset += util::fieldSize(field.type);
 					}
 					break;
 				}
@@ -1058,6 +1091,7 @@ namespace ash
 					white->previous->next = alloc;
 				}
 			}
+			alloc = alloc->next;
 		}
 
 #ifdef LOG_GC

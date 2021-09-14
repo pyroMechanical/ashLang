@@ -58,14 +58,8 @@ namespace ash
 		OP_CONST_MID_HIGH, // A, writes to second higest two bytes
 		OP_CONST_HIGH, // A, writes to highest two bytes
 			//three-register instructions: 8-bit opcode | 8-bit register A | 8-bit register B | 8-bit register C
-		OP_STORE8_OFFSET,  // A, B, C; store value from R[A] in memory address R[B] + R[C]
-		OP_STORE16_OFFSET, // A, B, C; store value from R[A] in memory address R[B] + R[C]
-		OP_STORE32_OFFSET, // A, B, C; store value from R[A] in memory address R[B] + R[C]
-		OP_STORE64_OFFSET, // A, B, C; store value from R[A] in memory address R[B] + R[C]
-		OP_LOAD8_OFFSET,  // A, B, C; load value from address R[B] + R[C] to R[A]
-		OP_LOAD16_OFFSET, // A, B, C; load value from address R[B] + R[C] to R[A]
-		OP_LOAD32_OFFSET, // A, B, C; load value from address R[B] + R[C] to R[A]
-		OP_LOAD64_OFFSET, // A, B, C; load value from address R[B] + R[C] to R[A]
+		OP_STORE_OFFSET,  // A, B, C; store value from R[A] in memory address R[B] + R[C]
+		OP_LOAD_OFFSET,  // A, B, C; load value from address R[B] + R[C] to R[A]
 		OP_ALLOC_ARRAY, //A, B, C; allocate array with length R[A] and span R[B] and store pointer in R[C]
 		OP_ARRAY_STORE, //A, B, C; write value from R[A] in array R[B] with index R[C]
 		OP_ARRAY_LOAD, //A, B, C; load value from array R[B] with index R[C] to R[A]

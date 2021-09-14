@@ -4,18 +4,59 @@
 #include <vector>
 namespace ash
 {
+	enum class FieldType : uint8_t
+	{
+		Struct,
+		Array,
+		Bool,
+		Byte,
+		UByte,
+		Short,
+		UShort,
+		Int,
+		UInt,
+		Long,
+		ULong,
+		Float,
+		Double,
+		Char
+	};
+
+	namespace util
+	{
+		static uint8_t fieldSize(FieldType type)
+		{
+			switch(type)
+			{
+			case FieldType::Struct:
+			case FieldType::Array: return sizeof(void*);
+			case FieldType::Bool:
+			case FieldType::Byte:
+			case FieldType::UByte: return 1;
+			case FieldType::Short:
+			case FieldType::UShort: return 2;
+			case FieldType::Int:
+			case FieldType::UInt:
+			case FieldType::Char:
+			case FieldType::Float:return 4;
+			case FieldType::Long:
+			case FieldType::ULong:
+			case FieldType::Double: return 8;
+			}
+		}
+	}
+
+
+	struct FieldMetadata
+	{
+		FieldType type;
+		size_t offset = 0;
+	};
 
 	struct TypeMetadata
 	{
 		TypeMetadata* parent;
-		std::vector<uint8_t> fields;
-		/*
-			0x01: 1 byte
-			0x03: 2 bytes
-			0x04: 4 bytes
-			0x08: 8 bytes
-			0x80: pointer
-		*/
+		std::vector<FieldMetadata> fields;
 		uint8_t spacing;
 	};
 

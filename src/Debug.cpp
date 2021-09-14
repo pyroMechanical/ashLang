@@ -39,14 +39,8 @@ namespace ash
 			case OP_CONST_MID_LOW:  return ConstantInstruction("OP_CONST_MID_LOW", offset);
 			case OP_CONST_MID_HIGH: return ConstantInstruction("OP_CONST_MID_HIGH", offset);
 			case OP_CONST_HIGH: return ConstantInstruction("OP_CONST_HIGH", offset);
-			case OP_STORE8_OFFSET:  return ABCInstruction("OP_STORE8_OFFSET", offset);
-			case OP_STORE16_OFFSET: return ABCInstruction("OP_STORE16_OFFSET", offset);
-			case OP_STORE32_OFFSET: return ABCInstruction("OP_STORE32_OFFSET", offset);
-			case OP_STORE64_OFFSET: return ABCInstruction("OP_STORE64_OFFSET", offset);
-			case OP_LOAD8_OFFSET:  return ABCInstruction("OP_LOAD8_OFFSET", offset);
-			case OP_LOAD16_OFFSET: return ABCInstruction("OP_LOAD16_OFFSET", offset);
-			case OP_LOAD32_OFFSET: return ABCInstruction("OP_LOAD32_OFFSET", offset);
-			case OP_LOAD64_OFFSET: return ABCInstruction("OP_LOAD64_OFFSET", offset);
+			case OP_STORE_OFFSET:  return ABCInstruction("OP_STORE_OFFSET", offset);
+			case OP_LOAD_OFFSET:  return ABCInstruction("OP_LOAD_OFFSET", offset);
 			case OP_ALLOC_ARRAY: return ABCInstruction("OP_ALLOC_ARRAY", offset);
 			case OP_ARRAY_STORE: return ABCInstruction("OP_ARRAY_STORE", offset);
 			case OP_ARRAY_LOAD:	 return ABCInstruction("OP_ARRAY_LOAD", offset);
