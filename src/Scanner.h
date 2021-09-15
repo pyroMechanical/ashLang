@@ -24,6 +24,7 @@ namespace ash
 		RETURN, ELSE,
 		AND, OR, NOT,
 		BIT_AND, BIT_OR,
+		BIT_SHIFT_LEFT, BIT_SHIFT_RIGHT,
 		BREAK, 
 		//special token for resolving newline semicolons
 		NEWLINE,

@@ -873,11 +873,13 @@ namespace ash
 		Allocation* allocation = new TypeAllocation();
 		allocation->memory = static_cast<char*>(result);
 		allocation->next = allocationList;
+		if(allocationList) allocationList->previous = allocation;
+		allocation->size = size;
 		allocationList = allocation;
 		return allocation;
 	}
 
-	Allocation* VM::allocateArray(ArrayAllocation* pointer, size_t oldCount, size_t newCount, uint8_t span)
+	Allocation* VM::allocateArray(ArrayAllocation* pointer, size_t oldCount, size_t newCount, uint8_t fieldType)
 	{
 		if (newCount > oldCount)
 #ifdef STRESSTEST_GC
@@ -885,18 +887,18 @@ namespace ash
 #else
 			//TODO: find a heuristic for calling the garbage collector
 #endif
-		int64_t padding = (int64_t)(span & 0x7F) - 2;
-		if (span & 0x80) padding = alignof(void*) - 2;
+		int64_t padding = (int64_t)(fieldType & 0x7F) - 2;
+		if (fieldType & 0x80) padding = alignof(void*) - 2;
 		if (padding < 0) padding = 0;
 		size_t oldSize = 0;
 		if (pointer)
 		{
 		
 			uint8_t* oldArray = (uint8_t*)pointer;
-			span = *oldArray;
-			oldSize = OBJECT_BEGIN_OFFSET + padding + (oldCount * (span & 0x7F)); //8 bytes for capacity, 1 byte for span, 1 byte for refcount
+			fieldType = *oldArray;
+			oldSize = OBJECT_BEGIN_OFFSET + padding + (oldCount * (fieldType & 0x7F)); //8 bytes for capacity, 1 byte for span, 1 byte for refcount
 		}
-		size_t newSize = OBJECT_BEGIN_OFFSET + padding + (newCount * (span & 0x7F)); // 8 bytes for capacity, 1 byte for span, 1 byte for refcount
+		size_t newSize = OBJECT_BEGIN_OFFSET + padding + (newCount * (fieldType & 0x7F)); // 8 bytes for capacity, 1 byte for span, 1 byte for refcount
 		
 		if (newSize % sizeof(void*))
 		{
@@ -911,12 +913,14 @@ namespace ash
 		uint64_t* count = reinterpret_cast<uint64_t*>(result);
 		*count = newCount;
 		uint8_t* arraySpan = ((uint8_t*)result) + 8;
-		*arraySpan = span;
+		*arraySpan = fieldType;
 		uint8_t* refCount = ((uint8_t*)result + 9);
 		*refCount = 1;
 		Allocation* allocation = new ArrayAllocation();
 		allocation->memory = (char*)result;
 		allocation->next = allocationList;
+		if(allocationList) allocationList->previous = allocation;
+		allocation->size = newSize;
 		allocationList = allocation;
 		return allocation;
 	}

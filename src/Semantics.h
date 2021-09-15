@@ -5,27 +5,6 @@ namespace ash
 {
 	namespace util
 	{
-		static std::shared_ptr<ScopeNode> getScope(ParseNode* node, std::shared_ptr<ScopeNode> scope)
-		{
-			std::shared_ptr<ScopeNode> currentScope;
-
-			if (!node)
-			{
-				return scope;
-			}
-
-			if (node->nodeType() == NodeType::Block)
-			{
-				currentScope = std::make_shared<ScopeNode>();
-				currentScope->parentScope = scope;
-			}
-			else
-			{
-				currentScope = scope;
-			}
-
-			return currentScope;
-		}
 
 		static bool isBasic(Token type)
 		{
@@ -139,11 +118,36 @@ namespace ash
 		std::shared_ptr<DeclarationNode> linearizeAST(ParseNode* node, std::vector<std::shared_ptr<DeclarationNode>>& currentBlock, std::shared_ptr<ScopeNode> currentScope);
 		std::shared_ptr<ExpressionNode> pruneBinaryExpressions(ExpressionNode* node, std::vector<std::shared_ptr<DeclarationNode>>& currentBlock, std::shared_ptr<ScopeNode> currentScope);
 
+		std::shared_ptr<ScopeNode> getScope(ParseNode* node, std::shared_ptr<ScopeNode> scope)
+		{
+			std::shared_ptr<ScopeNode> currentScope;
+
+			if (!node)
+			{
+				return scope;
+			}
+
+			if (node->nodeType() == NodeType::Block)
+			{
+				currentScope = std::make_shared<ScopeNode>();
+				currentScope->parentScope = scope;
+				currentScope->scopeIndex = scopeCount++;
+				scopes.push_back(currentScope);
+			}
+			else
+			{
+				currentScope = scope;
+			}
+
+			return currentScope;
+		}
 
 		bool panicMode = false;
 	public:
 		std::shared_ptr<ProgramNode> findSymbols(std::shared_ptr<ProgramNode> ast);
 		std::vector<Token> errorQueue;
+		std::vector<std::shared_ptr<ScopeNode>> scopes;
 		size_t temporaries = 0;
+		size_t scopeCount = 0;
 	};
 }

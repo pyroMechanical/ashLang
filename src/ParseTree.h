@@ -111,7 +111,7 @@ namespace ash
 		std::unordered_map<std::string, Symbol> symbols;
 		std::unordered_map<std::string, std::vector<parameter>> functionParameters;
 		std::unordered_map<std::string, std::vector<parameter>> typeParameters;
-		size_t tempVars = 0;
+		size_t scopeIndex = 0;
 		virtual NodeType nodeType() override { return NodeType::Scope; }
 
 		virtual void print(int depth) override

@@ -146,8 +146,8 @@ namespace ash
 		case '=': return makeToken(match('=') ? TokenType::EQUAL_EQUAL : TokenType::EQUAL);
 		case '\n': line++; return makeToken(TokenType::NEWLINE);
 		case '!': return makeToken(match('=') ? TokenType::BANG_EQUAL : TokenType::BANG);
-		case '<': return makeToken(match('=') ? TokenType::LESS_EQUAL : TokenType::LESS);
-		case '>': return makeToken(match('=') ? TokenType::GREATER_EQUAL : TokenType::GREATER);
+		case '<': return makeToken(match('=') ? TokenType::LESS_EQUAL : match('<') ? TokenType::BIT_SHIFT_LEFT : TokenType::LESS);
+		case '>': return makeToken(match('=') ? TokenType::GREATER_EQUAL : match('>') ? TokenType::BIT_SHIFT_RIGHT : TokenType::GREATER);
 		//case '"': return stringToken();
 		//case '\'': return charToken();
 		}

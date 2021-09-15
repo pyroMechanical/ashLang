@@ -1,5 +1,6 @@
 #include "Parser.h"
 #include "Chunk.h"
+#include "Memory.h"
 #include <vector>
 
 namespace ash
@@ -100,6 +101,9 @@ namespace ash
 	{
 		std::vector<Local> locals;
 		int scopeDepth;
+		std::shared_ptr<ScopeNode> currentScope;
+		std::vector<std::string> typeNames;
+		std::vector<std::shared_ptr<TypeMetadata>> types;
 		Chunk* currentChunk = nullptr;
 		size_t temporaries = 0;
 		size_t jumpLabels = 0;

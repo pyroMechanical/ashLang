@@ -58,12 +58,14 @@ namespace ash
 		{nullptr,           FN2(Parser::binary),        Precedence::AND},	//[AND]
 		{nullptr,           FN2(Parser::binary),         Precedence::OR},	//[OR]
 		{FN(Parser::unary),             nullptr,       Precedence::NONE},	//[NOT]
+		{nullptr,           FN2(Parser::binary),    Precedence::BIT_AND},	//[BIT_AND]
+		{nullptr,           FN2(Parser::binary),     Precedence::BIT_OR},	//[BIT_OR]
+		{nullptr,           FN2(Parser::binary),      Precedence::SHIFT},	//[BIT_SHIFT_LEFT]
+		{nullptr,           FN2(Parser::binary),      Precedence::SHIFT},   //[BIT_SHIFT_RIGHT]
 		{nullptr,                       nullptr,       Precedence::NONE},	//[BREAK]
 		{nullptr,                       nullptr,       Precedence::NONE},	//[NEWLINE]
 		{nullptr,                       nullptr,       Precedence::NONE},	//[ERROR]
 		{nullptr,                       nullptr,       Precedence::NONE},	//[EOF]
-
-
 		};
 
 		advance();

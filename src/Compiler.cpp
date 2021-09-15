@@ -34,6 +34,24 @@ namespace ash
 			else return false;
 		}
 
+		static Token renameByScope(Token identifier, std::shared_ptr<ScopeNode> current)
+		{
+			std::shared_ptr<ScopeNode> varScope = current;
+			std::string id = identifier.string;
+			while (varScope)
+			{
+				if (varScope->symbols.find(id) != varScope->symbols.end())
+				{
+					return { identifier.type, id.append("#").append(std::to_string(varScope->scopeIndex)), identifier.line };
+				}
+				else
+				{
+					varScope = varScope->parentScope;
+				}
+			}
+			return { TokenType::ERROR, "identifier not found!", identifier.line };
+		}
+
 		static OpCodes typeConversion(Token toConvert, Token resultType)
 		{
 			if (resultType.string.compare("double") == 0)
@@ -81,7 +99,7 @@ namespace ash
 
 		ast->print(0);
 
-		/*ast = analyzer.findSymbols(ast);
+		ast = analyzer.findSymbols(ast);
 		temporaries = analyzer.temporaries;
 		if (ast->hadError) return false;
 
@@ -103,7 +121,7 @@ namespace ash
 		for(const auto& instruction : result.code)
 		{
 			instruction->print();
-		}*/
+		}
 
 		return false;
 	}
@@ -111,6 +129,7 @@ namespace ash
 	pseudochunk Compiler::precompile(std::shared_ptr<ProgramNode> ast)
 	{
 		pseudochunk chunk;
+		currentScope = ast->globalScope;
 		for (const auto& declaration : ast->declarations)
 		{
 			auto nextCode = compileNode((ParseNode*)declaration.get(), nullptr);
@@ -159,6 +178,9 @@ namespace ash
 			case NodeType::TypeDeclaration:
 			{
 				std::vector<std::shared_ptr<assembly>> defChunk;
+				TypeDeclarationNode* typeNode = (TypeDeclarationNode*)node;
+				std::shared_ptr<TypeMetadata> metadata = std::make_shared<TypeMetadata>();
+
 				return defChunk;
 			}
 
@@ -238,13 +260,15 @@ namespace ash
 			case NodeType::Block:
 			{
 				auto blockNode = (BlockNode*)node;
-
+				auto hold = currentScope;
+				currentScope = blockNode->scope;
 				std::vector<std::shared_ptr<assembly>> result;
 				for(const auto& declaration : blockNode->declarations)
 				{
 					auto next = compileNode(declaration.get(), nullptr);
 					result.insert(result.end(), next.begin(), next.end());
 				}
+				currentScope = hold;
 
 				return result;
 			}
@@ -257,7 +281,8 @@ namespace ash
 
 				if(util::isBasic(varNode->type))
 				{
-					result = compileNode(varNode->value.get(), &varNode->identifier);
+					auto identifier = util::renameByScope(varNode->identifier, currentScope);
+					result = compileNode(varNode->value.get(), &identifier);
 					if (result.back()->type() == Asm::TwoAddr)
 					{
 						Token id = ((twoAddress*)result.back().get())->result;
@@ -268,8 +293,7 @@ namespace ash
 							auto move = std::make_shared<twoAddress>();
 							move->op = OP_MOVE;
 							move->A = id;
-							Token assigned = { TokenType::IDENTIFIER, varNode->identifier.string, varNode->value->line() };
-							move->result = assigned;
+							move->result = identifier;
 							result.push_back(move);
 						}
 					}

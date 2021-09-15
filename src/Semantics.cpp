@@ -8,11 +8,13 @@ namespace ash
 	std::shared_ptr<ProgramNode> Semantics::findSymbols(std::shared_ptr<ProgramNode> ast)
 	{
 		std::shared_ptr<ScopeNode> currentScope = ast->globalScope = std::make_shared<ScopeNode>();
+		currentScope->scopeIndex = scopeCount++;
+		scopes.push_back(currentScope);
 
 		bool hadError = false;
 		for(const auto& declaration: ast->declarations)
 		{
-			auto scope = util::getScope((ParseNode*)declaration.get(), currentScope);
+			auto scope = getScope((ParseNode*)declaration.get(), currentScope);
 			hadError |= enterNode((ParseNode*)declaration.get(), scope);
 			panicMode = false;
 		}
@@ -53,7 +55,7 @@ namespace ash
 				bool hadError = false;
 				for(const auto& declaration : blockNode->declarations)
 				{
-					auto scope = util::getScope((ParseNode*)declaration.get(), currentScope);
+					auto scope = getScope((ParseNode*)declaration.get(), currentScope);
 					hadError |= enterNode((ParseNode*)declaration.get(), scope);
 				}
 				return hadError;
@@ -117,6 +119,8 @@ namespace ash
 				}
 				auto blockScope = std::make_shared<ScopeNode>();
 				blockScope->parentScope = currentScope;
+				blockScope->scopeIndex = scopeCount++;
+				scopes.push_back(blockScope);
 				for(const auto& parameter : funcNode->parameters)
 				{
 					std::string paramName = parameter.identifier.string;
@@ -180,7 +184,7 @@ namespace ash
 				ForStatementNode* forNode = (ForStatementNode*)node;
 				std::shared_ptr<ScopeNode> forScope = currentScope;
 				bool hadError = false;
-				if(forNode->statement) forScope = util::getScope(forNode->statement.get(), currentScope);
+				if(forNode->statement) forScope = getScope(forNode->statement.get(), currentScope);
 				if (forNode->declaration) hadError |= enterNode(forNode->declaration.get(), forScope);
 				if (forNode->conditional) hadError |= enterNode(forNode->conditional.get(), forScope);
 				if (forNode->increment) hadError |= enterNode(forNode->increment.get(), forScope);
@@ -192,8 +196,8 @@ namespace ash
 				IfStatementNode* ifNode = (IfStatementNode*)node;
 				std::shared_ptr<ScopeNode> thenScope = currentScope;
 				std::shared_ptr<ScopeNode> elseScope = currentScope;
-				if (ifNode->thenStatement) thenScope = util::getScope(ifNode->thenStatement.get(), currentScope);
-				if (ifNode->elseStatement) elseScope = util::getScope(ifNode->elseStatement.get(), currentScope);
+				if (ifNode->thenStatement) thenScope = getScope(ifNode->thenStatement.get(), currentScope);
+				if (ifNode->elseStatement) elseScope = getScope(ifNode->elseStatement.get(), currentScope);
 				bool hadError = false;
 				if (ifNode->condition) hadError |= enterNode(ifNode->condition.get(), currentScope);
 				if (ifNode->thenStatement) hadError |= enterNode(ifNode->thenStatement.get(), thenScope);
@@ -212,7 +216,7 @@ namespace ash
 				WhileStatementNode* whileNode = (WhileStatementNode*)node;
 				std::shared_ptr<ScopeNode> whileScope = currentScope;
 				bool hadError = false;
-				if (whileNode->doStatement) whileScope = util::getScope(whileNode->doStatement.get(), currentScope);
+				if (whileNode->doStatement) whileScope = getScope(whileNode->doStatement.get(), currentScope);
 				if (whileNode->condition) hadError |= enterNode(whileNode->condition.get(), whileScope);
 				if (whileNode->doStatement) hadError |= enterNode(whileNode->doStatement.get(), whileScope);
 				return hadError;

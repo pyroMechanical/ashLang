@@ -11,10 +11,13 @@ namespace ash
 	{
 		NONE,
 		ASSIGNMENT, // =
-		OR, // ||
-		AND, // &&
+		BIT_OR, // &
+		BIT_AND, // |
+		OR, // or
+		AND, // and
 		EQUALITY, // ==, !=
 		COMPARISON, // <, >, <=, >=
+		SHIFT, // <<, >>
 		TERM, // +, -
 		FACTOR, // *, /
 		UNARY, // !, -

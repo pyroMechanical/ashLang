@@ -35,7 +35,7 @@ namespace ash
 		std::vector<uint64_t> stack;
 		std::vector<uint8_t> stackFlags;
 		std::vector<size_t> stackPointers;
-		std::vector<std::unique_ptr<TypeMetadata>> types;
+		std::vector<std::shared_ptr<TypeMetadata>> types;
 		Allocation* allocationList = nullptr;
 		friend class Memory;
 
