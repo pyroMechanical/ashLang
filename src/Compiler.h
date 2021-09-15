@@ -103,6 +103,7 @@ namespace ash
 		int scopeDepth;
 		std::shared_ptr<ScopeNode> currentScope;
 		std::vector<std::string> typeNames;
+		std::unordered_map<std::string, size_t> typeIDs;
 		std::vector<std::shared_ptr<TypeMetadata>> types;
 		Chunk* currentChunk = nullptr;
 		size_t temporaries = 0;

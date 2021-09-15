@@ -123,6 +123,13 @@ namespace ash
 			instruction->print();
 		}
 
+		for(const auto& typeID : typeIDs)
+		{
+			std::cout << typeID.first << ": " << typeID.second << std::endl;
+		}
+
+		std::cout << types.size();
+
 		return false;
 	}
 
@@ -180,7 +187,90 @@ namespace ash
 				std::vector<std::shared_ptr<assembly>> defChunk;
 				TypeDeclarationNode* typeNode = (TypeDeclarationNode*)node;
 				std::shared_ptr<TypeMetadata> metadata = std::make_shared<TypeMetadata>();
-
+				auto& typeParameters = currentScope->typeParameters.at(typeNode->typeDefined.string);
+				auto typeName = util::renameByScope(typeNode->typeDefined, currentScope);
+				typeIDs.emplace(std::pair<std::string, size_t>(typeName.string, types.size()));
+				size_t offset = 0;
+				for(const parameter& field : typeParameters)
+				{
+					FieldMetadata fieldData{};
+					if (util::isBasic(field.type))
+					{
+						if (!field.type.string.compare("bool"))
+						{
+							fieldData.type = FieldType::Bool;
+							fieldData.offset = offset;
+							fieldData.typeID = -1;
+							offset += 1;
+						}
+						else if (!field.type.string.compare("byte"))
+						{
+							fieldData.type = FieldType::Byte;
+							fieldData.offset = offset;
+							fieldData.typeID = -2;
+							offset += 1;
+						}
+						else if (!field.type.string.compare("ubyte"))
+						{
+							fieldData.type = FieldType::UByte;
+							fieldData.offset = offset;
+							fieldData.typeID = -3;
+							offset += 1;
+						}
+						else if (!field.type.string.compare("short"))
+						{
+							fieldData.type = FieldType::Short;
+							fieldData.offset = offset += ~offset & 0x01;
+							fieldData.typeID = -4;
+							offset += 2;
+						}
+						else if (!field.type.string.compare("ushort"))
+						{
+							fieldData.type = FieldType::UShort;
+							fieldData.offset = offset += ~offset & 0x01;
+							fieldData.typeID = -5;
+							offset += 2;
+						}
+						else if (!field.type.string.compare("int"))
+						{
+							fieldData.type = FieldType::Int;
+							fieldData.offset = offset += ~offset & 0x03;
+							fieldData.typeID = -6;
+							offset += 4;
+						}
+						else if (!field.type.string.compare("uint"))
+						{
+							fieldData.type = FieldType::UInt;
+							fieldData.offset = offset += ~offset & 0x03;
+							fieldData.typeID = -7;
+							offset += 4;
+						}
+						else if (!field.type.string.compare("char"))
+						{
+							fieldData.type = FieldType::Char;
+							fieldData.offset = offset += ~offset & 0x03;
+							fieldData.typeID = -8;
+							offset += 4;
+						}
+						else if (!field.type.string.compare("float"))
+						{
+							fieldData.type = FieldType::Char;
+							fieldData.offset = offset += ((offset ^ 0x03) * (offset & 0x03));
+							fieldData.typeID = -9;
+							offset += 4;
+						}
+					}
+					else
+					{
+						fieldData.type = FieldType::Struct;
+						fieldData.offset = offset += ~offset & 0x07;
+						auto fieldType = util::renameByScope(field.type, currentScope);
+						fieldData.typeID = typeIDs.at(fieldType.string);
+						offset += 8;
+					}
+					metadata->fields.push_back(fieldData);
+				}
+				types.push_back(metadata);
 				return defChunk;
 			}
 

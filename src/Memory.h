@@ -51,7 +51,7 @@ namespace ash
 	{
 		FieldType type;
 		size_t offset = 0;
-		size_t typeID = 0; //location within the typemetadata array
+		int64_t typeID = 0; //location within the typemetadata array
 	};
 
 	struct TypeMetadata
