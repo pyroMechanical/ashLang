@@ -710,6 +710,12 @@ namespace ash
 			std::cout << "Variable Declaration" << std::endl;
 			util::spaces(depth);
 			std::cout << "Variable: " << type.string << " " << identifier.string << std::endl;
+			if(arraySize)
+			{
+				util::spaces(depth);
+				std::cout << "Array Size: " << std::endl;
+				arraySize->print(depth + 1);
+			}
 			if (value)
 			{
 				util::spaces(depth);

@@ -12,7 +12,7 @@
 #define ARRAY_TYPE_OFFSET 8
 #define STRUCT_SPACING_OFFSET 8
 #define REFCOUNT_OFFSET 9
-#define OBJECT_BEGIN_OFFSET 10
+#define OBJECT_BEGIN_OFFSET 12
 
 namespace ash
 {
@@ -212,7 +212,7 @@ namespace ash
 					FieldType type = metadata->fields[R[C]].type;
 					if (type == FieldType::Array || type == FieldType::Struct)
 					{
-						Allocation* ref = *reinterpret_cast<Allocation**>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + offset);
+						Allocation* ref = *reinterpret_cast<Allocation**>(alloc->memory + offset);
 						if(ref)
 							refDecrement(ref);
 					}
@@ -225,25 +225,25 @@ namespace ash
 					{
 					case 1:
 					{
-						auto addr = reinterpret_cast<uint8_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + offset);
+						auto addr = reinterpret_cast<uint8_t*>(alloc->memory + offset);
 						*addr = static_cast<uint8_t>(R[A]);
 						break;
 					}
 					case 2:
 					{
-						auto addr = reinterpret_cast<uint16_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + offset);
+						auto addr = reinterpret_cast<uint16_t*>(alloc->memory + offset);
 						*addr = static_cast<uint16_t>(R[A]);
 						break;
 					}
 					case 4:
 					{
-						auto addr = reinterpret_cast<uint32_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + offset);
+						auto addr = reinterpret_cast<uint32_t*>(alloc->memory + offset);
 						*addr = static_cast<uint32_t>(R[A]);
 						break;
 					}
 					case 8:
 					{
-						auto addr = reinterpret_cast<uint64_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + offset);
+						auto addr = reinterpret_cast<uint64_t*>(alloc->memory + offset);
 						*addr = static_cast<uint64_t>(R[A]);
 						break;
 					}
@@ -268,69 +268,69 @@ namespace ash
 						case FieldType::Bool:
 						case FieldType::UByte:
 						{
-							auto addr = reinterpret_cast<uint8_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + R[C]);
+							auto addr = reinterpret_cast<uint8_t*>(alloc->memory + offset);
 							setRegister(A, (uint64_t)*addr);
 							break;
 						}
 						case FieldType::UShort:
 						{
-							auto addr = reinterpret_cast<uint16_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + R[C]);
+							auto addr = reinterpret_cast<uint16_t*>(alloc->memory + offset);
 							setRegister(A, (uint64_t)*addr);
 							break;
 						}
 
 						case FieldType::UInt:
 						{
-							auto addr = reinterpret_cast<uint32_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + R[C]);
+							auto addr = reinterpret_cast<uint32_t*>(alloc->memory + offset);
 							setRegister(A, (uint64_t)*addr);
 							break;
 						}
 						case FieldType::ULong:
 						{
-							auto addr = reinterpret_cast<uint64_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + R[C]);
+							auto addr = reinterpret_cast<uint64_t*>(alloc->memory + offset);
 							setRegister(A, *addr);
 							break;
 						}
 						case FieldType::Byte:
 						{
-							auto addr = reinterpret_cast<int8_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + R[C]);
+							auto addr = reinterpret_cast<int8_t*>(alloc->memory + offset);
 							setRegister(A, (int64_t)*addr);
 							break;
 						}
 						case FieldType::Short:
 						{
-							auto addr = reinterpret_cast<int16_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + R[C]);
+							auto addr = reinterpret_cast<int16_t*>(alloc->memory + offset);
 							setRegister(A, (int64_t)*addr);
 							break;
 						}
 						case FieldType::Int:
 						{
-							auto addr = reinterpret_cast<int32_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + R[C]);
+							auto addr = reinterpret_cast<int32_t*>(alloc->memory + offset);
 							setRegister(A, (int64_t)*addr);
 							break;
 						}
 						case FieldType::Long:
 						{
-							auto addr = reinterpret_cast<int64_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + R[C]);
+							auto addr = reinterpret_cast<int64_t*>(alloc->memory + offset);
 							setRegister(A, *addr);
 							break;
 						}
 						case FieldType::Float:
 						{
-							auto addr = reinterpret_cast<float*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + R[C]);
+							auto addr = reinterpret_cast<float*>(alloc->memory + offset);
 							setRegister(A, *addr);
 							break;
 						}
 						case FieldType::Double:
 						{
-							auto addr = reinterpret_cast<double*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + R[C]);
+							auto addr = reinterpret_cast<double*>(alloc->memory + offset);
 							setRegister(A, *addr);
 							break;
 						}
 						case FieldType::Struct:
 						case FieldType::Array:
 						{
-							auto addr = reinterpret_cast<Allocation**>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + R[C]);
+							auto addr = reinterpret_cast<Allocation**>(alloc->memory + offset);
 							setRegister(A, *addr);
 							break;
 						}
@@ -854,7 +854,7 @@ namespace ash
 		
 		size_t dataSize = typeInfo->fields.back().offset + util::fieldSize(typeInfo->fields.back().type);
 		size_t size = 0;
-		size = 10 + (size_t)typeInfo->spacing + dataSize; //8 bytes TypeMetadata*, 1 byte for spacing offset, 1 byte for refcount
+		size = 12 + dataSize; //8 bytes TypeMetadata*, 1 byte for spacing offset, 3 bytes for refcount
 		if (size % sizeof(void*))
 		{
 			size /= sizeof(void*);
@@ -866,8 +866,6 @@ namespace ash
 		memset(result, 0, size);
 		auto typePtr = (TypeMetadata**)result;
 		*typePtr = typeInfo;
-		auto spaceInfo = (uint8_t*)result + 8;
-		*spaceInfo = typeInfo->spacing;
 		auto refCount = (uint8_t*)result + 9;
 		*refCount = 1;
 		Allocation* allocation = new TypeAllocation();
@@ -935,7 +933,7 @@ namespace ash
 				TypeAllocation* typeAlloc = (TypeAllocation*)alloc;
 				char* mem = typeAlloc->memory;
 				TypeMetadata* metadata = (TypeMetadata*)typeAlloc->memory;
-				size_t currentOffset = OBJECT_BEGIN_OFFSET + (size_t)metadata->spacing;
+				size_t currentOffset = OBJECT_BEGIN_OFFSET;
 				for (const auto field : metadata->fields)
 				{
 					if (field.type == FieldType::Struct || field.type == FieldType::Array)
@@ -953,7 +951,7 @@ namespace ash
 				ArrayAllocation* arrayAlloc = (ArrayAllocation*)alloc;
 				uint8_t span = (*(arrayAlloc->memory + ARRAY_TYPE_OFFSET) & 0x7F);
 				uint8_t spacing = (span - 2) * (span - 2 > 0);
-				char* indexZero = arrayAlloc->memory + OBJECT_BEGIN_OFFSET + spacing;
+				char* indexZero = arrayAlloc->memory + OBJECT_BEGIN_OFFSET;
 				bool nonbasic = (*(arrayAlloc->memory + ARRAY_TYPE_OFFSET) & 0x80);
 				if (nonbasic)
 				{

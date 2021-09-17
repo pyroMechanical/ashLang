@@ -37,13 +37,12 @@ namespace ash
 		{
 			std::string left = lhs.string;
 			std::string right = rhs.string;
-			if (left == right) return lhs;
+			if (left.compare(right) == 0) return lhs;
 
 			if (left.compare("double") == 0)
 			{
 				return lhs;
 			}
-
 			else if (left.compare("float") == 0)
 			{
 				if (right.compare("double") == 0)

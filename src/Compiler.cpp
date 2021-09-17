@@ -123,12 +123,10 @@ namespace ash
 			instruction->print();
 		}
 
-		for(const auto& typeID : typeIDs)
+		for (const auto& typeID : typeIDs)
 		{
 			std::cout << typeID.first << ": " << typeID.second << std::endl;
 		}
-
-		std::cout << types.size();
 
 		return false;
 	}
@@ -190,7 +188,7 @@ namespace ash
 				auto& typeParameters = currentScope->typeParameters.at(typeNode->typeDefined.string);
 				auto typeName = util::renameByScope(typeNode->typeDefined, currentScope);
 				typeIDs.emplace(std::pair<std::string, size_t>(typeName.string, types.size()));
-				size_t offset = 0;
+				size_t offset = 12;
 				for(const parameter& field : typeParameters)
 				{
 					FieldMetadata fieldData{};
@@ -200,64 +198,85 @@ namespace ash
 						{
 							fieldData.type = FieldType::Bool;
 							fieldData.offset = offset;
-							fieldData.typeID = -1;
+							fieldData.typeID = -12;
 							offset += 1;
 						}
 						else if (!field.type.string.compare("byte"))
 						{
 							fieldData.type = FieldType::Byte;
 							fieldData.offset = offset;
-							fieldData.typeID = -2;
+							fieldData.typeID = -11;
 							offset += 1;
 						}
 						else if (!field.type.string.compare("ubyte"))
 						{
 							fieldData.type = FieldType::UByte;
 							fieldData.offset = offset;
-							fieldData.typeID = -3;
+							fieldData.typeID = -10;
 							offset += 1;
 						}
 						else if (!field.type.string.compare("short"))
 						{
 							fieldData.type = FieldType::Short;
 							fieldData.offset = offset += ~offset & 0x01;
-							fieldData.typeID = -4;
+							fieldData.typeID = -9;
 							offset += 2;
 						}
 						else if (!field.type.string.compare("ushort"))
 						{
 							fieldData.type = FieldType::UShort;
 							fieldData.offset = offset += ~offset & 0x01;
-							fieldData.typeID = -5;
+							fieldData.typeID = -8;
 							offset += 2;
 						}
 						else if (!field.type.string.compare("int"))
 						{
 							fieldData.type = FieldType::Int;
 							fieldData.offset = offset += ~offset & 0x03;
-							fieldData.typeID = -6;
+							fieldData.typeID = -7;
 							offset += 4;
 						}
 						else if (!field.type.string.compare("uint"))
 						{
 							fieldData.type = FieldType::UInt;
 							fieldData.offset = offset += ~offset & 0x03;
-							fieldData.typeID = -7;
+							fieldData.typeID = -6;
 							offset += 4;
 						}
 						else if (!field.type.string.compare("char"))
 						{
 							fieldData.type = FieldType::Char;
 							fieldData.offset = offset += ~offset & 0x03;
-							fieldData.typeID = -8;
+							fieldData.typeID = -5;
 							offset += 4;
 						}
 						else if (!field.type.string.compare("float"))
 						{
-							fieldData.type = FieldType::Char;
+							fieldData.type = FieldType::Float;
 							fieldData.offset = offset += ((offset ^ 0x03) * (offset & 0x03));
-							fieldData.typeID = -9;
+							fieldData.typeID = -4;
 							offset += 4;
+						}
+						else if (!field.type.string.compare("long"))
+						{
+							fieldData.type = FieldType::Long;
+							fieldData.offset = offset += ((offset ^ 0x07) * (offset & 0x07));
+							fieldData.typeID = -3;
+							offset += 8;
+						}
+						else if (!field.type.string.compare("ulong"))
+						{
+							fieldData.type = FieldType::ULong;
+							fieldData.offset = offset += ((offset ^ 0x07) * (offset & 0x07));
+							fieldData.typeID = -2;
+							offset += 8;
+						}
+						else if (!field.type.string.compare("double"))
+						{
+							fieldData.type = FieldType::Double;
+							fieldData.offset = offset += ((offset ^ 0x07) * (offset & 0x07));
+							fieldData.typeID = -1;
+							offset += 8;
 						}
 					}
 					else
@@ -372,19 +391,22 @@ namespace ash
 				if(util::isBasic(varNode->type))
 				{
 					auto identifier = util::renameByScope(varNode->identifier, currentScope);
-					result = compileNode(varNode->value.get(), &identifier);
-					if (result.back()->type() == Asm::TwoAddr)
-					{
-						Token id = ((twoAddress*)result.back().get())->result;
-						OpCodes operator_ = ((twoAddress*)result.back().get())->op;
-						if (id.type == TokenType::IDENTIFIER && operator_ == OP_CONST_LOW)
+					if (varNode->value)
+					{ 
+						result = compileNode(varNode->value.get(), &identifier);
+						if (result.back()->type() == Asm::TwoAddr)
 						{
-							result.clear();
-							auto move = std::make_shared<twoAddress>();
-							move->op = OP_MOVE;
-							move->A = id;
-							move->result = identifier;
-							result.push_back(move);
+							Token id = ((twoAddress*)result.back().get())->result;
+							OpCodes operator_ = ((twoAddress*)result.back().get())->op;
+							if (id.type == TokenType::IDENTIFIER && operator_ == OP_CONST_LOW)
+							{
+								result.clear();
+								auto move = std::make_shared<twoAddress>();
+								move->op = OP_MOVE;
+								move->A = id;
+								move->result = identifier;
+								result.push_back(move);
+							}
 						}
 					}
 				}

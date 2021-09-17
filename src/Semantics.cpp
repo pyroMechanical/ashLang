@@ -1,9 +1,32 @@
 #include "Semantics.h"
 
 #include <unordered_set>
+#include <map>
 
 namespace ash
 {
+	namespace util
+	{
+		static size_t sortByType(Token typeToken)
+		{
+			if (isBasic(typeToken))
+			{
+				if (!typeToken.string.compare("bool")) return 1;
+				else if (!typeToken.string.compare("byte")) return 2;
+				else if (!typeToken.string.compare("ubyte")) return 3;
+				else if (!typeToken.string.compare("short")) return 4;
+				else if (!typeToken.string.compare("ushort")) return 5;
+				else if (!typeToken.string.compare("int")) return 6;
+				else if (!typeToken.string.compare("uint")) return 7;
+				else if (!typeToken.string.compare("char")) return 8;
+				else if (!typeToken.string.compare("float")) return 9;
+				else if (!typeToken.string.compare("long")) return 10;
+				else if (!typeToken.string.compare("ulong")) return 11;
+				else if (!typeToken.string.compare("double")) return 12;
+			}
+			else return 13;
+		}
+	}
 
 	std::shared_ptr<ProgramNode> Semantics::findSymbols(std::shared_ptr<ProgramNode> ast)
 	{
@@ -70,6 +93,7 @@ namespace ash
 				{
 					currentScope->symbols.emplace(typeName, s);
 					std::unordered_set<std::string> typeFields;
+					std::multimap<size_t, parameter> orderedFields;
 
 					for (const auto& field : typeNode->fields)
 					{
@@ -78,8 +102,8 @@ namespace ash
 						if (typeFields.find(id) == typeFields.end())
 						{
 							typeFields.emplace(id);
+							orderedFields.emplace(util::sortByType(field.type), field);
 						}
-
 						else 
 						{
 							pushError("field already included", field.identifier.line);
@@ -87,7 +111,14 @@ namespace ash
 						}
 					}
 
-					currentScope->typeParameters.emplace(typeName, typeNode->fields);
+					std::vector<parameter> orderedParameters;
+
+					for (const auto& kv : orderedFields)
+					{
+						orderedParameters.push_back(kv.second);
+					}
+
+					currentScope->typeParameters.emplace(typeName, orderedParameters);
 				}
 				else
 				{
@@ -162,7 +193,7 @@ namespace ash
 
 				if(varNode->value)
 				{
-					auto valueType = expressionTypeInfo((ExpressionNode*)varNode->value.get(), currentScope);
+					auto valueType = expressionTypeInfo((ExpressionNode*)varNode->value.get(), currentScope, varNode->type);
 
 					if (valueType.string != varNode->type.string)
 					{
@@ -344,281 +375,19 @@ namespace ash
 
 	Token Semantics::expressionTypeInfo(ExpressionNode* node, std::shared_ptr<ScopeNode> currentScope, Token expected)
 	{
-		switch(node->expressionType())
+		switch (node->expressionType())
 		{
 			case ExpressionNode::ExpressionType::Primary:
 			{
-				CallNode* callNode = (CallNode*)node;
-				switch(callNode->primary.type)
-				{
-					case TokenType::IDENTIFIER:
-					{
-						Symbol* s = nullptr;
-						bool found = false;
-						auto scope = currentScope;
-						std::string name = callNode->primary.string;
-						while (!found && scope != nullptr)
-						{
-							auto it = scope->symbols.find(name);
-							if (it == scope->symbols.end())
-							{
-								scope = scope->parentScope;
-							}
-							else
-							{
-								s = &it->second;
-								found = true;
-							}
-						}
-						if (!s)
-						{
-							std::string msg = { name };
-							msg.append(" not defined.");
-							return pushError(msg, callNode->primary.line);
-						}
-						if (s)
-						{
-							if (expected.type != TokenType::ERROR)
-							{
-								if (s->type.string != expected.string)
-								{
-									std::string msg = { "expected type " };
-									msg.append(expected.string);
-									msg.append(", actual type ");
-									msg.append(s->type.string);
-									msg.append(".");
-									return pushError(msg, callNode->primary.line);
-								}
-							}
-							callNode->primaryType = s->type;
-							return s->type;
-						}
-					}
-					case TokenType::TRUE:
-					case TokenType::FALSE:
-					{
-						if (expected.type != TokenType::ERROR)
-						{
-							if ("bool" != expected.string)
-							{
-								std::string msg = { "expected type " };
-								msg.append(expected.string);
-								msg.append(", actual type bool.");
-								return pushError(msg, callNode->primary.line);
-							}
-						}
-						callNode->primaryType = { TokenType::TYPE, "bool", callNode->primary.line };
-						return { TokenType::TYPE, "bool", callNode->primary.line };
-					}
-					case TokenType::FLOAT: 
-					{
-						if (expected.type != TokenType::ERROR)
-						{
-							if ("float" != expected.string)
-							{
-								std::string msg = { "expected type " };
-								msg.append(expected.string);
-								msg.append(", actual type float.");
-								return pushError(msg, callNode->primary.line);
-							}
-						}
-						callNode->primaryType = { TokenType::TYPE, "float", callNode->primary.line };
-						return { TokenType::TYPE, "float", callNode->primary.line }; 
-					}
-					case TokenType::DOUBLE:
-					{
-						if (expected.type != TokenType::ERROR)
-						{
-							if ("double" != expected.string)
-							{
-								std::string msg = { "expected type " };
-								msg.append(expected.string);
-								msg.append(", actual type double.");
-								return pushError(msg, callNode->primary.line);
-							}
-						}
-						callNode->primaryType = { TokenType::TYPE, "double", callNode->primary.line };
-						return { TokenType::TYPE, "double", callNode->primary.line }; 
-					}
-					case TokenType::INT:
-					{
-						if (expected.type != TokenType::ERROR)
-						{
-							if ("byte" != expected.string &&
-								"ubyte" != expected.string && 
-								"short" != expected.string && 
-								"ushort" != expected.string && 
-								"int" != expected.string && 
-								"uint" != expected.string && 
-								"long" != expected.string && 
-								"ulong" != expected.string
-								)
-							{
-								std::string msg = { "expected type " };
-								msg.append(expected.string);
-								msg.append(", actual type int.");
-								return pushError(msg, callNode->primary.line);
-							}
-						}
-						callNode->primaryType = { TokenType::TYPE, "int", callNode->primary.line };
-						return { TokenType::TYPE, "int", callNode->primary.line };
-					}
-					case TokenType::CHAR: 
-					{
-						callNode->primaryType = { TokenType::TYPE, "char", callNode->primary.line };
-						return { TokenType::TYPE, "char",  callNode->primary.line };
-					}
-					case TokenType::STRING:
-					{
-						if (expected.type != TokenType::ERROR)
-						{
-							if ("string" != expected.string)
-							{
-								std::string msg = { "expected type " };
-								msg.append(expected.string);
-								msg.append(", actual type string.");
-								return pushError(msg, callNode->primary.line);
-						
-							}
-						}
-						callNode->primaryType = { TokenType::TYPE, "string", callNode->primary.line };
-						return { TokenType::TYPE, "string",  callNode->primary.line };
-					}
-				}
-			}
-			case ExpressionNode::ExpressionType::Unary:
+			CallNode* callNode = (CallNode*)node;
+			switch (callNode->primary.type)
 			{
-				UnaryNode* unaryNode = (UnaryNode*)node;
-				Token unaryValue = expressionTypeInfo((ExpressionNode*)unaryNode->unary.get(), currentScope);
-				if (expected.type != TokenType::ERROR)
-				{
-					if (unaryValue.string != expected.string)
-					{
-						std::string msg = { "expected type " };
-						msg.append(expected.string);
-						msg.append(", actual type ");
-						msg.append(unaryValue.string);
-						msg.append(".");
-						return pushError(msg, unaryNode->op.line);
-					}
-				}
-				unaryNode->unaryType = unaryValue;
-				return unaryValue;
-			}
-			case ExpressionNode::ExpressionType::Binary:
+			case TokenType::IDENTIFIER:
 			{
-				BinaryNode* binaryNode = (BinaryNode*)node;
-				Token exprType;
-				Token leftType = expressionTypeInfo((ExpressionNode*)binaryNode->left.get(), currentScope);
-				Token rightType = expressionTypeInfo((ExpressionNode*)binaryNode->right.get(), currentScope);
-				binaryNode->leftType = leftType;
-				binaryNode->rightType = rightType;
-				if (util::isBasic(leftType) && util::isBasic(rightType))
-				{
-					exprType =  util::resolveBasicTypes(leftType, rightType);
-				}
-				else
-				{
-					if (leftType.string == rightType.string)
-					{
-						exprType =  leftType;
-					}
-
-					else if (leftType.type != TokenType::ERROR && rightType.type != TokenType::ERROR)
-					{
-						std::string msg = { "type mismatch " };
-						msg.append(leftType.string);
-						msg.append(" and ");
-						msg.append(rightType.string);
-						msg.append(".");
-						exprType = pushError(msg, leftType.line);
-					}
-
-					if (leftType.type == TokenType::ERROR) exprType = leftType;
-					else if (rightType.type == TokenType::ERROR) exprType = rightType;
-				}
-
-				switch (binaryNode->op.type)
-				{
-					case TokenType::EQUAL_EQUAL:
-					case TokenType::BANG_EQUAL:
-					case TokenType::LESS:
-					case TokenType::LESS_EQUAL:
-					case TokenType::GREATER:
-					case TokenType::GREATER_EQUAL:
-					case TokenType::AND:
-					case TokenType::OR:
-					{
-						if (exprType.type != TokenType::ERROR)
-						{
-							if (expected.type != TokenType::ERROR)
-							{
-								if (expected.string.compare("bool") != 0)
-								{
-									std::string msg = { "expected type " };
-									msg.append(expected.string);
-									msg.append(", actual type bool.");
-									return pushError(msg, leftType.line);
-								}
-							}
-
-							exprType = { TokenType::TYPE, "bool", leftType.line };
-						}
-						binaryNode->binaryType = exprType;
-						return exprType;
-					}
-					case TokenType::PLUS:
-					case TokenType::MINUS:
-					case TokenType::STAR:
-					case TokenType::SLASH:
-					{
-						if (exprType.type != TokenType::ERROR)
-						{
-							if (expected.type != TokenType::ERROR)
-							{
-								if (expected.string.compare("bool") != 0)
-								{
-									std::string msg = { "expected type " };
-									msg.append(expected.string);
-									msg.append(", actual type ");
-									msg.append(exprType.string);
-									msg.append(".");
-									return pushError(msg, leftType.line);
-								}
-							}
-							
-						}
-						binaryNode->binaryType = exprType;
-						return exprType;
-					}
-				}
-			}
-			case ExpressionNode::ExpressionType::Assignment:
-			{
-				AssignmentNode* assignmentNode = (AssignmentNode*)node;
 				Symbol* s = nullptr;
 				bool found = false;
 				auto scope = currentScope;
-				bool fieldCall = false;
-				std::string name;
-				std::string fullName = assignmentNode->resolveIdentifier();
-				//TODO: check if name is a field call, and if it is, 
-				// find the base variable first, then work down the list of fields
-				if (fullName == "")
-				{
-					
-					return pushError("can only assign to a named variable.", assignmentNode->identifier->line());
-				}
-				if (fullName.find(".") != std::string::npos)
-				{
-					name = std::string(fullName, 0, fullName.find("."));
-					fieldCall = true;
-				}
-				else
-				{
-					name = fullName;
-					fieldCall = false;
-				}
+				std::string name = callNode->primary.string;
 				while (!found && scope != nullptr)
 				{
 					auto it = scope->symbols.find(name);
@@ -635,170 +404,472 @@ namespace ash
 				if (!s)
 				{
 					std::string msg = { name };
-					msg.append(" has not been declared.");
-					return pushError(msg, assignmentNode->identifier->line());
+					msg.append(" not defined.");
+					return pushError(msg, callNode->primary.line);
 				}
-				else
+				if (s)
 				{
-					auto assignedType = s->type;
-					auto minimumScope = currentScope;
-
-					if (fieldCall)
+					if (expected.type != TokenType::ERROR)
 					{
-						size_t lastPos = fullName.find(".") + 1;
-						std::string fieldName;
-						while (lastPos != 0 && minimumScope != nullptr)
+						if (s->type.string != expected.string)
 						{
-							size_t pos = fullName.find(".", lastPos);
-							size_t len = pos - lastPos;
-							fieldName = fullName.substr(lastPos, len);
-							lastPos = pos + 1;
-							auto it = minimumScope->typeParameters.find(assignedType.string);
-							if (it == minimumScope->typeParameters.end())
-							{
-								minimumScope = minimumScope->parentScope;
-							}
-							else
-							{
-								auto fields = it->second;
-								bool typeExists = false;
-								for (const auto& field : fields)
-								{
-									if (field.identifier.string == fieldName)
-									{
-										assignedType = field.type;
-										typeExists = true;
-									}
-								}
-								if (!typeExists)
-								{
-									
-									return pushError("type does not exist.", assignmentNode->identifier->line());
-								}
-							}
+							std::string msg = { "expected type " };
+							msg.append(expected.string);
+							msg.append(", actual type ");
+							msg.append(s->type.string);
+							msg.append(".");
+							return pushError(msg, callNode->primary.line);
 						}
 					}
-
-					Token valueType = expressionTypeInfo((ExpressionNode*)assignmentNode->value.get(), currentScope, expected);
-					
-					if (valueType.type == TokenType::ERROR) std::cout << "Error: expression type does not match assigned type!" << std::endl;
-
-					if (valueType.type != TokenType::ERROR && valueType.string != assignedType.string)
+					callNode->primaryType = s->type;
+					return s->type;
+				}
+			}
+			case TokenType::TRUE:
+			case TokenType::FALSE:
+			{
+				if (expected.type != TokenType::ERROR)
+				{
+					if ("bool" != expected.string)
 					{
 						std::string msg = { "expected type " };
 						msg.append(expected.string);
-						msg.append(", actual type ");
-						msg.append(valueType.string);
-						msg.append(".");
-						return pushError(msg, assignmentNode->value->line());
+						msg.append(", actual type bool.");
+						return pushError(msg, callNode->primary.line);
 					}
-					assignmentNode->assignmentType = assignedType;
-					return assignedType;
+				}
+				callNode->primaryType = { TokenType::TYPE, "bool", callNode->primary.line };
+				return { TokenType::TYPE, "bool", callNode->primary.line };
+			}
+			case TokenType::FLOAT:
+			{
+				if (expected.type != TokenType::ERROR)
+				{
+					if ("float" != expected.string)
+					{
+						std::string msg = { "expected type " };
+						msg.append(expected.string);
+						msg.append(", actual type float.");
+						return pushError(msg, callNode->primary.line);
+					}
+				}
+				callNode->primaryType = { TokenType::TYPE, "float", callNode->primary.line };
+				return { TokenType::TYPE, "float", callNode->primary.line };
+			}
+			case TokenType::DOUBLE:
+			{
+				if (expected.type != TokenType::ERROR)
+				{
+					if ("double" != expected.string)
+					{
+						std::string msg = { "expected type " };
+						msg.append(expected.string);
+						msg.append(", actual type double.");
+						return pushError(msg, callNode->primary.line);
+					}
+				}
+				callNode->primaryType = { TokenType::TYPE, "double", callNode->primary.line };
+				return { TokenType::TYPE, "double", callNode->primary.line };
+			}
+			case TokenType::INT:
+			{
+				if (expected.type != TokenType::ERROR)
+				{
+					if ("byte" != expected.string &&
+						"ubyte" != expected.string &&
+						"short" != expected.string &&
+						"ushort" != expected.string &&
+						"int" != expected.string &&
+						"uint" != expected.string &&
+						"long" != expected.string &&
+						"ulong" != expected.string
+						)
+					{
+						std::string msg = { "expected type " };
+						msg.append(expected.string);
+						msg.append(", actual type int.");
+						return pushError(msg, callNode->primary.line);
+					}
+				}
+				callNode->primaryType = { TokenType::TYPE, "int", callNode->primary.line };
+				return { TokenType::TYPE, "int", callNode->primary.line };
+			}
+			case TokenType::CHAR:
+			{
+				callNode->primaryType = { TokenType::TYPE, "char", callNode->primary.line };
+				return { TokenType::TYPE, "char",  callNode->primary.line };
+			}
+			case TokenType::STRING:
+			{
+				if (expected.type != TokenType::ERROR)
+				{
+					if ("string" != expected.string)
+					{
+						std::string msg = { "expected type " };
+						msg.append(expected.string);
+						msg.append(", actual type string.");
+						return pushError(msg, callNode->primary.line);
+
+					}
+				}
+				callNode->primaryType = { TokenType::TYPE, "string", callNode->primary.line };
+				return { TokenType::TYPE, "string",  callNode->primary.line };
+			}
+			}
+		}
+			case ExpressionNode::ExpressionType::Unary:
+			{
+			UnaryNode* unaryNode = (UnaryNode*)node;
+			Token unaryValue = expressionTypeInfo((ExpressionNode*)unaryNode->unary.get(), currentScope);
+			if (expected.type != TokenType::ERROR)
+			{
+				if (unaryValue.string != expected.string)
+				{
+					std::string msg = { "expected type " };
+					msg.append(expected.string);
+					msg.append(", actual type ");
+					msg.append(unaryValue.string);
+					msg.append(".");
+					return pushError(msg, unaryNode->op.line);
 				}
 			}
+			unaryNode->unaryType = unaryValue;
+			return unaryValue;
+		}
+			case ExpressionNode::ExpressionType::Binary:
+			{
+			BinaryNode* binaryNode = (BinaryNode*)node;
+			Token exprType;
+			Token leftType = expressionTypeInfo((ExpressionNode*)binaryNode->left.get(), currentScope);
+			Token rightType = expressionTypeInfo((ExpressionNode*)binaryNode->right.get(), currentScope);
+			binaryNode->leftType = leftType;
+			binaryNode->rightType = rightType;
+			if (util::isBasic(leftType) && util::isBasic(rightType))
+			{
+				exprType = util::resolveBasicTypes(leftType, rightType);
+			}
+			else
+			{
+				if (leftType.string == rightType.string)
+				{
+					exprType = leftType;
+				}
+
+				else if (leftType.type != TokenType::ERROR && rightType.type != TokenType::ERROR)
+				{
+					std::string msg = { "type mismatch " };
+					msg.append(leftType.string);
+					msg.append(" and ");
+					msg.append(rightType.string);
+					msg.append(".");
+					exprType = pushError(msg, leftType.line);
+				}
+
+				if (leftType.type == TokenType::ERROR) exprType = leftType;
+				else if (rightType.type == TokenType::ERROR) exprType = rightType;
+			}
+
+			switch (binaryNode->op.type)
+			{
+			case TokenType::EQUAL_EQUAL:
+			case TokenType::BANG_EQUAL:
+			case TokenType::LESS:
+			case TokenType::LESS_EQUAL:
+			case TokenType::GREATER:
+			case TokenType::GREATER_EQUAL:
+			case TokenType::AND:
+			case TokenType::OR:
+			{
+				if (exprType.type != TokenType::ERROR)
+				{
+					if (expected.type != TokenType::ERROR)
+					{
+						if (expected.string.compare("bool") != 0)
+						{
+							std::string msg = { "expected type " };
+							msg.append(expected.string);
+							msg.append(", actual type bool.");
+							return pushError(msg, leftType.line);
+						}
+					}
+
+					exprType = { TokenType::TYPE, "bool", leftType.line };
+				}
+				binaryNode->binaryType = exprType;
+				return exprType;
+			}
+			case TokenType::PLUS:
+			case TokenType::MINUS:
+			case TokenType::STAR:
+			case TokenType::SLASH:
+			{
+				if (exprType.type != TokenType::ERROR)
+				{
+					if (expected.type != TokenType::ERROR)
+					{
+						if (expected.string.compare(exprType.string) != 0)
+						{
+							std::string msg = { "expected type " };
+							msg.append(expected.string);
+							msg.append(", actual type ");
+							msg.append(exprType.string);
+							msg.append(".");
+							return pushError(msg, leftType.line);
+						}
+					}
+
+				}
+				binaryNode->binaryType = exprType;
+				return exprType;
+			}
+			}
+		}
+			case ExpressionNode::ExpressionType::Assignment:
+			{
+			AssignmentNode* assignmentNode = (AssignmentNode*)node;
+			Symbol* s = nullptr;
+			bool found = false;
+			auto scope = currentScope;
+			bool fieldCall = false;
+			std::string name;
+			std::string fullName = assignmentNode->resolveIdentifier();
+			//TODO: check if name is a field call, and if it is, 
+			// find the base variable first, then work down the list of fields
+			if (fullName == "")
+			{
+
+				return pushError("can only assign to a named variable.", assignmentNode->identifier->line());
+			}
+			if (fullName.find(".") != std::string::npos)
+			{
+				name = std::string(fullName, 0, fullName.find("."));
+				fieldCall = true;
+			}
+			else
+			{
+				name = fullName;
+				fieldCall = false;
+			}
+			while (!found && scope != nullptr)
+			{
+				auto it = scope->symbols.find(name);
+				if (it == scope->symbols.end())
+				{
+					scope = scope->parentScope;
+				}
+				else
+				{
+					s = &it->second;
+					found = true;
+				}
+			}
+			if (!s)
+			{
+				std::string msg = { name };
+				msg.append(" has not been declared.");
+				return pushError(msg, assignmentNode->identifier->line());
+			}
+			else
+			{
+				auto assignedType = s->type;
+				auto minimumScope = currentScope;
+
+				if (fieldCall)
+				{
+					size_t lastPos = fullName.find(".") + 1;
+					std::string fieldName;
+					while (lastPos != 0 && minimumScope != nullptr)
+					{
+						size_t pos = fullName.find(".", lastPos);
+						size_t len = pos - lastPos;
+						fieldName = fullName.substr(lastPos, len);
+						lastPos = pos + 1;
+						auto it = minimumScope->typeParameters.find(assignedType.string);
+						if (it == minimumScope->typeParameters.end())
+						{
+							minimumScope = minimumScope->parentScope;
+						}
+						else
+						{
+							auto fields = it->second;
+							bool typeExists = false;
+							for (const auto& field : fields)
+							{
+								if (field.identifier.string == fieldName)
+								{
+									assignedType = field.type;
+									typeExists = true;
+								}
+							}
+							if (!typeExists)
+							{
+
+								return pushError("type does not exist.", assignmentNode->identifier->line());
+							}
+						}
+					}
+				}
+
+				Token valueType = expressionTypeInfo((ExpressionNode*)assignmentNode->value.get(), currentScope, expected);
+
+				if (valueType.type == TokenType::ERROR) std::cout << "Error: expression type does not match assigned type!" << std::endl;
+
+				if (valueType.type != TokenType::ERROR && valueType.string != assignedType.string)
+				{
+					std::string msg = { "expected type " };
+					msg.append(expected.string);
+					msg.append(", actual type ");
+					msg.append(valueType.string);
+					msg.append(".");
+					return pushError(msg, assignmentNode->value->line());
+				}
+				assignmentNode->assignmentType = assignedType;
+				return assignedType;
+			}
+		}
 			case ExpressionNode::ExpressionType::FieldCall:
 			{
-				FieldCallNode* fieldCallNode = (FieldCallNode*)node;
+			FieldCallNode* fieldCallNode = (FieldCallNode*)node;
 
-				Token parentType = expressionTypeInfo((ExpressionNode*)fieldCallNode->left.get(), currentScope);
+			Token parentType = expressionTypeInfo((ExpressionNode*)fieldCallNode->left.get(), currentScope);
 
-				auto scope = currentScope;
-				std::string typeID = parentType.string;
-				while (scope != nullptr)
+			auto scope = currentScope;
+			std::string typeID = parentType.string;
+			while (scope != nullptr)
+			{
+				if (scope->symbols.find(typeID) == scope->symbols.end())
 				{
-					if (scope->symbols.find(typeID) == scope->symbols.end())
+					scope = scope->parentScope;
+				}
+				else
+				{
+					std::vector<parameter> fields = scope->typeParameters.at(typeID);
+
+					for (const auto& field : fields)
+					{
+						if (field.identifier.string == fieldCallNode->field.string)
+						{
+							fieldCallNode->fieldType = field.type;
+							return field.type;
+						}
+					}
+					return pushError("type valid, but does not contain field.", fieldCallNode->field.line);
+				}
+			}
+			return pushError("type not found.", fieldCallNode->field.line);
+		}
+			case ExpressionNode::ExpressionType::FunctionCall:
+			{
+			FunctionCallNode* functionCallNode = (FunctionCallNode*)node;
+
+			std::string funcName = functionCallNode->resolveName();
+			std::string name;
+			//TODO: support calling functions from modules
+
+			auto scope = currentScope;
+			bool found = false;
+			bool inModule = false;
+
+			if (funcName.find(".") != std::string::npos)
+			{
+				name = std::string(funcName, 0, funcName.find("."));
+				inModule = true;
+			}
+			else
+			{
+				name = funcName;
+				inModule = false;
+			}
+			if (!inModule)
+			{
+				while (!found && scope != nullptr)
+				{
+					if (scope->symbols.find(funcName) == scope->symbols.end())
 					{
 						scope = scope->parentScope;
 					}
 					else
 					{
-						std::vector<parameter> fields = scope->typeParameters.at(typeID);
+						std::vector<parameter> parameters = scope->functionParameters.at(funcName);
 
-						for (const auto& field : fields)
+						std::vector<Token> args;
+
+						for (const auto& argument : functionCallNode->arguments)
 						{
-							if (field.identifier.string == fieldCallNode->field.string)
-							{
-								fieldCallNode->fieldType = field.type;
-								return field.type;
-							}
+							args.push_back(expressionTypeInfo(argument.get(), currentScope));
 						}
-						return pushError("type valid, but does not contain field.", fieldCallNode->field.line);
-					}
-				}
-				return pushError("type not found.", fieldCallNode->field.line);
-			}
-			case ExpressionNode::ExpressionType::FunctionCall:
-			{
-				FunctionCallNode* functionCallNode = (FunctionCallNode*)node;
 
-				std::string funcName = functionCallNode->resolveName();
-				std::string name;
-				//TODO: support calling functions from modules
-
-				auto scope = currentScope;
-				bool found = false;
-				bool inModule = false;
-
-				if (funcName.find(".") != std::string::npos)
-				{
-					name = std::string(funcName, 0, funcName.find("."));
-					inModule = true;
-				}
-				else
-				{
-					name = funcName;
-					inModule = false;
-				}
-				if (!inModule)
-				{
-					while (!found && scope != nullptr)
-					{
-						if (scope->symbols.find(funcName) == scope->symbols.end())
+						if (args.size() != parameters.size())
 						{
-							scope = scope->parentScope;
+							std::string msg = { "expected " };
+							msg.append(std::to_string(parameters.size()));
+							msg.append("parameters, received ");
+							msg.append(std::to_string(args.size()));
+							msg.append(".");
+							return pushError(msg, functionCallNode->line());
 						}
-						else
+
+						for (int i = 0; i < args.size(); i++)
 						{
-							std::vector<parameter> parameters = scope->functionParameters.at(funcName);
-							
-							std::vector<Token> args;
-
-							for (const auto& argument : functionCallNode->arguments)
+							if (args[i].string != parameters[i].type.string)
 							{
-								args.push_back(expressionTypeInfo(argument.get(), currentScope));
-							}
-
-							if(args.size() != parameters.size())
-							{
-								std::string msg = { "expected " };
-								msg.append(std::to_string(parameters.size()));
-								msg.append("parameters, received ");
-								msg.append(std::to_string(args.size()));
+								std::string msg = { "expected type " };
+								msg.append(parameters[i].type.string);
+								msg.append(", actual type ");
+								msg.append(args[i].string);
 								msg.append(".");
 								return pushError(msg, functionCallNode->line());
 							}
-
-							for(int i = 0; i < args.size(); i++)
+						}
+						functionCallNode->functionType = scope->symbols.find(funcName)->second.type;
+						return scope->symbols.find(funcName)->second.type;
+					}
+				}
+				std::string msg = { "function " };
+				msg.append(name);
+				msg.append(" not defined!");
+				return pushError(msg, functionCallNode->line());
+			}
+		}
+			case ExpressionNode::ExpressionType::Constructor:
+			{
+				auto constructorNode = (ConstructorNode*)node;
+				if (expected.type != TokenType::ERROR)
+				{
+					auto typeScope = currentScope;
+					std::vector<parameter> parameters;
+					while (typeScope)
+					{
+						if (typeScope->symbols.find(expected.string) == typeScope->symbols.end())
+						{
+							typeScope = typeScope->parentScope;
+						}
+						else
+						{
+							if(typeScope->typeParameters.find(expected.string) != typeScope->typeParameters.end())
 							{
-								if(args[i].string != parameters[i].type.string)
-								{
-									std::string msg = { "expected type " };
-									msg.append(parameters[i].type.string);
-									msg.append(", actual type ");
-									msg.append(args[i].string);
-									msg.append(".");
-									return pushError(msg, functionCallNode->line());
-								}
+								parameters = typeScope->typeParameters.at(expected.string);
+								typeScope = nullptr;
 							}
-							functionCallNode->functionType = scope->symbols.find(funcName)->second.type;
-							return scope->symbols.find(funcName)->second.type;
+							else
+							{
+								std::string msg = { "type " };
+								msg.append(expected.string);
+								msg.append(" is not a valid type!");
+								return { TokenType::ERROR, msg, expected.line };
+							}
 						}
 					}
-					std::string msg = { "function " };
-					msg.append(name);
-					msg.append(" not defined!");
-					return pushError(msg, functionCallNode->line());
+					size_t i = 0;
+					for (const auto& argumentNode : constructorNode->arguments)
+					{
+						Token type = expressionTypeInfo(argumentNode.get(), currentScope, parameters[i].type);
+						if (type.type == TokenType::ERROR) return type;
+						i++;
+					}
 				}
+				constructorNode->ConstructorType = expected;
+				return expected;
 			}
 		}
 	}
@@ -828,7 +899,8 @@ namespace ash
 				result->identifier = varNode->identifier;
 				result->type = varNode->type;
 				result->usign = varNode->usign;
-				result->value = pruneBinaryExpressions(varNode->value.get(), currentBlock, currentScope);
+				if(result->value)
+					result->value = pruneBinaryExpressions(varNode->value.get(), currentBlock, currentScope);
 				return result;
 			}
 			case NodeType::TypeDeclaration:
@@ -1002,6 +1074,21 @@ namespace ash
 				std::vector<std::shared_ptr<ExpressionNode>> args;
 				args.resize(funcNode->arguments.size());
 				for (const auto& arg : funcNode->arguments)
+				{
+					args.push_back(pruneBinaryExpressions(arg.get(), currentBlock, currentScope));
+				}
+				result->arguments = args;
+				return result;
+			}
+			case ExpressionNode::ExpressionType::Constructor:
+			{
+				auto constructorNode = (ConstructorNode*)node;
+				auto result = std::make_shared<ConstructorNode>();
+				result->ConstructorType = constructorNode->ConstructorType;
+				result->constructorLine = constructorNode->constructorLine;
+				std::vector<std::shared_ptr<ExpressionNode>> args;
+				args.resize(constructorNode->arguments.size());
+				for(const auto& arg : constructorNode->arguments)
 				{
 					args.push_back(pruneBinaryExpressions(arg.get(), currentBlock, currentScope));
 				}

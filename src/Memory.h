@@ -58,7 +58,6 @@ namespace ash
 	{
 		TypeMetadata* parent;
 		std::vector<FieldMetadata> fields;
-		uint8_t spacing;
 	};
 
 	enum class AllocationType
