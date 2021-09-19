@@ -899,7 +899,7 @@ namespace ash
 				result->identifier = varNode->identifier;
 				result->type = varNode->type;
 				result->usign = varNode->usign;
-				if(result->value)
+				if(varNode->value)
 					result->value = pruneBinaryExpressions(varNode->value.get(), currentBlock, currentScope);
 				return result;
 			}
@@ -1072,7 +1072,7 @@ namespace ash
 				auto result = std::make_shared<FunctionCallNode>();
 				result->left = pruneBinaryExpressions(funcNode->left.get(), currentBlock, currentScope);
 				std::vector<std::shared_ptr<ExpressionNode>> args;
-				args.resize(funcNode->arguments.size());
+				args.reserve(funcNode->arguments.size());
 				for (const auto& arg : funcNode->arguments)
 				{
 					args.push_back(pruneBinaryExpressions(arg.get(), currentBlock, currentScope));
@@ -1087,7 +1087,7 @@ namespace ash
 				result->ConstructorType = constructorNode->ConstructorType;
 				result->constructorLine = constructorNode->constructorLine;
 				std::vector<std::shared_ptr<ExpressionNode>> args;
-				args.resize(constructorNode->arguments.size());
+				args.reserve(constructorNode->arguments.size());
 				for(const auto& arg : constructorNode->arguments)
 				{
 					args.push_back(pruneBinaryExpressions(arg.get(), currentBlock, currentScope));

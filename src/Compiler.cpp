@@ -388,9 +388,10 @@ namespace ash
 
 				std::vector<std::shared_ptr<assembly>> result;
 
+				auto identifier = util::renameByScope(varNode->identifier, currentScope);
+
 				if(util::isBasic(varNode->type))
 				{
-					auto identifier = util::renameByScope(varNode->identifier, currentScope);
 					if (varNode->value)
 					{ 
 						result = compileNode(varNode->value.get(), &identifier);
@@ -412,7 +413,18 @@ namespace ash
 				}
 				else
 				{
-					
+					auto varType = util::renameByScope(varNode->type, currentScope);
+					auto alloc = std::make_shared<twoAddress>();
+					alloc->op = OP_ALLOC;
+					alloc->A = varType;
+					alloc->result = identifier;
+					result.push_back(alloc);
+					if(varNode->value)
+					{
+						auto exprResult = compileNode(varNode->value.get(), &identifier);
+						if (exprResult.size())
+							result.insert(result.end(), exprResult.begin(), exprResult.end());
+					}
 				}
 
 				return result;
@@ -949,6 +961,10 @@ namespace ash
 					{
 						
 					}
+					case ExpressionNode::ExpressionType::Constructor:
+					{
+						
+					}
 					case ExpressionNode::ExpressionType::Unary:
 					{
 						auto unaryNode = (UnaryNode*)node;
@@ -1025,6 +1041,7 @@ namespace ash
 
 						auto constant = std::make_shared<twoAddress>();
 						constant->result = primaryNode->primary;
+						if (primaryNode->primary.type == TokenType::IDENTIFIER) constant->result = util::renameByScope(primaryNode->primary, currentScope);
 						constant->op = OP_CONST_LOW;
 						if(result != nullptr)
 						{
