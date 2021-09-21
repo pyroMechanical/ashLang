@@ -963,7 +963,35 @@ namespace ash
 					}
 					case ExpressionNode::ExpressionType::Constructor:
 					{
-						
+						auto constructorNode = (ConstructorNode*)node;
+
+						std::vector<std::shared_ptr<assembly>> chunk;
+						size_t index = 0;
+						for(const auto& arg : constructorNode->arguments)
+						{
+							auto argChunk = compileNode(arg.get(), result); //figure out how to resolve field type from constructor type?
+							chunk.insert(chunk.end(), argChunk.begin(), argChunk.end());
+							auto store = std::make_shared<threeAddress>();
+							if(chunk.back()->type() == Asm::OneAddr )
+							{
+								auto oneAddr = std::dynamic_pointer_cast<oneAddress>(chunk.back());
+								store->A = oneAddr->A;
+							}
+							else if ( chunk.back()->type() == Asm::TwoAddr)
+							{
+								auto twoAddr = std::dynamic_pointer_cast<twoAddress>(chunk.back());
+								store->A = twoAddr->result;
+							}
+							else if (chunk.back()->type() == Asm::ThreeAddr)
+							{
+								auto threeAddr = std::dynamic_pointer_cast<threeAddress>(chunk.back());
+								store->A = threeAddr->result;
+							}
+							store->result = { TokenType::INT, std::to_string(index), constructorNode->line() };
+							chunk.push_back(store);
+							index++;
+						}
+						return chunk;
 					}
 					case ExpressionNode::ExpressionType::Unary:
 					{
