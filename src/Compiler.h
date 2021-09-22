@@ -71,6 +71,7 @@ namespace ash
 			std::cout << "    " << OpcodeNames[op] << " " << A.string << " " << result.string << std::endl;
 		}
 	};
+
 	struct threeAddress : public pseudocode
 	{
 		Token result;

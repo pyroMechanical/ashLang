@@ -97,7 +97,7 @@ namespace ash
 
 		Semantics analyzer;
 
-		ast->print(0);
+		//ast->print(0);
 
 		ast = analyzer.findSymbols(ast);
 		temporaries = analyzer.temporaries;
@@ -123,10 +123,10 @@ namespace ash
 			instruction->print();
 		}
 
-		for (const auto& typeID : typeIDs)
+		/*for (const auto& typeID : typeIDs)
 		{
 			std::cout << typeID.first << ": " << typeID.second << std::endl;
-		}
+		}*/
 
 		return false;
 	}
@@ -922,36 +922,144 @@ namespace ash
 					{
 						auto assignmentNode = (AssignmentNode*)exprNode;
 
-						std::vector<std::shared_ptr<assembly>> result;
+						std::vector<std::shared_ptr<assembly>> chunk;
+						std::string assigned = assignmentNode->resolveIdentifier();
+
+						size_t pos = assigned.find(".");
+						bool isFieldAssignment = (pos != std::string::npos);
+						
+						std::string assignedVar = util::renameByScope({ TokenType::IDENTIFIER, assigned.substr(0, pos) , assignmentNode->line() }, currentScope).string;
+						if (isFieldAssignment) assignedVar = assignedVar.append(assigned.substr(pos));
+
+						Token id = { TokenType::IDENTIFIER, assignedVar, assignmentNode->line() };
 
 						if(util::isBasic(assignmentNode->assignmentType))
 						{
-							Token id = { TokenType::IDENTIFIER, assignmentNode->resolveIdentifier(), assignmentNode->line() };
-							result = compileNode(assignmentNode->value.get(), &id);
-
-							if (result.back()->type() == Asm::TwoAddr)
+							
+							if (!isFieldAssignment)
 							{
-								Token id = ((twoAddress*)result.back().get())->result;
-								OpCodes operator_ = ((twoAddress*)result.back().get())->op;
-								if (id.type == TokenType::IDENTIFIER && operator_ == OP_CONST_LOW)
+								chunk = compileNode(assignmentNode->value.get(), &id);
+								if (chunk.back()->type() == Asm::TwoAddr)
 								{
-									
-									result.clear();
-									auto move = std::make_shared<twoAddress>();
-									move->op = OP_MOVE;
-									move->A = id;
-									Token assigned = { TokenType::IDENTIFIER, assignmentNode->resolveIdentifier(), assignmentNode->line() };
-									move->result = assigned;
-									result.push_back(move);
+									Token id = ((twoAddress*)chunk.back().get())->result;
+									OpCodes operator_ = ((twoAddress*)chunk.back().get())->op;
+									if (id.type == TokenType::IDENTIFIER && operator_ == OP_CONST_LOW)
+									{
+										chunk.clear();
+										auto move = std::make_shared<twoAddress>();
+										move->op = OP_MOVE;
+										move->result = id;
+										Token assigned = { TokenType::IDENTIFIER, assignmentNode->resolveIdentifier(), assignmentNode->line() };
+										move->A = assigned;
+										chunk.push_back(move);
+									}
+								}
+							}
+							else
+							{
+								std::string temp("#");
+								temp.append(std::to_string(temporaries++));
+								Token tempToken = { TokenType::IDENTIFIER, temp, assignmentNode->value->line() };
+								chunk = compileNode(assignmentNode->value.get(), &tempToken);
+								auto substr = assigned.substr(assigned.find(".") + 1);
+								auto scope = currentScope;
+								std::string var = assignedVar.substr(0, assignedVar.find("#"));
+								std::string currentType;
+								while (scope != nullptr)
+								{
+									if(scope->symbols.find(var) != scope->symbols.end())
+									{
+										currentType = scope->symbols.at(var).type.string;
+										scope = nullptr;
+									}
+									else
+									{
+										scope = scope->parentScope;
+									}
+								}
+								while (substr.length() > 0)
+								{
+									size_t offset = substr.find(".");
+									auto currentObject = substr.substr(0, offset);
+									substr = substr.substr(offset + 1);
+									if (offset == std::string::npos)
+									{
+										substr = std::string("");
+									}
+									auto scope = currentScope;
+									std::vector<parameter> params;
+									while (scope != nullptr)
+									{
+										if (scope->typeParameters.find(currentType) != scope->typeParameters.end())
+										{
+											params = scope->typeParameters.at(currentType);
+											scope = nullptr;
+										}
+										else
+										{
+											scope = scope->parentScope;
+										}
+									}
+									for (size_t i = 0; i < params.size(); i++)
+									{
+										if (currentObject.compare(params[i].identifier.string) == 0)
+										{
+											currentType = params[i].type.string;
+											if (!util::isBasic(params[i].type) && offset != std::string::npos)
+											{
+												auto load = std::make_shared<threeAddress>();
+												std::string newTemp("#");
+												newTemp.append(std::to_string(temporaries++));
+												Token newTempToken = { TokenType::IDENTIFIER, newTemp, assignmentNode->value->line() };
+												load->op = OP_LOAD_OFFSET;
+												load->A = newTempToken;
+												load->B = { TokenType::IDENTIFIER, assignedVar.substr(0, assignedVar.find(currentObject) + currentObject.length()), assignmentNode->line() };
+												load->result = { TokenType::INT, std::to_string(i), assignmentNode->line() };
+												chunk.push_back(load);
+											}
+											else
+											{
+												auto store = std::make_shared<threeAddress>();
+												store->op = OP_STORE_OFFSET;
+												store->A = tempToken;
+												if(chunk.back()->type() == Asm::ThreeAddr)
+												{
+													std::shared_ptr<threeAddress> lastResult = std::dynamic_pointer_cast<threeAddress>(chunk.back());
+													store->B = lastResult->B;
+												}
+												store->result = { TokenType::INT, std::to_string(i), assignmentNode->line() };
+												chunk.push_back(store);
+											}
+										}
+									}
 								}
 							}
 						}
 						else
 						{
-							
+							auto varType = util::renameByScope(assignmentNode->assignmentType, currentScope);
+							auto alloc = std::make_shared<twoAddress>();
+							alloc->op = OP_ALLOC;
+							alloc->A = varType;
+							std::string temp("#");
+							temp.append(std::to_string(temporaries++));
+							Token tempToken = { TokenType::IDENTIFIER, temp, assignmentNode->value->line() };
+							alloc->result = tempToken;
+							chunk.push_back(alloc);
+							auto exprResult = compileNode(assignmentNode->value.get(), &tempToken);
+							if (exprResult.size())
+							{
+								chunk.insert(chunk.end(), exprResult.begin(), exprResult.end());
+								auto load = std::make_shared<threeAddress>();
+								load->op = OP_LOAD_OFFSET;
+								load->A = { TokenType::IDENTIFIER, temp, assignmentNode->value->line() };
+								load->B = { TokenType::IDENTIFIER, id.string.substr(0, id.string.rfind(".")), assignmentNode->line() };
+								load->result = { TokenType::INT, std::to_string(1), assignmentNode->line() };
+							}
+
 						}
 
-						return result;
+						return chunk;
 					}
 					case ExpressionNode::ExpressionType::FieldCall:
 					{
@@ -966,13 +1074,28 @@ namespace ash
 						auto constructorNode = (ConstructorNode*)node;
 
 						std::vector<std::shared_ptr<assembly>> chunk;
+						if (result->string.front() == '#')
+						{
+							auto tempType = util::renameByScope(constructorNode->ConstructorType, currentScope);
+							auto alloc = std::make_shared<twoAddress>();
+							alloc->op = OP_ALLOC;
+							alloc->A = tempType;
+							alloc->result = *result;
+							chunk.push_back(alloc);
+						}
 						size_t index = 0;
 						for(const auto& arg : constructorNode->arguments)
 						{
-							auto argChunk = compileNode(arg.get(), result); //figure out how to resolve field type from constructor type?
+							std::string temp("#");
+							temp.append(std::to_string(temporaries++));
+							Token tempToken = { TokenType::IDENTIFIER, temp, constructorNode->line() };
+							auto argChunk = compileNode(arg.get(), &tempToken);
 							chunk.insert(chunk.end(), argChunk.begin(), argChunk.end());
 							auto store = std::make_shared<threeAddress>();
-							if(chunk.back()->type() == Asm::OneAddr )
+							store->op = OP_STORE_OFFSET;
+							store->result = { TokenType::INT, std::to_string(index), constructorNode->line() };
+							store->B = *result;
+							if(chunk.back()->type() == Asm::OneAddr)
 							{
 								auto oneAddr = std::dynamic_pointer_cast<oneAddress>(chunk.back());
 								store->A = oneAddr->A;
@@ -987,7 +1110,6 @@ namespace ash
 								auto threeAddr = std::dynamic_pointer_cast<threeAddress>(chunk.back());
 								store->A = threeAddr->result;
 							}
-							store->result = { TokenType::INT, std::to_string(index), constructorNode->line() };
 							chunk.push_back(store);
 							index++;
 						}
@@ -1068,18 +1190,18 @@ namespace ash
 						auto primaryNode = (CallNode*)exprNode;
 
 						auto constant = std::make_shared<twoAddress>();
-						constant->result = primaryNode->primary;
-						if (primaryNode->primary.type == TokenType::IDENTIFIER) constant->result = util::renameByScope(primaryNode->primary, currentScope);
+						constant->A = primaryNode->primary;
+						if (primaryNode->primary.type == TokenType::IDENTIFIER) constant->A = util::renameByScope(primaryNode->primary, currentScope);
 						constant->op = OP_CONST_LOW;
 						if(result != nullptr)
 						{
-							constant->A = *result;
+							constant->result = *result;
 						}
 						else
 						{
 							std::string temp("#");
 							temp.append(std::to_string(temporaries++));
-							constant->A = { TokenType::IDENTIFIER, temp, primaryNode->line() };
+							constant->result = { TokenType::IDENTIFIER, temp, primaryNode->line() };
 						}
 						std::vector<std::shared_ptr<assembly>> chunk;
 						chunk.push_back(constant);

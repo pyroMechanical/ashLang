@@ -2,6 +2,8 @@
 
 #include <unordered_set>
 #include <map>
+#include <algorithm>
+#include <numeric>
 
 namespace ash
 {
@@ -92,13 +94,26 @@ namespace ash
 				if (currentScope->symbols.find(typeName) == currentScope->symbols.end())
 				{
 					currentScope->symbols.emplace(typeName, s);
-					std::unordered_set<std::string> typeFields;
-					std::multimap<size_t, parameter> orderedFields;
+					std::vector<parameter> unorderedFields = typeNode->fields;
+					std::vector<size_t> convert(unorderedFields.size());
+					std::vector<parameter> orderedFields(unorderedFields.size());
 
-					for (const auto& field : typeNode->fields)
+					std::iota(convert.begin(), convert.end(), 0);
+					std::sort(convert.begin(), convert.end(), [&](size_t a, size_t b)
+						{
+							return util::sortByType(unorderedFields[a].type) < util::sortByType(unorderedFields[b].type);
+						});
+					for (size_t i = 0; i < unorderedFields.size(); i++)
 					{
-						auto id = field.identifier.string;
+						orderedFields[i] = unorderedFields[convert[i]];
+					}
 
+
+
+					/*for (const auto& field : typeNode->fields)
+					{
+						auto& id = field.identifier.string;
+						//https://stackoverflow.com/questions/35545010/how-to-put-the-sorted-indexes-of-an-unsorted-array-into-a-new-array/35545691
 						if (typeFields.find(id) == typeFields.end())
 						{
 							typeFields.emplace(id);
@@ -112,13 +127,14 @@ namespace ash
 					}
 
 					std::vector<parameter> orderedParameters;
-
+					std::vector<size_t> fieldRemap;
 					for (const auto& kv : orderedFields)
 					{
 						orderedParameters.push_back(kv.second);
-					}
+					}*/
 
-					currentScope->typeParameters.emplace(typeName, orderedParameters);
+					currentScope->typeParameters.emplace(typeName, orderedFields);
+					currentScope->sortedType.emplace(typeName, convert);
 				}
 				else
 				{
@@ -710,7 +726,7 @@ namespace ash
 					}
 				}
 
-				Token valueType = expressionTypeInfo((ExpressionNode*)assignmentNode->value.get(), currentScope, expected);
+				Token valueType = expressionTypeInfo((ExpressionNode*)assignmentNode->value.get(), currentScope, assignedType);
 
 				if (valueType.type == TokenType::ERROR) std::cout << "Error: expression type does not match assigned type!" << std::endl;
 
@@ -838,6 +854,7 @@ namespace ash
 				{
 					auto typeScope = currentScope;
 					std::vector<parameter> parameters;
+					std::vector<size_t> convert;
 					while (typeScope)
 					{
 						if (typeScope->symbols.find(expected.string) == typeScope->symbols.end())
@@ -849,6 +866,7 @@ namespace ash
 							if(typeScope->typeParameters.find(expected.string) != typeScope->typeParameters.end())
 							{
 								parameters = typeScope->typeParameters.at(expected.string);
+								convert = typeScope->sortedType.at(expected.string);
 								typeScope = nullptr;
 							}
 							else
@@ -860,12 +878,19 @@ namespace ash
 							}
 						}
 					}
-					size_t i = 0;
+					std::vector<std::shared_ptr<ExpressionNode>> newArgs(constructorNode->arguments.size());
+					for(size_t i = 0; i < constructorNode->arguments.size(); i++)
+					{
+						newArgs[i] = constructorNode->arguments[convert[i]];
+					}
+					constructorNode->arguments = newArgs;
+
+					size_t j = 0;
 					for (const auto& argumentNode : constructorNode->arguments)
 					{
-						Token type = expressionTypeInfo(argumentNode.get(), currentScope, parameters[i].type);
+						Token type = expressionTypeInfo(argumentNode.get(), currentScope, parameters[j].type);
 						if (type.type == TokenType::ERROR) return type;
-						i++;
+						j++;
 					}
 				}
 				constructorNode->ConstructorType = expected;

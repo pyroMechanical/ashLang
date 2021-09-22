@@ -130,6 +130,7 @@ namespace ash
 			"OP_MOVE",
 			"OP_ALLOC",
 			"OP_CONST_LOW",
+			"OP_CONST_LOW_NEGATIVE",
 			"OP_CONST_MID_LOW",
 			"OP_CONST_MID_HIGH",
 			"OP_CONST_HIGH",
