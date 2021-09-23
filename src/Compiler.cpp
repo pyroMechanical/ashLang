@@ -1041,18 +1041,18 @@ namespace ash
 							auto alloc = std::make_shared<twoAddress>();
 							alloc->op = OP_ALLOC;
 							alloc->A = varType;
-							std::string temp("#");
-							temp.append(std::to_string(temporaries++));
-							Token tempToken = { TokenType::IDENTIFIER, temp, assignmentNode->value->line() };
+							//std::string temp("#");
+							//temp.append(std::to_string(temporaries++));
+							Token tempToken = { TokenType::IDENTIFIER, assignedVar.substr(0, assignedVar.rfind(".")) , assignmentNode->value->line() };
 							alloc->result = tempToken;
-							chunk.push_back(alloc);
+							//chunk.push_back(alloc);
 							auto exprResult = compileNode(assignmentNode->value.get(), &tempToken);
 							if (exprResult.size())
 							{
 								chunk.insert(chunk.end(), exprResult.begin(), exprResult.end());
 								auto load = std::make_shared<threeAddress>();
 								load->op = OP_LOAD_OFFSET;
-								load->A = { TokenType::IDENTIFIER, temp, assignmentNode->value->line() };
+								load->A = tempToken;
 								load->B = { TokenType::IDENTIFIER, id.string.substr(0, id.string.rfind(".")), assignmentNode->line() };
 								load->result = { TokenType::INT, std::to_string(1), assignmentNode->line() };
 							}
@@ -1108,7 +1108,14 @@ namespace ash
 							else if (chunk.back()->type() == Asm::ThreeAddr)
 							{
 								auto threeAddr = std::dynamic_pointer_cast<threeAddress>(chunk.back());
-								store->A = threeAddr->result;
+								if(threeAddr->op == OP_STORE_OFFSET || threeAddr->op == OP_LOAD_OFFSET)
+								{
+									store->A = threeAddr->B;
+								}
+								else
+								{
+									store->A = threeAddr->result;
+								}
 							}
 							chunk.push_back(store);
 							index++;
