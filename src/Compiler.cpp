@@ -114,7 +114,7 @@ namespace ash
 		//	func->print(0);
 		//}
 
-		pseudochunk result = precompile(ast);
+ 		pseudochunk result = precompile(ast);
 		
 		std::cout << std::endl;
 
@@ -933,43 +933,65 @@ namespace ash
 
 						Token id = { TokenType::IDENTIFIER, assignedVar, assignmentNode->line() };
 
-						if(util::isBasic(assignmentNode->assignmentType))
+						if (!isFieldAssignment)
 						{
-							
-							if (!isFieldAssignment)
+							chunk = compileNode(assignmentNode->value.get(), &id);
+							if (chunk.back()->type() == Asm::TwoAddr)
 							{
-								chunk = compileNode(assignmentNode->value.get(), &id);
-								if (chunk.back()->type() == Asm::TwoAddr)
+								Token id = ((twoAddress*)chunk.back().get())->result;
+								OpCodes operator_ = ((twoAddress*)chunk.back().get())->op;
+								if (id.type == TokenType::IDENTIFIER && operator_ == OP_CONST_LOW)
 								{
-									Token id = ((twoAddress*)chunk.back().get())->result;
-									OpCodes operator_ = ((twoAddress*)chunk.back().get())->op;
-									if (id.type == TokenType::IDENTIFIER && operator_ == OP_CONST_LOW)
-									{
-										chunk.clear();
-										auto move = std::make_shared<twoAddress>();
-										move->op = OP_MOVE;
-										move->result = id;
-										Token assigned = { TokenType::IDENTIFIER, assignmentNode->resolveIdentifier(), assignmentNode->line() };
-										move->A = assigned;
-										chunk.push_back(move);
-									}
+									chunk.clear();
+									auto move = std::make_shared<twoAddress>();
+									move->op = OP_MOVE;
+									move->result = id;
+									Token assigned = { TokenType::IDENTIFIER, assignedVar, assignmentNode->line() };
+									move->A = assigned;
+									chunk.push_back(move);
 								}
 							}
-							else
+						}
+						else
+						{
+							std::string temp("#");
+							temp.append(std::to_string(temporaries++));
+							Token tempToken = { TokenType::IDENTIFIER, temp, assignmentNode->value->line() };
+							chunk = compileNode(assignmentNode->value.get(), &tempToken);
+							auto substr = assignedVar;
+							std::string remainder = substr.substr(0, substr.find("."));
+							auto scope = currentScope;
+							std::string var = assignedVar.substr(0, assignedVar.find("#"));
+							std::string currentType;
+							while (scope != nullptr)
 							{
-								std::string temp("#");
-								temp.append(std::to_string(temporaries++));
-								Token tempToken = { TokenType::IDENTIFIER, temp, assignmentNode->value->line() };
-								chunk = compileNode(assignmentNode->value.get(), &tempToken);
-								auto substr = assigned.substr(assigned.find(".") + 1);
+								if(scope->symbols.find(var) != scope->symbols.end())
+								{
+									currentType = scope->symbols.at(var).type.string;
+									scope = nullptr;
+								}
+								else
+								{
+									scope = scope->parentScope;
+								}
+							}
+							while (substr.length() > 0)
+							{
+								size_t offset = substr.find(".");
+								std::string last = remainder;
+								remainder = substr.substr(0, offset);
+								substr = substr.substr(offset + 1);
+								if (offset == std::string::npos)
+								{
+									substr = std::string("");
+								}
 								auto scope = currentScope;
-								std::string var = assignedVar.substr(0, assignedVar.find("#"));
-								std::string currentType;
+								std::vector<parameter> params;
 								while (scope != nullptr)
 								{
-									if(scope->symbols.find(var) != scope->symbols.end())
+									if (scope->typeParameters.find(currentType) != scope->typeParameters.end())
 									{
-										currentType = scope->symbols.at(var).type.string;
+										params = scope->typeParameters.at(currentType);
 										scope = nullptr;
 									}
 									else
@@ -977,86 +999,39 @@ namespace ash
 										scope = scope->parentScope;
 									}
 								}
-								while (substr.length() > 0)
+								for (size_t i = 0; i < params.size(); i++)
 								{
-									size_t offset = substr.find(".");
-									auto currentObject = substr.substr(0, offset);
-									substr = substr.substr(offset + 1);
-									if (offset == std::string::npos)
+									if (remainder.compare(params[i].identifier.string) == 0)
 									{
-										substr = std::string("");
-									}
-									auto scope = currentScope;
-									std::vector<parameter> params;
-									while (scope != nullptr)
-									{
-										if (scope->typeParameters.find(currentType) != scope->typeParameters.end())
+										currentType = params[i].type.string;
+										if (offset != std::string::npos)
 										{
-											params = scope->typeParameters.at(currentType);
-											scope = nullptr;
+											auto load = std::make_shared<threeAddress>();
+											std::string newTemp("#");
+											newTemp.append(std::to_string(temporaries++));
+											Token newTempToken = { TokenType::IDENTIFIER, newTemp, assignmentNode->value->line() };
+											load->op = OP_LOAD_OFFSET;
+											load->A = newTempToken;
+											load->B = { TokenType::IDENTIFIER, last , assignmentNode->line() };
+											load->result = { TokenType::INT, std::to_string(i), assignmentNode->line() };
+											chunk.push_back(load);
 										}
 										else
 										{
-											scope = scope->parentScope;
-										}
-									}
-									for (size_t i = 0; i < params.size(); i++)
-									{
-										if (currentObject.compare(params[i].identifier.string) == 0)
-										{
-											currentType = params[i].type.string;
-											if (!util::isBasic(params[i].type) && offset != std::string::npos)
+											auto store = std::make_shared<threeAddress>();
+											store->op = OP_STORE_OFFSET;
+											store->A = tempToken;
+											if(chunk.back()->type() == Asm::ThreeAddr)
 											{
-												auto load = std::make_shared<threeAddress>();
-												std::string newTemp("#");
-												newTemp.append(std::to_string(temporaries++));
-												Token newTempToken = { TokenType::IDENTIFIER, newTemp, assignmentNode->value->line() };
-												load->op = OP_LOAD_OFFSET;
-												load->A = newTempToken;
-												load->B = { TokenType::IDENTIFIER, assignedVar.substr(0, assignedVar.find(currentObject) + currentObject.length()), assignmentNode->line() };
-												load->result = { TokenType::INT, std::to_string(i), assignmentNode->line() };
-												chunk.push_back(load);
+												std::shared_ptr<threeAddress> lastResult = std::dynamic_pointer_cast<threeAddress>(chunk.back());
+												store->B = lastResult->A;
 											}
-											else
-											{
-												auto store = std::make_shared<threeAddress>();
-												store->op = OP_STORE_OFFSET;
-												store->A = tempToken;
-												if(chunk.back()->type() == Asm::ThreeAddr)
-												{
-													std::shared_ptr<threeAddress> lastResult = std::dynamic_pointer_cast<threeAddress>(chunk.back());
-													store->B = lastResult->B;
-												}
-												store->result = { TokenType::INT, std::to_string(i), assignmentNode->line() };
-												chunk.push_back(store);
-											}
+											store->result = { TokenType::INT, std::to_string(i), assignmentNode->line() };
+											chunk.push_back(store);
 										}
 									}
 								}
 							}
-						}
-						else
-						{
-							auto varType = util::renameByScope(assignmentNode->assignmentType, currentScope);
-							auto alloc = std::make_shared<twoAddress>();
-							alloc->op = OP_ALLOC;
-							alloc->A = varType;
-							//std::string temp("#");
-							//temp.append(std::to_string(temporaries++));
-							Token tempToken = { TokenType::IDENTIFIER, assignedVar.substr(0, assignedVar.rfind(".")) , assignmentNode->value->line() };
-							alloc->result = tempToken;
-							//chunk.push_back(alloc);
-							auto exprResult = compileNode(assignmentNode->value.get(), &tempToken);
-							if (exprResult.size())
-							{
-								chunk.insert(chunk.end(), exprResult.begin(), exprResult.end());
-								auto load = std::make_shared<threeAddress>();
-								load->op = OP_LOAD_OFFSET;
-								load->A = tempToken;
-								load->B = { TokenType::IDENTIFIER, id.string.substr(0, id.string.rfind(".")), assignmentNode->line() };
-								load->result = { TokenType::INT, std::to_string(1), assignmentNode->line() };
-							}
-
 						}
 
 						return chunk;
