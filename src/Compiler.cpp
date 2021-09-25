@@ -963,6 +963,7 @@ namespace ash
 							auto scope = currentScope;
 							std::string var = assignedVar.substr(0, assignedVar.find("#"));
 							std::string currentType;
+							std::vector<std::shared_ptr<threeAddress>> storeStack;
 							while (scope != nullptr)
 							{
 								if(scope->symbols.find(var) != scope->symbols.end())
@@ -1012,22 +1013,46 @@ namespace ash
 											Token newTempToken = { TokenType::IDENTIFIER, newTemp, assignmentNode->value->line() };
 											load->op = OP_LOAD_OFFSET;
 											load->A = newTempToken;
-											load->B = { TokenType::IDENTIFIER, last , assignmentNode->line() };
+											if (last.compare(assignedVar.substr(0, assignedVar.find("."))) == 0)
+											{
+												load->B = { TokenType::IDENTIFIER, last , assignmentNode->line() };
+											}
+											else
+											{
+												load->B = storeStack.back()->A;
+											}
 											load->result = { TokenType::INT, std::to_string(i), assignmentNode->line() };
 											chunk.push_back(load);
+											auto store = std::make_shared<threeAddress>();
+											store->op = OP_STORE_OFFSET;
+											store->A = load->A;
+											store->B = load->B;
+											store->result = load->result;
+											storeStack.push_back(store);
 										}
 										else
 										{
+											
+
 											auto store = std::make_shared<threeAddress>();
 											store->op = OP_STORE_OFFSET;
 											store->A = tempToken;
 											if(chunk.back()->type() == Asm::ThreeAddr)
 											{
 												std::shared_ptr<threeAddress> lastResult = std::dynamic_pointer_cast<threeAddress>(chunk.back());
-												store->B = lastResult->A;
+												if (lastResult->op == OP_LOAD_OFFSET)
+												{
+													store->B = lastResult->A;
+												}
+												else store->B = { TokenType::IDENTIFIER, last, assignmentNode->line() };
 											}
 											store->result = { TokenType::INT, std::to_string(i), assignmentNode->line() };
 											chunk.push_back(store);
+
+											for (auto i = storeStack.rbegin(); i < storeStack.rend(); i++)
+											{
+												chunk.push_back(*i);
+											}
 										}
 									}
 								}
