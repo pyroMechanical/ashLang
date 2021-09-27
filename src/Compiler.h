@@ -88,6 +88,18 @@ namespace ash
 	{
 		std::vector<std::shared_ptr<assembly>> code;
 	};
+	
+	struct controlFlowNode
+	{
+		std::vector<std::shared_ptr<assembly>> block;
+		std::shared_ptr<controlFlowNode> exit;
+		std::shared_ptr<controlFlowNode> branch = nullptr;
+	};
+
+	struct controlFlowGraph
+	{
+		std::vector<std::shared_ptr<controlFlowNode>> procedures;
+	};
 
 	struct Local
 	{
@@ -116,6 +128,9 @@ namespace ash
 		bool compile(const char* source);
 
 		pseudochunk precompile(std::shared_ptr<ProgramNode> ast);
+		pseudochunk optimize(pseudochunk chunk) {};
+		controlFlowGraph analyzeControlFlow(pseudochunk chunk);
+		pseudochunk allocateRegisters(pseudochunk chunk);
 
 		std::vector<std::shared_ptr<assembly>> compileNode(ParseNode* node, Token* result);
 	};

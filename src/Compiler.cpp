@@ -1,6 +1,5 @@
 #include "Compiler.h"
 #include "Semantics.h"
-#include "ControlFlowAnalysis.h"
 #include <string>
 
 namespace ash
@@ -103,22 +102,18 @@ namespace ash
 		temporaries = analyzer.temporaries;
 		if (ast->hadError) return false;
 
-		//ast->print(0);
-
-		//ControlFlowAnalysis cfa;
-
-		//std::shared_ptr<ControlFlowGraph> cfg = cfa.createCFG(ast);
-
-		//for (const auto func : cfg->basicBlocks)
-		//{
-		//	func->print(0);
-		//}
-
  		pseudochunk result = precompile(ast);
 		
 		std::cout << std::endl;
 
 		for(const auto& instruction : result.code)
+		{
+			instruction->print();
+		}
+
+		result = allocateRegisters(result);
+
+		for (const auto& instruction : result.code)
 		{
 			instruction->print();
 		}
@@ -1217,5 +1212,52 @@ namespace ash
 				}
 			}
 		}
+	}
+
+	controlFlowGraph Compiler::analyzeControlFlow(pseudochunk chunk)
+	{
+		controlFlowGraph graph{};
+
+		std::shared_ptr<controlFlowNode> currentNode = std::make_shared<controlFlowNode>();
+		for(const auto& instruction : chunk.code)
+		{
+			switch (instruction->type())
+			{
+				case Asm::Jump:
+				{
+					std::shared_ptr<relativeJump> jump = std::dynamic_pointer_cast<relativeJump>(instruction);
+					auto op = jump->op;
+					switch(op)
+					{
+						case OP_RELATIVE_JUMP_IF_TRUE:
+						{
+							//TODO: branch at control flow statements
+							currentNode->block.push_back(instruction);
+							break;
+						}
+						case OP_RELATIVE_JUMP:
+						{
+							currentNode->block.push_back(instruction);
+							break;
+						}
+					}
+					break;
+				}
+				case Asm::Label:
+				{
+
+				}
+				default:
+				{
+					currentNode->block.push_back(instruction);
+				}
+			}
+		}
+	}
+
+	pseudochunk Compiler::allocateRegisters(pseudochunk chunk)
+	{
+		std::unordered_map<std::string, int16_t> registers;
+
 	}
 }
