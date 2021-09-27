@@ -92,8 +92,8 @@ namespace ash
 	struct controlFlowNode
 	{
 		std::vector<std::shared_ptr<assembly>> block;
-		std::shared_ptr<controlFlowNode> exit;
-		std::shared_ptr<controlFlowNode> branch = nullptr;
+		std::shared_ptr<controlFlowNode> trueBlock;
+		std::shared_ptr<controlFlowNode> falseBlock = nullptr;
 	};
 
 	struct controlFlowGraph

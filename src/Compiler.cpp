@@ -1219,6 +1219,7 @@ namespace ash
 		controlFlowGraph graph{};
 
 		std::shared_ptr<controlFlowNode> currentNode = std::make_shared<controlFlowNode>();
+		std::unordered_map<size_t, std::shared_ptr<controlFlowNode>> nodes;
 		for(const auto& instruction : chunk.code)
 		{
 			switch (instruction->type())
