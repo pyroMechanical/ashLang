@@ -93,7 +93,7 @@ namespace ash
 		Parser parser(source);
 
 		auto ast = parser.parse();
-
+		if (ast->hadError) return false;
 		Semantics analyzer;
 
 		//ast->print(0);
@@ -1220,6 +1220,7 @@ namespace ash
 
 		std::shared_ptr<controlFlowNode> currentNode = std::make_shared<controlFlowNode>();
 		std::unordered_map<size_t, std::shared_ptr<controlFlowNode>> nodes;
+		size_t currentLabel = -1;
 		for(const auto& instruction : chunk.code)
 		{
 			switch (instruction->type())
@@ -1228,17 +1229,16 @@ namespace ash
 				{
 					std::shared_ptr<relativeJump> jump = std::dynamic_pointer_cast<relativeJump>(instruction);
 					auto op = jump->op;
+					currentNode->block.push_back(instruction);
 					switch(op)
 					{
 						case OP_RELATIVE_JUMP_IF_TRUE:
 						{
-							//TODO: branch at control flow statements
-							currentNode->block.push_back(instruction);
-							break;
-						}
-						case OP_RELATIVE_JUMP:
-						{
-							currentNode->block.push_back(instruction);
+							auto nextNode = std::make_shared<controlFlowNode>();
+							currentNode->falseBlock = nextNode;
+							nodes.emplace(currentLabel, currentNode);
+							currentNode = nextNode;
+							currentLabel = -1;
 							break;
 						}
 					}
@@ -1246,7 +1246,13 @@ namespace ash
 				}
 				case Asm::Label:
 				{
-
+					auto newLabel = std::dynamic_pointer_cast<label>(instruction);
+					auto newNode = std::make_shared<controlFlowNode>();
+					newNode->block.push_back(instruction);
+					if (currentNode->block.back()->type() != Asm::Jump) currentNode->trueBlock = newNode;
+					if(currentLabel != -1) nodes.emplace(currentLabel, currentNode);
+					currentLabel = newLabel->label;
+					break;
 				}
 				default:
 				{
@@ -1254,11 +1260,14 @@ namespace ash
 				}
 			}
 		}
+
+		return graph;
 	}
 
 	pseudochunk Compiler::allocateRegisters(pseudochunk chunk)
 	{
 		std::unordered_map<std::string, int16_t> registers;
-
+		auto cfg = analyzeControlFlow(chunk);
+		return chunk;
 	}
 }

@@ -660,6 +660,7 @@ namespace ash
 			node->declarations.push_back(declaration());
 		}
 		consume(TokenType::CLOSE_BRACE, "Expected '}' after block.");
+		consume(TokenType::SEMICOLON, "this should never display, something has gone terribly wrong!");
 
 		return node;
 	}

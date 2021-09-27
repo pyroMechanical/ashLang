@@ -1014,19 +1014,22 @@ namespace ash
 		
 				result->thenStatement = thenBlock;
 				std::shared_ptr<BlockNode> elseBlock = std::make_shared<BlockNode>();
-				std::vector<std::shared_ptr<DeclarationNode>> elseDeclarations;
-				elseBlock->declarations = elseDeclarations;
-				if(ifNode->elseStatement->nodeType() != NodeType::Block)
+				if (elseBlock != nullptr)
 				{
-					elseBlock->scope = std::make_shared<ScopeNode>();
-					elseDeclarations.push_back(linearizeAST((ParseNode*)ifNode->elseStatement.get(), elseDeclarations, elseBlock->scope));
+					std::vector<std::shared_ptr<DeclarationNode>> elseDeclarations;
+					elseBlock->declarations = elseDeclarations;
+					if (ifNode->elseStatement->nodeType() != NodeType::Block)
+					{
+						elseBlock->scope = std::make_shared<ScopeNode>();
+						elseDeclarations.push_back(linearizeAST((ParseNode*)ifNode->elseStatement.get(), elseDeclarations, elseBlock->scope));
+					}
+					else
+					{
+						auto elseStmtBlock = (BlockNode*)ifNode->elseStatement.get();
+						elseBlock = std::dynamic_pointer_cast<BlockNode>(linearizeAST((ParseNode*)elseStmtBlock, elseDeclarations, elseStmtBlock->scope));
+					}
+					result->elseStatement = elseBlock;
 				}
-				else
-				{
-					auto elseStmtBlock = (BlockNode*)ifNode->elseStatement.get();
-					elseBlock = std::dynamic_pointer_cast<BlockNode>(linearizeAST((ParseNode*)elseStmtBlock, elseDeclarations, elseStmtBlock->scope));
-				}
-				result->elseStatement = elseBlock;
 				return result;
 			}
 			case NodeType::ExpressionStatement:
