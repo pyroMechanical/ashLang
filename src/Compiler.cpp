@@ -1,6 +1,7 @@
 #include "Compiler.h"
 #include "Semantics.h"
 #include <string>
+#include <chrono>
 
 namespace ash
 {
@@ -92,31 +93,45 @@ namespace ash
 	{
 		Parser parser(source);
 
+		auto t1 = std::chrono::high_resolution_clock::now();
 		auto ast = parser.parse();
+		auto t2 = std::chrono::high_resolution_clock::now();
+
+		std::cout << "Parsing took " << (double)(std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count()) / 1000000.0 << "milliseconds.\n";
+
 		if (ast->hadError) return false;
 		Semantics analyzer;
 
 		//ast->print(0);
-
+		t1 = std::chrono::high_resolution_clock::now();
 		ast = analyzer.findSymbols(ast);
+		t2 = std::chrono::high_resolution_clock::now();
+
+		std::cout << "Semantic analysis took " << (double)(std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count()) / 1000000.0 << "milliseconds.\n";
 		temporaries = analyzer.temporaries;
 		if (ast->hadError) return false;
 
- 		pseudochunk result = precompile(ast);
-		
+		t1 = std::chrono::high_resolution_clock::now();
+		pseudochunk result = precompile(ast);
+		t2 = std::chrono::high_resolution_clock::now();
+
+		std::cout << "Precompiling took " << (double)(std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count()) / 1000000.0 << "milliseconds.\n";
 		std::cout << std::endl;
 
-		for(const auto& instruction : result.code)
-		{
-			instruction->print();
-		}
+		//for(const auto& instruction : result.code)
+		//{
+		//	instruction->print();
+		//}
 
+		t1 = std::chrono::high_resolution_clock::now();
 		result = allocateRegisters(result);
+		t2 = std::chrono::high_resolution_clock::now();
 
-		for (const auto& instruction : result.code)
-		{
-			instruction->print();
-		}
+		std::cout << "Register Allocation took " << (double)(std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count()) / 1000000.0 << "milliseconds.\n";
+		//for (const auto& instruction : result.code)
+		//{
+		//	instruction->print();
+		//}
 
 		/*for (const auto& typeID : typeIDs)
 		{
@@ -1219,7 +1234,10 @@ namespace ash
 		controlFlowGraph graph{};
 
 		std::shared_ptr<controlFlowNode> currentNode = std::make_shared<controlFlowNode>();
-		std::unordered_map<size_t, std::shared_ptr<controlFlowNode>> nodes;
+		graph.procedures.push_back(currentNode);
+		std::vector<std::shared_ptr<controlFlowNode>> nodes;
+		std::unordered_map<size_t, std::shared_ptr<controlFlowNode>> nodeLabels;
+		nodes.push_back(currentNode);
 		size_t currentLabel = -1;
 		for(const auto& instruction : chunk.code)
 		{
@@ -1235,8 +1253,12 @@ namespace ash
 						case OP_RELATIVE_JUMP_IF_TRUE:
 						{
 							auto nextNode = std::make_shared<controlFlowNode>();
-							currentNode->falseBlock = nextNode;
-							nodes.emplace(currentLabel, currentNode);
+							if (nodes.size() && nodes.back()->block.size() == 0) nextNode = currentNode;
+							else
+							{
+								nodes.push_back(nextNode);
+								currentNode->falseBlock = nextNode;
+							}
 							currentNode = nextNode;
 							currentLabel = -1;
 							break;
@@ -1247,17 +1269,45 @@ namespace ash
 				case Asm::Label:
 				{
 					auto newLabel = std::dynamic_pointer_cast<label>(instruction);
-					auto newNode = std::make_shared<controlFlowNode>();
-					newNode->block.push_back(instruction);
-					if (currentNode->block.back()->type() != Asm::Jump) currentNode->trueBlock = newNode;
-					if(currentLabel != -1) nodes.emplace(currentLabel, currentNode);
+					auto nextNode = std::make_shared<controlFlowNode>();
+					if (nodes.size() && nodes.back()->block.size() == 0) nextNode = currentNode;
+					else
+					{
+						nodes.push_back(nextNode);
+						if (currentNode->block.size() && currentNode->block.back()->type() != Asm::Jump) currentNode->trueBlock = nextNode;
+					}
+					nextNode->block.push_back(instruction);
 					currentLabel = newLabel->label;
+					currentNode = nextNode;
+					if (currentLabel != -1) nodeLabels.emplace(currentLabel, currentNode);
 					break;
 				}
 				default:
 				{
 					currentNode->block.push_back(instruction);
 				}
+			}
+		}
+		for(const auto& node : nodes)
+		{
+			if (node->block.size())
+			{
+				if (node->block.back()->type() == Asm::Jump)
+				{
+					auto jump = std::dynamic_pointer_cast<relativeJump>(node->block.back());
+					if (nodeLabels.find(jump->jumpLabel) != nodeLabels.end())
+					{
+						node->trueBlock = nodeLabels.at(jump->jumpLabel);
+					}
+					else
+					{
+						std::cout << "no jump label " << jump->jumpLabel << " found!" << std::endl;
+					}
+				}
+			}
+			else
+			{
+				std::cout << "block is empty!" << std::endl;
 			}
 		}
 
