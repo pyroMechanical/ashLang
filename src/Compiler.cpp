@@ -88,6 +88,23 @@ namespace ash
 				}
 			}
 		}
+
+		template<typename K, typename V>
+		void mergeMaps(std::unordered_map<K, V>& dst, std::unordered_map<K, V>& src)
+		{
+			for (const auto& node : sr)
+			{
+				if (dst.find(node.first) == graph.end())
+				{
+					dst.emplace(node);
+				}
+				else
+				{
+					auto& edges = dst.at(node.first);
+					edges.insert(node.second.begin(), node.second.end());
+				}
+			}
+		}
 	}
 	bool Compiler::compile(const char* source)
 	{
@@ -1318,6 +1335,92 @@ namespace ash
 	{
 		std::unordered_map<std::string, int16_t> registers;
 		auto cfg = analyzeControlFlow(chunk);
+		std::unordered_map<std::string, std::unordered_set<std::string>> interferenceGraph;
+		for (const auto& procedure : cfg.procedures)
+		{
+			interferenceGraph = liveVariables(procedure);
+		}
 		return chunk;
+	}
+
+	std::vector<std::unordered_set<std::string>> Compiler::liveVariables(std::shared_ptr<controlFlowNode> block)
+	{
+		//rework function to generate a list of live program points which will later be used to generate the interference graph
+		block->traversed = true;
+		std::vector<std::unordered_set<std::string>> graph;
+		std::vector<std::unordered_set<std::string>> trueGraph;
+		std::vector<std::unordered_set<std::string>> falseGraph;
+		std::vector<std::unordered_set<std::string>> livePoints;
+		if(block->trueBlock != nullptr)
+		{
+			if(block->trueBlock->traversed == false)
+			{
+				trueGraph = liveVariables(block->trueBlock);
+			}
+
+			if(block->falseBlock != nullptr)
+			{
+				if(block->falseBlock->traversed == false)
+				{
+					falseGraph = liveVariables(block->falseBlock);
+				}
+			}
+		}
+		for (auto& i = block->block.rbegin(); i != block->block.rend(); i++)
+		{
+			auto instruction = *i;
+			switch(instruction->type())
+			{
+				case Asm::Label:
+				case Asm::Jump:
+					continue;
+
+				case Asm::OneAddr:
+				{
+					auto oneAddr = std::dynamic_pointer_cast<oneAddress>(instruction);
+					switch(oneAddr->op)
+					{
+					case OP_POP:
+					case OP_RETURN:
+					case OP_OUT:
+						if (graph.find(oneAddr->A.string) == graph.end())
+						{
+							graph.insert(std::pair<std::string, std::unordered_set<std::string>>(oneAddr->A.string, std::unordered_set<std::string>()));
+						}
+					}
+				}
+				case Asm::TwoAddr:
+				{
+					auto twoAddr = std::dynamic_pointer_cast<twoAddress>(instruction);
+					switch (twoAddr->op)
+					{
+						case OP_CONST_LOW:
+						{
+							if (graph.find(twoAddr->A.string) == graph.end())
+							{
+								graph.insert(std::pair<std::string, std::unordered_set<std::string>>(twoAddr->A.string, std::unordered_set<std::string>()));
+							}
+							break;
+
+						}
+						case OP_INT_NEGATE:
+						case OP_FLOAT_NEGATE:
+						case OP_DOUBLE_NEGATE:
+						case OP_LOGICAL_NOT:
+						case OP_INT_TO_DOUBLE:
+						case OP_INT_TO_FLOAT:
+						case OP_FLOAT_TO_DOUBLE:
+						case OP_FLOAT_TO_INT:
+						case OP_DOUBLE_TO_FLOAT:
+						case OP_DOUBLE_TO_INT:
+						{
+							
+						}
+					}
+				}
+			}
+		}
+
+
 	}
 }

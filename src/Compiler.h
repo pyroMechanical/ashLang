@@ -2,6 +2,7 @@
 #include "Chunk.h"
 #include "Memory.h"
 #include <vector>
+#include <unordered_set>
 
 namespace ash
 {
@@ -94,6 +95,7 @@ namespace ash
 		std::vector<std::shared_ptr<assembly>> block;
 		std::shared_ptr<controlFlowNode> trueBlock;
 		std::shared_ptr<controlFlowNode> falseBlock = nullptr;
+		bool traversed = false;
 	};
 
 	struct controlFlowGraph
@@ -131,6 +133,7 @@ namespace ash
 		pseudochunk optimize(pseudochunk chunk) {};
 		controlFlowGraph analyzeControlFlow(pseudochunk chunk);
 		pseudochunk allocateRegisters(pseudochunk chunk);
+		std::vector<std::unordered_set<std::string>> liveVariables(std::shared_ptr<controlFlowNode> block);
 
 		std::vector<std::shared_ptr<assembly>> compileNode(ParseNode* node, Token* result);
 	};
