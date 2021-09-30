@@ -70,8 +70,8 @@ namespace ash
 			//arithmetic and comparison operations on unsigned integers
 		OP_UNSIGN_MUL, //A, B, C; R[C] = R[A] * R[B]
 		OP_UNSIGN_DIV, //A, B, C; R[C] = R[A] / R[B]
-		OP_BIT_SHIFT_RIGHT,
-		OP_BIT_SHIFT_LEFT,
+		OP_BIT_SHIFT_RIGHT, //A, B, C; R[C] = R[A] >> R[B]
+		OP_BIT_SHIFT_LEFT,//A, B, C; R[C] = R[A] << R[B]
 			//arithmetic and comparison operations on unsigned integers
 		OP_SIGN_MUL, //A, B, C; R[C] = R[A] * R[B]
 		OP_SIGN_DIV, //A, B, C; R[C] = R[A] / R[B]

@@ -135,10 +135,10 @@ namespace ash
 		std::cout << "Precompiling took " << (double)(std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count()) / 1000000.0 << "milliseconds.\n";
 		std::cout << std::endl;
 
-		//for(const auto& instruction : result.code)
-		//{
-		//	instruction->print();
-		//}
+		for(const auto& instruction : result.code)
+		{
+			instruction->print();
+		}
 
 		t1 = std::chrono::high_resolution_clock::now();
 		result = allocateRegisters(result);
@@ -1335,10 +1335,19 @@ namespace ash
 	{
 		std::unordered_map<std::string, int16_t> registers;
 		auto cfg = analyzeControlFlow(chunk);
-		std::unordered_map<std::string, std::unordered_set<std::string>> interferenceGraph;
+		std::vector<std::unordered_set<std::string>> livePoints;
 		for (const auto& procedure : cfg.procedures)
 		{
-			interferenceGraph = liveVariables(procedure);
+			livePoints = liveVariables(procedure);
+			for(auto i = livePoints.rbegin(); i != livePoints.rend(); i++)
+			{
+				auto& set = *i;
+				for(const auto& string : set)
+				{
+					std::cout << string << ", ";
+				}
+				std::cout << std::endl;
+			}
 		}
 		return chunk;
 	}
@@ -1347,7 +1356,6 @@ namespace ash
 	{
 		//rework function to generate a list of live program points which will later be used to generate the interference graph
 		block->traversed = true;
-		std::vector<std::unordered_set<std::string>> graph;
 		std::vector<std::unordered_set<std::string>> trueGraph;
 		std::vector<std::unordered_set<std::string>> falseGraph;
 		std::vector<std::unordered_set<std::string>> livePoints;
@@ -1366,8 +1374,23 @@ namespace ash
 				}
 			}
 		}
+		std::unordered_set<std::string> lastNodes;
+		if (trueGraph.size())
+		{
+			auto trueBegin = trueGraph.back();
+			lastNodes.insert(trueBegin.begin(), trueBegin.end());
+		}
+		if (falseGraph.size())
+		{
+			auto falseBegin = trueGraph.back();
+			lastNodes.insert(falseBegin.begin(), falseBegin.end());
+		}
+		livePoints.insert(livePoints.end(), trueGraph.begin(), trueGraph.end());
+		livePoints.insert(livePoints.end(), falseGraph.begin(), falseGraph.end());
+		if(lastNodes.size()) livePoints.push_back(lastNodes);
 		for (auto& i = block->block.rbegin(); i != block->block.rend(); i++)
 		{
+			std::unordered_set<std::string> liveNodes;
 			auto instruction = *i;
 			switch(instruction->type())
 			{
@@ -1378,30 +1401,40 @@ namespace ash
 				case Asm::OneAddr:
 				{
 					auto oneAddr = std::dynamic_pointer_cast<oneAddress>(instruction);
+					liveNodes.insert(lastNodes.begin(), lastNodes.end());
 					switch(oneAddr->op)
 					{
 					case OP_POP:
 					case OP_RETURN:
 					case OP_OUT:
-						if (graph.find(oneAddr->A.string) == graph.end())
+					case OP_STORE_IP_OFFSET:
+						if(liveNodes.find(oneAddr->A.string) == liveNodes.end())
 						{
-							graph.insert(std::pair<std::string, std::unordered_set<std::string>>(oneAddr->A.string, std::unordered_set<std::string>()));
+							liveNodes.insert(oneAddr->A.string);
 						}
+						livePoints.push_back(liveNodes);
+						break;
 					}
+					break;
 				}
 				case Asm::TwoAddr:
 				{
 					auto twoAddr = std::dynamic_pointer_cast<twoAddress>(instruction);
+					liveNodes.insert(lastNodes.begin(), lastNodes.end());
 					switch (twoAddr->op)
 					{
 						case OP_CONST_LOW:
 						{
-							if (graph.find(twoAddr->A.string) == graph.end())
+							if(liveNodes.find(twoAddr->result.string) == liveNodes.end())
 							{
-								graph.insert(std::pair<std::string, std::unordered_set<std::string>>(twoAddr->A.string, std::unordered_set<std::string>()));
+								//std::cout << twoAddr->result.string << " can be discarded, no longer used" << std::endl;
+							}
+							else
+							{
+								liveNodes.erase(twoAddr->result.string);
+								livePoints.push_back(liveNodes);
 							}
 							break;
-
 						}
 						case OP_INT_NEGATE:
 						case OP_FLOAT_NEGATE:
@@ -1414,13 +1447,99 @@ namespace ash
 						case OP_DOUBLE_TO_FLOAT:
 						case OP_DOUBLE_TO_INT:
 						{
-							
+							if(liveNodes.find(twoAddr->result.string) == liveNodes.end())
+							{
+								//std::cout << twoAddr->result.string << " can be discarded, no longer used" << std::endl;
+							}
+							else
+							{
+								liveNodes.erase(twoAddr->result.string);
+								
+							}
+							liveNodes.insert(twoAddr->A.string);
+							livePoints.push_back(liveNodes);
+							break;
 						}
 					}
+					break;
+				}
+				case Asm::ThreeAddr:
+				{
+					auto threeAddr = std::dynamic_pointer_cast<threeAddress>(instruction);
+					switch(threeAddr->op)
+					{
+						case OP_STORE_OFFSET:
+						case OP_ARRAY_STORE:
+						{
+							liveNodes.insert(threeAddr->A.string);
+							liveNodes.insert(threeAddr->B.string);
+							livePoints.push_back(liveNodes);
+							break;
+						}
+						case OP_LOAD_OFFSET:
+						case OP_ARRAY_LOAD:
+						{
+							if (liveNodes.find(threeAddr->A.string) == liveNodes.end())
+							{
+								//std::cout << threeAddr->A.string << " can be discarded, no longer used" << std::endl;
+							}
+							else
+							{
+								liveNodes.erase(threeAddr->A.string);
+							}
+							liveNodes.insert(threeAddr->B.string);
+							livePoints.push_back(liveNodes);
+							break;
+						}
+						case OP_ALLOC_ARRAY:
+						case OP_INT_ADD:
+						case OP_INT_SUB:
+						case OP_UNSIGN_MUL:
+						case OP_UNSIGN_DIV:
+						case OP_SIGN_MUL:
+						case OP_SIGN_DIV:
+						case OP_FLOAT_ADD:
+						case OP_FLOAT_SUB:
+						case OP_FLOAT_MUL:
+						case OP_FLOAT_DIV:
+						case OP_BIT_SHIFT_LEFT:
+						case OP_BIT_SHIFT_RIGHT:
+						case OP_UNSIGN_LESS:
+						case OP_UNSIGN_GREATER:
+						case OP_SIGN_LESS:
+						case OP_SIGN_GREATER:
+						case OP_INT_EQUAL:
+						case OP_FLOAT_LESS:
+						case OP_FLOAT_GREATER:
+						case OP_FLOAT_EQUAL:
+						case OP_DOUBLE_LESS:
+						case OP_DOUBLE_GREATER:
+						case OP_DOUBLE_EQUAL:
+						case OP_BITWISE_AND:
+						case OP_BITWISE_OR:
+						case OP_LOGICAL_AND:
+						case OP_LOGICAL_OR:
+						{
+							if (liveNodes.find(threeAddr->result.string) == liveNodes.end())
+							{
+								//std::cout << threeAddr->result.string << " can be discarded, no longer used" << std::endl;
+							}
+							else
+							{
+								liveNodes.erase(threeAddr->result.string);
+							}
+							liveNodes.insert(threeAddr->A.string);
+							liveNodes.insert(threeAddr->B.string);
+							livePoints.push_back(liveNodes);
+							break;
+						}	
+					}
+					break;
 				}
 			}
+			if (livePoints.size()) lastNodes = livePoints.back();
+			else lastNodes = {};
 		}
-
-
+		return livePoints;
 	}
 }
