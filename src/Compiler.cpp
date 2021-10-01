@@ -1414,6 +1414,8 @@ namespace ash
 						}
 						livePoints.push_back(liveNodes);
 						break;
+					default:
+						std::cout << "operation " << OpcodeNames[oneAddr->op] << " not implemented" << std::endl;
 					}
 					break;
 				}
@@ -1434,6 +1436,21 @@ namespace ash
 								liveNodes.erase(twoAddr->result.string);
 								livePoints.push_back(liveNodes);
 							}
+							break;
+						}
+						case OP_ALLOC:
+						{
+							if (liveNodes.find(twoAddr->result.string) == liveNodes.end())
+							{
+								//std::cout << threeAddr->result.string << " can be discarded, no longer used" << std::endl;
+							}
+							else
+							{
+								liveNodes.erase(twoAddr->result.string);
+							}
+							liveNodes.insert(twoAddr->A.string);
+							livePoints.push_back(liveNodes);
+							break;
 							break;
 						}
 						case OP_INT_NEGATE:
@@ -1460,6 +1477,8 @@ namespace ash
 							livePoints.push_back(liveNodes);
 							break;
 						}
+						default:
+							std::cout << "operation " << OpcodeNames[twoAddr->op] << " not implemented" << std::endl;
 					}
 					break;
 				}
@@ -1533,6 +1552,8 @@ namespace ash
 							livePoints.push_back(liveNodes);
 							break;
 						}	
+						default:
+							std::cout << "operation " << OpcodeNames[threeAddr->op] << " not implemented" << std::endl;
 					}
 					break;
 				}
