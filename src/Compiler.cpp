@@ -2,6 +2,8 @@
 #include "Semantics.h"
 #include <string>
 #include <chrono>
+#include <algorithm>
+#include <bitset>
 
 namespace ash
 {
@@ -145,17 +147,19 @@ namespace ash
 		t2 = std::chrono::high_resolution_clock::now();
 
 		std::cout << "Register Allocation took " << (double)(std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count()) / 1000000.0 << "milliseconds.\n";
-		//for (const auto& instruction : result.code)
-		//{
-		//	instruction->print();
-		//}
+		for (const auto& instruction : result.code)
+		{
+			instruction->print();
+		}
+
+		currentChunk = finalizeCode(result);
 
 		/*for (const auto& typeID : typeIDs)
 		{
 			std::cout << typeID.first << ": " << typeID.second << std::endl;
 		}*/
 
-		return false;
+		return true;
 	}
 
 	pseudochunk Compiler::precompile(std::shared_ptr<ProgramNode> ast)
@@ -426,8 +430,9 @@ namespace ash
 						{
 							Token id = ((twoAddress*)result.back().get())->result;
 							OpCodes operator_ = ((twoAddress*)result.back().get())->op;
-							if (id.type == TokenType::IDENTIFIER && operator_ == OP_CONST_LOW)
+							if (id.type == TokenType::IDENTIFIER && operator_ == OP_CONST_LOW && id.string.compare(identifier.string) != 0)
 							{
+								//TODO: come back to this for a rewrite.
 								result.clear();
 								auto move = std::make_shared<twoAddress>();
 								move->op = OP_MOVE;
@@ -440,10 +445,19 @@ namespace ash
 				}
 				else
 				{
+					
 					auto varType = util::renameByScope(varNode->type, currentScope);
+					std::string temp = std::string("#");
+					temp.append(std::to_string(temporaries++));
+					Token tempToken = { TokenType::IDENTIFIER, temp, varType.line };
+					auto allocType = std::make_shared<twoAddress>();
+					allocType->op = OP_CONST_LOW;
+					allocType->A = { TokenType::INT,  std::to_string(typeIDs.at(varType.string)), varType.line };
+					allocType->result = tempToken;
+					result.push_back(allocType);
 					auto alloc = std::make_shared<twoAddress>();
 					alloc->op = OP_ALLOC;
-					alloc->A = varType;
+					alloc->A = tempToken;
 					alloc->result = identifier;
 					result.push_back(alloc);
 					if(varNode->value)
@@ -1104,9 +1118,17 @@ namespace ash
 						if (result->string.front() == '#')
 						{
 							auto tempType = util::renameByScope(constructorNode->ConstructorType, currentScope);
+							std::string temp = std::string("#");
+							temp.append(std::to_string(temporaries++));
+							Token tempToken = { TokenType::IDENTIFIER, temp, tempType.line };
+							auto allocType = std::make_shared<twoAddress>();
+							allocType->op = OP_CONST_LOW;
+							allocType->A = { TokenType::INT,  std::to_string(typeIDs.at(tempType.string)), tempType.line };
+							allocType->result = tempToken;
+							chunk.push_back(allocType);
 							auto alloc = std::make_shared<twoAddress>();
 							alloc->op = OP_ALLOC;
-							alloc->A = tempType;
+							alloc->A = tempToken;
 							alloc->result = *result;
 							chunk.push_back(alloc);
 						}
@@ -1333,20 +1355,137 @@ namespace ash
 
 	pseudochunk Compiler::allocateRegisters(pseudochunk chunk)
 	{
-		std::unordered_map<std::string, int16_t> registers;
 		auto cfg = analyzeControlFlow(chunk);
 		std::vector<std::unordered_set<std::string>> livePoints;
 		for (const auto& procedure : cfg.procedures)
 		{
+			std::unordered_map<std::string, int16_t> registers;
+			std::unordered_map<std::string, std::unordered_set<std::string>> interferenceGraph;
 			livePoints = liveVariables(procedure);
 			for(auto i = livePoints.rbegin(); i != livePoints.rend(); i++)
 			{
 				auto& set = *i;
 				for(const auto& string : set)
 				{
-					std::cout << string << ", ";
+					if(interferenceGraph.find(string) == interferenceGraph.end())
+					{
+						interferenceGraph.emplace(std::make_pair(string, set));
+					}
+					else
+					{
+						interferenceGraph.at(string).insert(set.begin(), set.end());
+					}
+					interferenceGraph.at(string).erase(string);
 				}
-				std::cout << std::endl;
+			}
+			/*std::unordered_set<std::string> existingEdges;
+			for(auto& kv : interferenceGraph)
+			{				
+				std::string node = kv.first;
+				node.insert(0, 1, '\"');
+				node.append("\"");
+				for(auto string : kv.second)
+				{
+					if (existingEdges.find(string) == existingEdges.end())
+					{
+						string.insert(0, 1, '\"');
+						string.append("\"");
+						std::cout << node << " -- ";
+						std::cout << string << ";" << std::endl;
+					}
+				}
+				existingEdges.insert(kv.first);
+			}*/
+			std::unordered_set<std::string> poppedSet = {};
+			std::vector <std::pair<std::string, std::unordered_set<std::string>>> nodeStack = {};
+			std::unordered_map<std::string, std::unordered_set<std::string>> workingGraph = interferenceGraph;
+			for(auto& kv : workingGraph)
+			{
+				std::unordered_set<std::string> liveEdges = {};
+				std::copy_if(kv.second.begin(), kv.second.end(), std::inserter(liveEdges, liveEdges.begin()), [&poppedSet](std::string s) { return (poppedSet.find(s) == poppedSet.end()); });
+				if(liveEdges.size() < 256)
+				{
+					poppedSet.emplace(kv.first);
+					nodeStack.push_back(std::make_pair(kv.first,liveEdges));
+				}
+				else
+				{
+					std::cout << kv.first << " has too many edges!";
+				}	
+				
+			}
+			for (auto it = nodeStack.rbegin(); it != nodeStack.rend(); it++)
+			{
+				auto kv = *it;
+				if (kv.second.size() == 0)
+				{
+					registers.emplace(kv.first, 0);
+				}
+				else
+				{
+					std::bitset<256> openRegisters;
+					for (auto& node : kv.second)
+					{
+						int16_t usedRegister = registers.at(node);
+						if (usedRegister >= 0 && usedRegister < 256)
+						{
+							openRegisters.set(usedRegister);
+						}
+					}
+					for (int i = 0; i < 256; i++)
+					{
+						if (!openRegisters[i])
+						{
+							registers.emplace(kv.first, i);
+							break;
+						}
+					}
+				}
+			}
+			for(auto& instruction : chunk.code)
+			{
+				switch(instruction->type())
+				{
+					case Asm::OneAddr:
+					{
+						auto& oneAddr = std::dynamic_pointer_cast<oneAddress>(instruction);
+						if(registers.find(oneAddr->A.string) != registers.end())
+						{
+							oneAddr->A = { TokenType::IDENTIFIER, std::to_string(registers.at(oneAddr->A.string)), oneAddr->A.line };;
+						}
+						break;
+					}
+					case Asm::TwoAddr:
+					{
+						auto& twoAddr = std::dynamic_pointer_cast<twoAddress>(instruction);
+						if (registers.find(twoAddr->A.string) != registers.end())
+						{
+							twoAddr->A = { TokenType::IDENTIFIER, std::to_string(registers.at(twoAddr->A.string)), twoAddr->A.line };;
+						}
+						if (registers.find(twoAddr->result.string) != registers.end())
+						{
+							twoAddr->result = { TokenType::IDENTIFIER, std::to_string(registers.at(twoAddr->result.string)), twoAddr->result.line };;
+						}
+						break;
+					}
+					case Asm::ThreeAddr:
+					{
+						auto& threeAddr = std::dynamic_pointer_cast<threeAddress>(instruction);
+						if (registers.find(threeAddr->A.string) != registers.end())
+						{
+							threeAddr->A = { TokenType::IDENTIFIER, std::to_string(registers.at(threeAddr->A.string)), threeAddr->A.line };;
+						}
+						if (registers.find(threeAddr->B.string) != registers.end())
+						{
+							threeAddr->B = { TokenType::IDENTIFIER, std::to_string(registers.at(threeAddr->B.string)), threeAddr->B.line };;
+						}
+						if (registers.find(threeAddr->result.string) != registers.end())
+						{
+							threeAddr->result = { TokenType::IDENTIFIER, std::to_string(registers.at(threeAddr->result.string)), threeAddr->result.line };;
+						}
+						break;
+					}
+				}
 			}
 		}
 		return chunk;
@@ -1387,10 +1526,11 @@ namespace ash
 		}
 		livePoints.insert(livePoints.end(), trueGraph.begin(), trueGraph.end());
 		livePoints.insert(livePoints.end(), falseGraph.begin(), falseGraph.end());
-		if(lastNodes.size()) livePoints.push_back(lastNodes);
+		livePoints.push_back(lastNodes);
 		for (auto& i = block->block.rbegin(); i != block->block.rend(); i++)
 		{
 			std::unordered_set<std::string> liveNodes;
+			liveNodes.insert(lastNodes.begin(), lastNodes.end());
 			auto instruction = *i;
 			switch(instruction->type())
 			{
@@ -1401,7 +1541,7 @@ namespace ash
 				case Asm::OneAddr:
 				{
 					auto oneAddr = std::dynamic_pointer_cast<oneAddress>(instruction);
-					liveNodes.insert(lastNodes.begin(), lastNodes.end());
+					liveNodes = lastNodes;
 					switch(oneAddr->op)
 					{
 					case OP_POP:
@@ -1422,7 +1562,6 @@ namespace ash
 				case Asm::TwoAddr:
 				{
 					auto twoAddr = std::dynamic_pointer_cast<twoAddress>(instruction);
-					liveNodes.insert(lastNodes.begin(), lastNodes.end());
 					switch (twoAddr->op)
 					{
 						case OP_CONST_LOW:
@@ -1492,6 +1631,7 @@ namespace ash
 						{
 							liveNodes.insert(threeAddr->A.string);
 							liveNodes.insert(threeAddr->B.string);
+							liveNodes.insert(threeAddr->result.string);
 							livePoints.push_back(liveNodes);
 							break;
 						}
@@ -1507,6 +1647,7 @@ namespace ash
 								liveNodes.erase(threeAddr->A.string);
 							}
 							liveNodes.insert(threeAddr->B.string);
+							liveNodes.insert(threeAddr->result.string);
 							livePoints.push_back(liveNodes);
 							break;
 						}
@@ -1562,5 +1703,112 @@ namespace ash
 			else lastNodes = {};
 		}
 		return livePoints;
+	}
+
+	Chunk Compiler::finalizeCode(pseudochunk chunk)
+	{
+		Chunk result = {};
+		std::unordered_map<size_t, size_t> labelIndices;
+		std::unordered_multimap<size_t, uint32_t&> unpatchedJumps;
+		for(const auto& instruction : chunk.code)
+		{
+			switch(instruction->type())
+			{
+				case Asm::OneAddr:
+				{
+					auto i = std::dynamic_pointer_cast<oneAddress>(instruction);
+					result.WriteA(i->op, std::stoi(i->A.string), i->A.line);
+					break;
+				}
+				case Asm::TwoAddr:
+				{
+					auto i = std::dynamic_pointer_cast<twoAddress>(instruction);
+					if (i->op == OP_CONST_LOW)
+					{
+						if (i->result.type == TokenType::FLOAT)
+						{
+							result.WriteFloat(std::stoi(i->A.string), std::stof(i->result.string));
+						}
+						else if (i->result.type == TokenType::DOUBLE)
+						{
+							result.WriteDouble(std::stoi(i->A.string), std::stod(i->result.string));
+						}
+						else if (i->result.type == TokenType::INT)
+						{
+							if (i->result.string.at(0) == '-')
+							{
+								int64_t value = std::stoll(i->result.string);
+								if (-value > 0 && -value <= INT16_MAX)
+								{
+									result.WriteI16(std::stoi(i->A.string), value);
+								}
+								else if (-value > INT16_MAX && -value <= INT32_MAX)
+								{
+									result.WriteI32(std::stoi(i->A.string), value);
+								}
+								else
+								{
+									result.WriteI64(std::stoi(i->A.string), value);
+								}
+							}
+							else
+							{
+								uint64_t value = std::stoull(i->result.string);
+								if (value > 0 && value <= INT16_MAX)
+								{
+									result.WriteU16(std::stoi(i->A.string), value);
+								}
+								else if (value > INT16_MAX && value <= INT32_MAX)
+								{
+									result.WriteU32(std::stoi(i->A.string), value);
+								}
+								else
+								{
+									result.WriteU64(std::stoi(i->A.string), value);
+								}
+							}
+						}
+					}
+					else result.WriteAB(i->op, std::stoi(i->A.string), std::stoi(i->result.string), i->result.line);
+					break;
+				}
+				case Asm::ThreeAddr:
+				{
+					auto i = std::dynamic_pointer_cast<threeAddress>(instruction);
+					result.WriteABC(i->op, std::stoi(i->A.string), std::stoi(i->B.string), std::stoi(i->result.string), i->result.line);
+					break;
+				}
+				case Asm::Label:
+				{
+					auto i = std::dynamic_pointer_cast<label>(instruction);
+					labelIndices.emplace(i->label, result.size());
+					if(unpatchedJumps.find(i->label) != unpatchedJumps.end())
+					{
+						auto jumps = unpatchedJumps.equal_range(i->label);
+						for(auto it = jumps.first; it != jumps.second; it++)
+						{
+							it->second += labelIndices.at(i->label);
+						}
+					}
+					break;
+				}
+				case Asm::Jump:
+				{
+					auto i = std::dynamic_pointer_cast<relativeJump>(instruction);
+					if(labelIndices.find(i->jumpLabel) != labelIndices.end())
+					{
+						result.WriteRelativeJump(i->op, i->jumpLabel, 0);
+					}
+					else
+					{
+						size_t index = result.size();
+						result.WriteRelativeJump(i->op, 0, 0);
+						unpatchedJumps.emplace(i->jumpLabel, result.at(index));
+					}
+					break;
+				}
+			}
+		}
+		return result;
 	}
 }

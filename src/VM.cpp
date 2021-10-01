@@ -8,7 +8,7 @@
 #include <typeindex>
 
 #define STRESSTEST_GC
-//#def LOG_GC
+#define LOG_GC
 #define ARRAY_TYPE_OFFSET 8
 #define STRUCT_SPACING_OFFSET 8
 #define REFCOUNT_OFFSET 9
@@ -109,11 +109,10 @@ namespace ash
 		bool compileSuccess = compiler.compile(source.c_str());
 
 		if (!compileSuccess) return InterpretResult::INTERPRET_COMPILE_ERROR;
-		//InterpretResult result = run();
+		types = compiler.getTypes();
+		InterpretResult result = interpret(compiler.getChunk());
 
-		//return result;
-
-		return InterpretResult::INTERPRET_OK;
+		return result;
 	}
 
 	InterpretResult VM::interpret(Chunk* chunk)
@@ -206,7 +205,7 @@ namespace ash
 
 					auto alloc = reinterpret_cast<Allocation*>(R[B]);
 					auto spacing = *(alloc->memory + STRUCT_SPACING_OFFSET);
-					TypeMetadata* metadata = (TypeMetadata*)alloc->memory;
+					TypeMetadata* metadata = *(TypeMetadata**)alloc->memory;
 					if (R[C] >= metadata->fields.size()) return error("field out of bounds!");
 					size_t offset = metadata->fields[R[C]].offset;
 					FieldType type = metadata->fields[R[C]].type;
@@ -252,14 +251,14 @@ namespace ash
 				}
 				case OP_LOAD_OFFSET:
 				{
-					uint8_t A = fetch_instruction(ip);
-					uint8_t B = fetch_instruction(ip);
-					uint8_t C = fetch_instruction(ip);
+					uint8_t A = RegisterA(instruction);
+					uint8_t B = RegisterB(instruction);
+					uint8_t C = RegisterC(instruction);
 					if ((rFlags[B] & REGISTER_HOLDS_POINTER) == 0) return error("register not a memory address!");
 					
 					auto alloc = reinterpret_cast<Allocation*>(R[B]);
 					auto spacing = *(alloc->memory + STRUCT_SPACING_OFFSET);
-					TypeMetadata* metadata = (TypeMetadata*)alloc->memory;
+					TypeMetadata* metadata = *(TypeMetadata**)alloc->memory;
 					if (R[C] >= metadata->fields.size()) return error("field out of bounds!");
 					size_t offset = metadata->fields[R[C]].offset;
 					FieldType type = metadata->fields[R[C]].type;
@@ -934,7 +933,7 @@ namespace ash
 				char* mem = typeAlloc->memory;
 				TypeMetadata* metadata = (TypeMetadata*)typeAlloc->memory;
 				size_t currentOffset = OBJECT_BEGIN_OFFSET;
-				for (const auto field : metadata->fields)
+				for (const auto& field : metadata->fields)
 				{
 					if (field.type == FieldType::Struct || field.type == FieldType::Array)
 					{
@@ -1186,6 +1185,16 @@ namespace ash
 		if (*refCount == 255) return;
 		if (*refCount == 0 || *refCount == 1)
 		{
+			if (allocationList == ref)
+			{
+				allocationList = ref->next;
+				ref->next->previous = nullptr;
+			}
+			else
+			{
+				ref->previous->next = ref->next;
+				ref->next->previous = ref->previous;
+			}
 			freeAllocation(ref);
 			return;
 		}

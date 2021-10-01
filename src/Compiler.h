@@ -119,8 +119,9 @@ namespace ash
 		std::shared_ptr<ScopeNode> currentScope;
 		std::vector<std::string> typeNames;
 		std::unordered_map<std::string, size_t> typeIDs;
+
 		std::vector<std::shared_ptr<TypeMetadata>> types;
-		Chunk* currentChunk = nullptr;
+		Chunk currentChunk;
 		size_t temporaries = 0;
 		size_t jumpLabels = 0;
 	public:
@@ -129,10 +130,13 @@ namespace ash
 
 		bool compile(const char* source);
 
+		Chunk* getChunk() { return &currentChunk; }
+		const std::vector<std::shared_ptr<TypeMetadata>> getTypes() { return types; }
 		pseudochunk precompile(std::shared_ptr<ProgramNode> ast);
 		pseudochunk optimize(pseudochunk chunk) {};
 		controlFlowGraph analyzeControlFlow(pseudochunk chunk);
 		pseudochunk allocateRegisters(pseudochunk chunk);
+		Chunk finalizeCode(pseudochunk chunk);
 		std::vector<std::unordered_set<std::string>> liveVariables(std::shared_ptr<controlFlowNode> block);
 
 		std::vector<std::shared_ptr<assembly>> compileNode(ParseNode* node, Token* result);

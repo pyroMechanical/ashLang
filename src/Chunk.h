@@ -33,7 +33,7 @@ namespace ash
 
 		uint32_t* code() { return opcode.data(); }
 		size_t size() { return opcode.size(); }
-		uint32_t at(size_t offset) { return opcode[offset]; }
+		uint32_t& at(size_t offset) { return opcode[offset]; }
 
 		int GetLine(size_t offset);
 
