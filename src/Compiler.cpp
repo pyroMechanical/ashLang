@@ -143,10 +143,20 @@ namespace ash
 		}
 
 		t1 = std::chrono::high_resolution_clock::now();
+		result = correctLoadStore(result);
+		t2 = std::chrono::high_resolution_clock::now();
+
+		for (const auto& instruction : result.code)
+		{
+			instruction->print();
+		}
+
+		t1 = std::chrono::high_resolution_clock::now();
 		result = allocateRegisters(result);
 		t2 = std::chrono::high_resolution_clock::now();
 
 		std::cout << "Register Allocation took " << (double)(std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count()) / 1000000.0 << "milliseconds.\n";
+		
 		for (const auto& instruction : result.code)
 		{
 			instruction->print();
@@ -1268,6 +1278,48 @@ namespace ash
 		}
 	}
 
+	pseudochunk Compiler::correctLoadStore(pseudochunk chunk)
+	{
+		pseudochunk result{};
+		for(auto& i : chunk.code)
+		{
+			switch(i->type())
+			{
+				case Asm::ThreeAddr:
+				{
+					auto instruction = std::dynamic_pointer_cast<threeAddress>(i);
+					if (instruction->op == OP_LOAD_OFFSET ||
+						instruction->op == OP_STORE_OFFSET ||
+						instruction->op == OP_ARRAY_LOAD ||
+						instruction->op == OP_ARRAY_STORE)
+					{
+						auto temp = std::string("#");
+						temp.append(std::to_string(temporaries++));
+						Token tempToken = { TokenType::IDENTIFIER, temp, instruction->result.line };
+						auto constant = std::make_shared<twoAddress>();
+						constant->op = OP_CONST_LOW;
+						constant->A = instruction->result;
+						constant->result = tempToken;
+						instruction->result = tempToken;
+						result.code.push_back(constant);
+						result.code.push_back(instruction);
+					}
+					else
+					{
+						result.code.push_back(instruction);
+					}
+					break;
+				}
+				default:
+				{
+					result.code.push_back(i);
+					break;
+				}
+			}
+		}
+		return result;
+	}
+
 	controlFlowGraph Compiler::analyzeControlFlow(pseudochunk chunk)
 	{
 		controlFlowGraph graph{};
@@ -1451,20 +1503,30 @@ namespace ash
 						auto& oneAddr = std::dynamic_pointer_cast<oneAddress>(instruction);
 						if(registers.find(oneAddr->A.string) != registers.end())
 						{
-							oneAddr->A = { TokenType::IDENTIFIER, std::to_string(registers.at(oneAddr->A.string)), oneAddr->A.line };;
+							oneAddr->A = { TokenType::IDENTIFIER, std::to_string(registers.at(oneAddr->A.string)), oneAddr->A.line };
 						}
 						break;
 					}
 					case Asm::TwoAddr:
 					{
 						auto& twoAddr = std::dynamic_pointer_cast<twoAddress>(instruction);
-						if (registers.find(twoAddr->A.string) != registers.end())
+						if (twoAddr->op == OP_CONST_LOW)
 						{
-							twoAddr->A = { TokenType::IDENTIFIER, std::to_string(registers.at(twoAddr->A.string)), twoAddr->A.line };;
+							if(registers.find(twoAddr->result.string) != registers.end())
+							{
+								twoAddr->result = { TokenType::IDENTIFIER, std::to_string(registers.at(twoAddr->result.string)), twoAddr->result.line };
+							}
 						}
-						if (registers.find(twoAddr->result.string) != registers.end())
+						else
 						{
-							twoAddr->result = { TokenType::IDENTIFIER, std::to_string(registers.at(twoAddr->result.string)), twoAddr->result.line };;
+							if (registers.find(twoAddr->A.string) != registers.end())
+							{
+								twoAddr->A = { TokenType::IDENTIFIER, std::to_string(registers.at(twoAddr->A.string)), twoAddr->A.line };
+							}
+							if (registers.find(twoAddr->result.string) != registers.end())
+							{
+								twoAddr->result = { TokenType::IDENTIFIER, std::to_string(registers.at(twoAddr->result.string)), twoAddr->result.line };
+							}
 						}
 						break;
 					}
@@ -1473,15 +1535,15 @@ namespace ash
 						auto& threeAddr = std::dynamic_pointer_cast<threeAddress>(instruction);
 						if (registers.find(threeAddr->A.string) != registers.end())
 						{
-							threeAddr->A = { TokenType::IDENTIFIER, std::to_string(registers.at(threeAddr->A.string)), threeAddr->A.line };;
+							threeAddr->A = { TokenType::IDENTIFIER, std::to_string(registers.at(threeAddr->A.string)), threeAddr->A.line };
 						}
 						if (registers.find(threeAddr->B.string) != registers.end())
 						{
-							threeAddr->B = { TokenType::IDENTIFIER, std::to_string(registers.at(threeAddr->B.string)), threeAddr->B.line };;
+							threeAddr->B = { TokenType::IDENTIFIER, std::to_string(registers.at(threeAddr->B.string)), threeAddr->B.line };
 						}
 						if (registers.find(threeAddr->result.string) != registers.end())
 						{
-							threeAddr->result = { TokenType::IDENTIFIER, std::to_string(registers.at(threeAddr->result.string)), threeAddr->result.line };;
+							threeAddr->result = { TokenType::IDENTIFIER, std::to_string(registers.at(threeAddr->result.string)), threeAddr->result.line };
 						}
 						break;
 					}
@@ -1725,17 +1787,17 @@ namespace ash
 					auto i = std::dynamic_pointer_cast<twoAddress>(instruction);
 					if (i->op == OP_CONST_LOW)
 					{
-						if (i->result.type == TokenType::FLOAT)
+						if (i->A.type == TokenType::FLOAT)
 						{
-							result.WriteFloat(std::stoi(i->A.string), std::stof(i->result.string));
+							result.WriteFloat(std::stoi(i->A.string), std::stof(i->A.string));
 						}
-						else if (i->result.type == TokenType::DOUBLE)
+						else if (i->A.type == TokenType::DOUBLE)
 						{
-							result.WriteDouble(std::stoi(i->A.string), std::stod(i->result.string));
+							result.WriteDouble(std::stoi(i->A.string), std::stod(i->A.string));
 						}
-						else if (i->result.type == TokenType::INT)
+						else if (i->A.type == TokenType::INT)
 						{
-							if (i->result.string.at(0) == '-')
+							if (i->A.string.at(0) == '-')
 							{
 								int64_t value = std::stoll(i->result.string);
 								if (-value > 0 && -value <= INT16_MAX)
@@ -1753,8 +1815,8 @@ namespace ash
 							}
 							else
 							{
-								uint64_t value = std::stoull(i->result.string);
-								if (value > 0 && value <= INT16_MAX)
+								uint64_t value = std::stoull(i->A.string);
+								if (value >= 0 && value <= INT16_MAX)
 								{
 									result.WriteU16(std::stoi(i->A.string), value);
 								}

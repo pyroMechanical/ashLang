@@ -326,11 +326,20 @@ namespace ash
 							setRegister(A, *addr);
 							break;
 						}
-						case FieldType::Struct:
 						case FieldType::Array:
 						{
 							auto addr = reinterpret_cast<Allocation**>(alloc->memory + offset);
 							setRegister(A, *addr);
+							rFlags[A] &= REGISTER_HIGH_BITS;
+							rFlags[A] |= REGISTER_HOLDS_POINTER | REGISTER_HOLDS_ARRAY;
+							break;
+						}
+						case FieldType::Struct:
+						{
+							auto addr = reinterpret_cast<Allocation**>(alloc->memory + offset);
+							setRegister(A, *addr);
+							rFlags[A] &= REGISTER_HIGH_BITS;
+							rFlags[A] |= REGISTER_HOLDS_POINTER;
 							break;
 						}
 					}

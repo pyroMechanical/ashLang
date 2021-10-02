@@ -133,6 +133,7 @@ namespace ash
 		Chunk* getChunk() { return &currentChunk; }
 		const std::vector<std::shared_ptr<TypeMetadata>> getTypes() { return types; }
 		pseudochunk precompile(std::shared_ptr<ProgramNode> ast);
+		pseudochunk correctLoadStore(pseudochunk chunk);
 		pseudochunk optimize(pseudochunk chunk) {};
 		controlFlowGraph analyzeControlFlow(pseudochunk chunk);
 		pseudochunk allocateRegisters(pseudochunk chunk);
