@@ -1,5 +1,6 @@
 #include "VM.h"
 #include "Compiler.h"
+#include "Debug.h"
 
 #include <iostream>
 #include <queue>
@@ -110,6 +111,9 @@ namespace ash
 
 		if (!compileSuccess) return InterpretResult::INTERPRET_COMPILE_ERROR;
 		types = compiler.getTypes();
+
+		Disassembler debug;
+		debug.disassembleChunk(compiler.getChunk(), "generated chunk");
 		InterpretResult result = interpret(compiler.getChunk());
 
 		return result;
@@ -1053,7 +1057,7 @@ namespace ash
 				}
 				case AllocationType::Type:
 				{
-					TypeMetadata* metadata = (TypeMetadata*)current->memory;
+					TypeMetadata* metadata = *(TypeMetadata**)current->memory;
 					if (metadata == nullptr)
 					{
 						throw std::runtime_error("Invalid type object!");

@@ -1430,24 +1430,33 @@ namespace ash
 					interferenceGraph.at(string).erase(string);
 				}
 			}
-			/*std::unordered_set<std::string> existingEdges;
+			//std::unordered_set<std::string> existingEdges;
+			//for(auto& kv : interferenceGraph)
+			//{				
+			//	std::string node = kv.first;
+			//	node.insert(0, 1, '\"');
+			//	node.append("\"");
+			//	for(auto string : kv.second)
+			//	{
+			//		if (existingEdges.find(string) == existingEdges.end())
+			//		{
+			//			string.insert(0, 1, '\"');
+			//			string.append("\"");
+			//			std::cout << node << " -- ";
+			//			std::cout << string << ";" << std::endl;
+			//		}
+			//	}
+			//	existingEdges.insert(kv.first);
+			//}
 			for(auto& kv : interferenceGraph)
-			{				
-				std::string node = kv.first;
-				node.insert(0, 1, '\"');
-				node.append("\"");
-				for(auto string : kv.second)
+			{
+				std::cout << kv.first << ": ";
+				for(const auto& string : kv.second)
 				{
-					if (existingEdges.find(string) == existingEdges.end())
-					{
-						string.insert(0, 1, '\"');
-						string.append("\"");
-						std::cout << node << " -- ";
-						std::cout << string << ";" << std::endl;
-					}
+					std::cout << string << ", ";
 				}
-				existingEdges.insert(kv.first);
-			}*/
+				std::cout << std::endl;
+			}
 			std::unordered_set<std::string> poppedSet = {};
 			std::vector <std::pair<std::string, std::unordered_set<std::string>>> nodeStack = {};
 			std::unordered_map<std::string, std::unordered_set<std::string>> workingGraph = interferenceGraph;
@@ -1789,24 +1798,24 @@ namespace ash
 					{
 						if (i->A.type == TokenType::FLOAT)
 						{
-							result.WriteFloat(std::stoi(i->A.string), std::stof(i->A.string));
+							result.WriteFloat(std::stoi(i->result.string), std::stof(i->A.string));
 						}
 						else if (i->A.type == TokenType::DOUBLE)
 						{
-							result.WriteDouble(std::stoi(i->A.string), std::stod(i->A.string));
+							result.WriteDouble(std::stoi(i->result.string), std::stod(i->A.string));
 						}
 						else if (i->A.type == TokenType::INT)
 						{
 							if (i->A.string.at(0) == '-')
 							{
-								int64_t value = std::stoll(i->result.string);
+								int64_t value = std::stoll(i->A.string);
 								if (-value > 0 && -value <= INT16_MAX)
 								{
-									result.WriteI16(std::stoi(i->A.string), value);
+									result.WriteI16(std::stoi(i->result.string), value);
 								}
 								else if (-value > INT16_MAX && -value <= INT32_MAX)
 								{
-									result.WriteI32(std::stoi(i->A.string), value);
+									result.WriteI32(std::stoi(i->result.string), value);
 								}
 								else
 								{
@@ -1818,15 +1827,15 @@ namespace ash
 								uint64_t value = std::stoull(i->A.string);
 								if (value >= 0 && value <= INT16_MAX)
 								{
-									result.WriteU16(std::stoi(i->A.string), value);
+									result.WriteU16(std::stoi(i->result.string), value);
 								}
 								else if (value > INT16_MAX && value <= INT32_MAX)
 								{
-									result.WriteU32(std::stoi(i->A.string), value);
+									result.WriteU32(std::stoi(i->result.string), value);
 								}
 								else
 								{
-									result.WriteU64(std::stoi(i->A.string), value);
+									result.WriteU64(std::stoi(i->result.string), value);
 								}
 							}
 						}
