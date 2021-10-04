@@ -137,19 +137,19 @@ namespace ash
 		std::cout << "Precompiling took " << (double)(std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count()) / 1000000.0 << "milliseconds.\n";
 		std::cout << std::endl;
 
-		for(const auto& instruction : result.code)
-		{
-			instruction->print();
-		}
+		//for(const auto& instruction : result.code)
+		//{
+		//	instruction->print();
+		//}
 
 		t1 = std::chrono::high_resolution_clock::now();
 		result = correctLoadStore(result);
 		t2 = std::chrono::high_resolution_clock::now();
 
-		for (const auto& instruction : result.code)
-		{
-			instruction->print();
-		}
+		//for (const auto& instruction : result.code)
+		//{
+		//	instruction->print();
+		//}
 
 		t1 = std::chrono::high_resolution_clock::now();
 		result = allocateRegisters(result);
@@ -157,12 +157,13 @@ namespace ash
 
 		std::cout << "Register Allocation took " << (double)(std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count()) / 1000000.0 << "milliseconds.\n";
 		
-		for (const auto& instruction : result.code)
-		{
-			instruction->print();
-		}
+		//for (const auto& instruction : result.code)
+		//{
+		//	instruction->print();
+		//}
 
 		currentChunk = finalizeCode(result);
+
 
 		/*for (const auto& typeID : typeIDs)
 		{
@@ -183,8 +184,13 @@ namespace ash
 		}
 		auto halt = std::make_shared<pseudocode>();
 		halt->op = OP_HALT;
+		auto out = std::make_shared<oneAddress>();
+		out->op = OP_OUT;
 		if(chunk.code.size())
+		{
 			chunk.code.push_back(halt);
+		}
+			
 
 		return chunk;
 	}
@@ -259,63 +265,63 @@ namespace ash
 						else if (!field.type.string.compare("short"))
 						{
 							fieldData.type = FieldType::Short;
-							fieldData.offset = offset += ~offset & 0x01;
+							fieldData.offset = (~(offset & 0x01) + 1) & 0x01;
 							fieldData.typeID = -9;
 							offset += 2;
 						}
 						else if (!field.type.string.compare("ushort"))
 						{
 							fieldData.type = FieldType::UShort;
-							fieldData.offset = offset += ~offset & 0x01;
+							fieldData.offset = offset += (~(offset & 0x01) + 1) & 0x01;
 							fieldData.typeID = -8;
 							offset += 2;
 						}
 						else if (!field.type.string.compare("int"))
 						{
 							fieldData.type = FieldType::Int;
-							fieldData.offset = offset += ~offset & 0x03;
+							fieldData.offset = offset += (~(offset & 0x03) + 1) & 0x03;
 							fieldData.typeID = -7;
 							offset += 4;
 						}
 						else if (!field.type.string.compare("uint"))
 						{
 							fieldData.type = FieldType::UInt;
-							fieldData.offset = offset += ~offset & 0x03;
+							fieldData.offset = offset += (~(offset & 0x03) + 1) & 0x03;
 							fieldData.typeID = -6;
 							offset += 4;
 						}
 						else if (!field.type.string.compare("char"))
 						{
 							fieldData.type = FieldType::Char;
-							fieldData.offset = offset += ~offset & 0x03;
+							fieldData.offset = offset += (~(offset & 0x03) + 1) & 0x03;
 							fieldData.typeID = -5;
 							offset += 4;
 						}
 						else if (!field.type.string.compare("float"))
 						{
 							fieldData.type = FieldType::Float;
-							fieldData.offset = offset += ((offset ^ 0x03) * (offset & 0x03));
+							fieldData.offset = offset += (~(offset & 0x03) + 1) & 0x03;
 							fieldData.typeID = -4;
 							offset += 4;
 						}
 						else if (!field.type.string.compare("long"))
 						{
 							fieldData.type = FieldType::Long;
-							fieldData.offset = offset += ((offset ^ 0x07) * (offset & 0x07));
+							fieldData.offset = offset += (~(offset & 0x07) + 1) & 0x07;
 							fieldData.typeID = -3;
 							offset += 8;
 						}
 						else if (!field.type.string.compare("ulong"))
 						{
 							fieldData.type = FieldType::ULong;
-							fieldData.offset = offset += ((offset ^ 0x07) * (offset & 0x07));
+							fieldData.offset = offset += (~(offset & 0x07) + 1) & 0x07;
 							fieldData.typeID = -2;
 							offset += 8;
 						}
 						else if (!field.type.string.compare("double"))
 						{
 							fieldData.type = FieldType::Double;
-							fieldData.offset = offset += ((offset ^ 0x07) * (offset & 0x07));
+							fieldData.offset = offset += (~(offset & 0x07) + 1) & 0x07;
 							fieldData.typeID = -1;
 							offset += 8;
 						}
@@ -323,7 +329,7 @@ namespace ash
 					else
 					{
 						fieldData.type = FieldType::Struct;
-						fieldData.offset = offset += ~offset & 0x07;
+						fieldData.offset = offset += (~(offset & 0x07) + 1) & 0x07;
 						auto fieldType = util::renameByScope(field.type, currentScope);
 						fieldData.typeID = typeIDs.at(fieldType.string);
 						offset += 8;
@@ -1448,15 +1454,15 @@ namespace ash
 			//	}
 			//	existingEdges.insert(kv.first);
 			//}
-			for(auto& kv : interferenceGraph)
-			{
-				std::cout << kv.first << ": ";
-				for(const auto& string : kv.second)
-				{
-					std::cout << string << ", ";
-				}
-				std::cout << std::endl;
-			}
+			//for(auto& kv : interferenceGraph)
+			//{
+			//	std::cout << kv.first << ": ";
+			//	for(const auto& string : kv.second)
+			//	{
+			//		std::cout << string << ", ";
+			//	}
+			//	std::cout << std::endl;
+			//}
 			std::unordered_set<std::string> poppedSet = {};
 			std::vector <std::pair<std::string, std::unordered_set<std::string>>> nodeStack = {};
 			std::unordered_map<std::string, std::unordered_set<std::string>> workingGraph = interferenceGraph;

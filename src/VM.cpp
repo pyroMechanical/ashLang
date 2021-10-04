@@ -9,7 +9,7 @@
 #include <typeindex>
 
 #define STRESSTEST_GC
-#define LOG_GC
+//#define LOG_GC
 #define ARRAY_TYPE_OFFSET 8
 #define STRUCT_SPACING_OFFSET 8
 #define REFCOUNT_OFFSET 9
@@ -113,7 +113,7 @@ namespace ash
 		types = compiler.getTypes();
 
 		Disassembler debug;
-		debug.disassembleChunk(compiler.getChunk(), "generated chunk");
+		//debug.disassembleChunk(compiler.getChunk(), "generated chunk");
 		InterpretResult result = interpret(compiler.getChunk());
 
 		return result;
@@ -213,16 +213,16 @@ namespace ash
 					if (R[C] >= metadata->fields.size()) return error("field out of bounds!");
 					size_t offset = metadata->fields[R[C]].offset;
 					FieldType type = metadata->fields[R[C]].type;
+					if (rFlags[A] & REGISTER_HOLDS_POINTER)
+					{
+						Allocation* ref = *reinterpret_cast<Allocation**>(&R[A]);
+						refIncrement(ref);
+					}
 					if (type == FieldType::Array || type == FieldType::Struct)
 					{
 						Allocation* ref = *reinterpret_cast<Allocation**>(alloc->memory + offset);
 						if(ref)
 							refDecrement(ref);
-					}
-					if (rFlags[A] & REGISTER_HOLDS_POINTER)
-					{
-						Allocation* ref = *reinterpret_cast<Allocation**>(&R[A]);
-						refIncrement(ref);
 					}
 					switch (fieldSize(type))
 					{
@@ -847,7 +847,7 @@ namespace ash
 
 					break;
 				}
-				case OP_RETURN: 
+				case OP_HALT: 
 				{
 					return InterpretResult::INTERPRET_OK;
 				}
@@ -938,23 +938,24 @@ namespace ash
 
 	void VM::freeAllocation(Allocation* alloc)
 	{
+		std::cout << "deleting " << static_cast<void*>(alloc) << std::endl;
 		switch (alloc->type())
 		{
 			case AllocationType::Type:
 			{
 				TypeAllocation* typeAlloc = (TypeAllocation*)alloc;
 				char* mem = typeAlloc->memory;
-				TypeMetadata* metadata = (TypeMetadata*)typeAlloc->memory;
+				TypeMetadata* metadata = *(TypeMetadata**)typeAlloc->memory;
 				size_t currentOffset = OBJECT_BEGIN_OFFSET;
 				for (const auto& field : metadata->fields)
 				{
+					currentOffset = field.offset;
 					if (field.type == FieldType::Struct || field.type == FieldType::Array)
 					{
-						Allocation* fieldObject = (Allocation*)(mem + currentOffset);
+						Allocation* fieldObject = *(Allocation**)(mem + currentOffset);
 						if (fieldObject != nullptr)
 							refDecrement(fieldObject);
 					}
-					currentOffset += (util::fieldSize(field.type));
 				}
 				break;
 			}
@@ -1014,6 +1015,7 @@ namespace ash
 			if ((rFlags[i] & REGISTER_HOLDS_POINTER) != 0)
 			{
 				auto alloc = reinterpret_cast<Allocation*>(R[i]);
+				std::cout << "adding " << static_cast<void*>(alloc) << " to greyset" << std::endl;
 				refIncrement(alloc);
 				greyset.push(alloc);
 			}
@@ -1024,6 +1026,7 @@ namespace ash
 		for (int i = 0; i < stackPointers.size(); i++)
 		{
 			auto alloc = reinterpret_cast<Allocation*>(stack[stackPointers[i]]);
+			std::cout << "adding " << static_cast<void*>(alloc) << " to greyset" << std::endl;
 			refIncrement(alloc);
 			greyset.push(alloc);
 		}
@@ -1064,19 +1067,20 @@ namespace ash
 					}
 					size_t offset = 0;
 					uint8_t spacing = *(uint8_t*)(current->memory + STRUCT_SPACING_OFFSET);
-					auto mem = current->memory + OBJECT_BEGIN_OFFSET + spacing;
+					auto mem = current->memory;
 					for (const auto& field : metadata->fields)
 					{
+						offset = field.offset;
 						if (field.type == FieldType::Struct || field.type == FieldType::Array)
 						{
 							Allocation* ptr = *(Allocation**)(mem + offset);
 							if (ptr)
 							{
+								std::cout << "adding " << static_cast<void*>(ptr) << " to greyset" << std::endl;
 								refIncrement(ptr);
 								greyset.push(ptr);
 							}
 						}
-						offset += util::fieldSize(field.type);
 					}
 					break;
 				}
@@ -1126,7 +1130,7 @@ namespace ash
 	{
 		if (rFlags[_register] & (REGISTER_HOLDS_POINTER))
 		{
-			refDecrement(reinterpret_cast<Allocation*>(R[_register]));
+			refDecrement(*reinterpret_cast<Allocation**>(&R[_register]));
 		}
 
 		rFlags[_register] &= REGISTER_HIGH_BITS;
@@ -1137,7 +1141,7 @@ namespace ash
 	{
 		if (rFlags[_register] & (REGISTER_HOLDS_POINTER))
 		{
-			refDecrement(reinterpret_cast<Allocation*>(R[_register]));
+			refDecrement(*reinterpret_cast<Allocation**>(&R[_register]));
 		}
 
 		rFlags[_register] &= REGISTER_HIGH_BITS;
@@ -1149,7 +1153,7 @@ namespace ash
 	{
 		if (rFlags[_register] & (REGISTER_HOLDS_POINTER))
 		{
-			refDecrement(reinterpret_cast<Allocation*>(R[_register]));
+			refDecrement(*reinterpret_cast<Allocation**>(&R[_register]));
 		}
 
 		rFlags[_register] &= REGISTER_HIGH_BITS;
@@ -1161,7 +1165,7 @@ namespace ash
 	{
 		if (rFlags[_register] & (REGISTER_HOLDS_POINTER))
 		{
-			refDecrement(reinterpret_cast<Allocation*>(R[_register]));
+			refDecrement(*reinterpret_cast<Allocation**>(&R[_register]));
 		}
 
 		rFlags[_register] &= REGISTER_HIGH_BITS;
@@ -1171,9 +1175,11 @@ namespace ash
 
 	void VM::setRegister(uint8_t _register, Allocation* value)
 	{
+		refIncrement(value);
 		if (rFlags[_register] & (REGISTER_HOLDS_POINTER))
 		{
-			refDecrement(reinterpret_cast<Allocation*>(R[_register]));
+			auto oldRef = *reinterpret_cast<Allocation**>(&R[_register]);
+			refDecrement(oldRef);
 		}
 
 		rFlags[_register] &= REGISTER_HIGH_BITS;
@@ -1187,6 +1193,8 @@ namespace ash
 
 	void VM::refIncrement(Allocation* ref)
 	{
+		std::cout << "Incrementing " << static_cast<void*>(ref);
+		std::cout << " to " << (*(ref->memory + REFCOUNT_OFFSET)) + 1 << std::endl;
 		uint8_t* refCount = (uint8_t*)(ref->memory + REFCOUNT_OFFSET);
 		if (*refCount == 255) return;
 		(*refCount)++;
@@ -1194,6 +1202,8 @@ namespace ash
 
 	void VM::refDecrement(Allocation* ref)
 	{
+		std::cout << "Decrementing " << static_cast<void*>(ref);
+		std::cout << " to " << (*(ref->memory + REFCOUNT_OFFSET)) - 1 << std::endl;
 		uint8_t* refCount = (uint8_t*)(ref->memory + REFCOUNT_OFFSET);
 		if (*refCount == 255) return;
 		if (*refCount == 0 || *refCount == 1)
