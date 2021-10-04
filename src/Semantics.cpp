@@ -235,9 +235,10 @@ namespace ash
 			case NodeType::ForStatement:
 			{
 				ForStatementNode* forNode = (ForStatementNode*)node;
-				std::shared_ptr<ScopeNode> forScope = currentScope;
+				std::shared_ptr<ScopeNode> forScope = std::make_shared<ScopeNode>();
+				forNode->forScope = forScope;
+				forScope->parentScope = currentScope;
 				bool hadError = false;
-				if(forNode->statement) forScope = getScope(forNode->statement.get(), currentScope);
 				if (forNode->declaration) hadError |= enterNode(forNode->declaration.get(), forScope);
 				if (forNode->conditional) hadError |= enterNode(forNode->conditional.get(), forScope);
 				if (forNode->increment) hadError |= enterNode(forNode->increment.get(), forScope);
@@ -247,14 +248,13 @@ namespace ash
 			case NodeType::IfStatement:
 			{
 				IfStatementNode* ifNode = (IfStatementNode*)node;
-				std::shared_ptr<ScopeNode> thenScope = currentScope;
-				std::shared_ptr<ScopeNode> elseScope = currentScope;
-				if (ifNode->thenStatement) thenScope = getScope(ifNode->thenStatement.get(), currentScope);
-				if (ifNode->elseStatement) elseScope = getScope(ifNode->elseStatement.get(), currentScope);
+				auto ifScope = std::make_shared<ScopeNode>();
+				ifNode->ifScope = ifScope;
+				ifScope->parentScope = currentScope;
 				bool hadError = false;
-				if (ifNode->condition) hadError |= enterNode(ifNode->condition.get(), currentScope);
-				if (ifNode->thenStatement) hadError |= enterNode(ifNode->thenStatement.get(), thenScope);
-				if (ifNode->elseStatement) hadError |= enterNode(ifNode->elseStatement.get(), elseScope);
+				if (ifNode->condition) hadError |= enterNode(ifNode->condition.get(), ifScope);
+				if (ifNode->thenStatement) hadError |= enterNode(ifNode->thenStatement.get(), ifScope);
+				if (ifNode->elseStatement) hadError |= enterNode(ifNode->elseStatement.get(), ifScope);
 				return hadError;
 			}
 			case NodeType::ReturnStatement:
@@ -267,9 +267,10 @@ namespace ash
 			case NodeType::WhileStatement:
 			{
 				WhileStatementNode* whileNode = (WhileStatementNode*)node;
-				std::shared_ptr<ScopeNode> whileScope = currentScope;
+				std::shared_ptr<ScopeNode> whileScope = std::make_shared<ScopeNode>();
+				whileNode->whileScope = whileScope;
+				whileScope->parentScope = currentScope;
 				bool hadError = false;
-				if (whileNode->doStatement) whileScope = getScope(whileNode->doStatement.get(), currentScope);
 				if (whileNode->condition) hadError |= enterNode(whileNode->condition.get(), whileScope);
 				if (whileNode->doStatement) hadError |= enterNode(whileNode->doStatement.get(), whileScope);
 				return hadError;
@@ -974,6 +975,7 @@ namespace ash
 				}
 				
 				result->doStatement = stmtBlock;
+				result->whileScope = whileNode->whileScope;
 				return result;
 			}
 			case NodeType::ForStatement:
@@ -996,6 +998,7 @@ namespace ash
 					stmtBlock = std::dynamic_pointer_cast<BlockNode>(linearizeAST((ParseNode*)forStmtBlock, stmtDeclarations, forStmtBlock->scope));
 				}
 				result->statement = stmtBlock;
+				result->forScope = forNode->forScope;
 				return result;
 			}
 			case NodeType::IfStatement:
@@ -1036,6 +1039,7 @@ namespace ash
 					}
 					result->elseStatement = elseBlock;
 				}
+				result->ifScope = ifNode->ifScope;
 				return result;
 			}
 			case NodeType::ExpressionStatement:

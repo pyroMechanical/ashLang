@@ -271,6 +271,7 @@ namespace ash
 		std::shared_ptr<ExpressionNode> conditional;
 		std::shared_ptr<ExpressionNode> increment;
 		std::shared_ptr<StatementNode> statement;
+		std::shared_ptr<ScopeNode> forScope;
 
 		virtual NodeType nodeType() override { return NodeType::ForStatement; }
 
@@ -311,6 +312,7 @@ namespace ash
 		std::shared_ptr<ExpressionNode> condition;
 		std::shared_ptr<StatementNode> thenStatement;
 		std::shared_ptr<StatementNode> elseStatement;
+		std::shared_ptr<ScopeNode> ifScope;
 
 		virtual NodeType nodeType() override { return NodeType::IfStatement; }
 
@@ -362,6 +364,7 @@ namespace ash
 	{
 		std::shared_ptr<ExpressionNode> condition;
 		std::shared_ptr<StatementNode> doStatement;
+		std::shared_ptr<ScopeNode> whileScope;
 
 		virtual NodeType nodeType() override { return NodeType::WhileStatement; }
 

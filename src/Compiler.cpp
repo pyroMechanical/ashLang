@@ -138,19 +138,19 @@ namespace ash
 		std::cout << "Precompiling took " << (double)(std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count()) / 1000000.0 << "milliseconds.\n";
 		std::cout << std::endl;
 
-		//for(const auto& instruction : result.code)
-		//{
-		//	instruction->print();
-		//}
+		for(const auto& instruction : result.code)
+		{
+			instruction->print();
+		}
 
 		t1 = std::chrono::high_resolution_clock::now();
 		result = correctLoadStore(result);
 		t2 = std::chrono::high_resolution_clock::now();
 
-		//for (const auto& instruction : result.code)
-		//{
-		//	instruction->print();
-		//}
+		for (const auto& instruction : result.code)
+		{
+			instruction->print();
+		}
 
 		t1 = std::chrono::high_resolution_clock::now();
 		result = allocateRegisters(result);
@@ -158,10 +158,10 @@ namespace ash
 
 		std::cout << "Register Allocation took " << (double)(std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count()) / 1000000.0 << "milliseconds.\n";
 		
-		//for (const auto& instruction : result.code)
-		//{
-		//	instruction->print();
-		//}
+		for (const auto& instruction : result.code)
+		{
+			instruction->print();
+		}
 
 		currentChunk = finalizeCode(result);
 
@@ -214,7 +214,8 @@ namespace ash
 				exitJump->jumpLabel = exitLabel->label;
 				IfStatementNode* ifNode = (IfStatementNode*)node;
 				std::vector<std::shared_ptr<assembly>> ifChunk;
-
+				auto hold = currentScope;
+				currentScope = ifNode->ifScope;
 				auto conditionChunk = compileNode((ParseNode*)ifNode->condition.get(), nullptr);
 				ifChunk.insert(ifChunk.end(), conditionChunk.begin(), conditionChunk.end());
 				ifChunk.push_back(thenJump);
@@ -225,7 +226,7 @@ namespace ash
 				auto thenChunk = compileNode((ParseNode*)ifNode->thenStatement.get(), nullptr);
 				ifChunk.insert(ifChunk.end(), thenChunk.begin(), thenChunk.end());
 				ifChunk.push_back(exitLabel);
-
+				currentScope = hold;
 				return ifChunk;
 			}
 			case NodeType::TypeDeclaration:
@@ -360,6 +361,8 @@ namespace ash
 				conditionJump->jumpLabel = conditionLabel->label;
 
 				WhileStatementNode* whileNode = (WhileStatementNode*)node;
+				auto hold = currentScope;
+				currentScope = whileNode->whileScope;
 				std::vector<std::shared_ptr<assembly>> whileChunk;
 				whileChunk.push_back(loopLabel);
 				auto conditionChunk = compileNode((ParseNode*)whileNode->condition.get(), nullptr);
@@ -371,7 +374,7 @@ namespace ash
 				whileChunk.insert(whileChunk.end(), stmtChunk.begin(), stmtChunk.end());
 				whileChunk.push_back(loopJump);
 				whileChunk.push_back(exitLabel);
-
+				currentScope = hold;
 				return whileChunk;
 			}
 
@@ -395,6 +398,8 @@ namespace ash
 				exitJump->jumpLabel = exitLabel->label;
 
 				ForStatementNode* forNode = (ForStatementNode*)node;
+				auto hold = currentScope;
+				currentScope = forNode->forScope;
 				std::vector<std::shared_ptr<assembly>> forChunk;
 				auto declarationChunk = compileNode((ParseNode*)forNode->declaration.get(), nullptr);
 				forChunk.insert(forChunk.end(), declarationChunk.begin(), declarationChunk.end());
@@ -410,7 +415,7 @@ namespace ash
 				forChunk.insert(forChunk.end(), incrementChunk.begin(), incrementChunk.end());
 				forChunk.push_back(loopJump);
 				forChunk.push_back(exitLabel);
-
+				currentScope = hold;
 				return forChunk;
 			}
 
@@ -436,7 +441,8 @@ namespace ash
 
 				std::vector<std::shared_ptr<assembly>> result;
 
-				auto identifier = util::renameByScope(varNode->identifier, currentScope);
+				auto identifier = varNode->identifier;
+				if(identifier.string.find('#') == std::string::npos) identifier = util::renameByScope(varNode->identifier, currentScope);
 
 				if(util::isBasic(varNode->type))
 				{
@@ -503,6 +509,40 @@ namespace ash
 					{
 						auto binaryNode = (BinaryNode*)exprNode;
 						std::vector<std::shared_ptr<assembly>> chunk;
+						Token left = ((CallNode*)binaryNode->left.get())->primary;
+						if(left.type != TokenType::IDENTIFIER)
+						{
+							auto constant = std::make_shared<twoAddress>();
+							std::string temp = { "#" };
+							temp.append(std::to_string(temporaries++));
+							Token tempToken = { TokenType::IDENTIFIER, temp, ((CallNode*)binaryNode->left.get())->line() };
+							constant->op = OP_CONST_LOW;
+							constant->A = left;
+							constant->result = tempToken;
+							chunk.push_back(constant);
+							left = tempToken;
+						}
+						else if(left.string.find('#') == std::string::npos)
+						{
+							left = util::renameByScope(left, currentScope);
+						}
+						Token right = ((CallNode*)binaryNode->right.get())->primary;
+						if (right.type != TokenType::IDENTIFIER)
+						{
+							auto constant = std::make_shared<twoAddress>();
+							std::string temp = { "#" };
+							temp.append(std::to_string(temporaries++));
+							Token tempToken = { TokenType::IDENTIFIER, temp, ((CallNode*)binaryNode->left.get())->line() };
+							constant->op = OP_CONST_LOW;
+							constant->A = right;
+							constant->result = tempToken;
+							chunk.push_back(constant);
+							right = tempToken;
+						}
+						else if( right.string.find('#') == std::string::npos)
+						{
+							right = util::renameByScope(right, currentScope);
+						}
 						if(util::isBasic(binaryNode->leftType) && util::isBasic(binaryNode->rightType))
 						{
 							auto expressionType = util::resolveBasicTypes(binaryNode->leftType, binaryNode->rightType);
@@ -524,12 +564,12 @@ namespace ash
 
 									if (binaryNode->leftType.string.compare(expressionType.string) == 0)
 									{
-										binaryInstruction->A = ((CallNode*)binaryNode->left.get())->primary;
+										binaryInstruction->A = left;
 									}
 									else
 									{
 										auto conversion = std::make_shared<twoAddress>();
-										conversion->A = ((CallNode*)binaryNode->left.get())->primary;
+										conversion->A = left;
 										std::string temp("#");
 										temp.append(std::to_string(temporaries++));
 										Token tempToken = { TokenType::IDENTIFIER, temp, binaryNode->left->line() };
@@ -540,12 +580,12 @@ namespace ash
 									}
 									if (binaryNode->leftType.string.compare(expressionType.string) == 0)
 									{
-										binaryInstruction->B = ((CallNode*)binaryNode->right.get())->primary;
+										binaryInstruction->B = right;
 									}
 									else
 									{
 										auto conversion = std::make_shared<twoAddress>();
-										conversion->A = ((CallNode*)binaryNode->right.get())->primary;
+										conversion->A = right;
 										std::string temp("#");
 										temp.append(std::to_string(temporaries++));
 										Token tempToken = { TokenType::IDENTIFIER, temp, binaryNode->right->line() };
@@ -562,7 +602,7 @@ namespace ash
 									{
 										std::string temp("#");
 										temp.append(std::to_string(temporaries++));
-										binaryInstruction->result = { TokenType::IDENTIFIER, temp,binaryNode->left->line() };
+										binaryInstruction->result = { TokenType::IDENTIFIER, temp, binaryNode->left->line() };
 									}
 
 									if(expressionType.string.compare("double") == 0)
@@ -1455,15 +1495,15 @@ namespace ash
 			//	}
 			//	existingEdges.insert(kv.first);
 			//}
-			//for(auto& kv : interferenceGraph)
-			//{
-			//	std::cout << kv.first << ": ";
-			//	for(const auto& string : kv.second)
-			//	{
-			//		std::cout << string << ", ";
-			//	}
-			//	std::cout << std::endl;
-			//}
+			for(auto& kv : interferenceGraph)
+			{
+				std::cout << kv.first << ": ";
+				for(const auto& string : kv.second)
+				{
+					std::cout << string << ", ";
+				}
+				std::cout << std::endl;
+			}
 			std::unordered_set<std::string> poppedSet = {};
 			std::vector <std::pair<std::string, std::unordered_set<std::string>>> nodeStack = {};
 			std::unordered_map<std::string, std::unordered_set<std::string>> workingGraph = interferenceGraph;
