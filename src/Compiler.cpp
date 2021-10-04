@@ -38,6 +38,7 @@ namespace ash
 
 		static Token renameByScope(Token identifier, std::shared_ptr<ScopeNode> current)
 		{
+			//TODO: figure out why this breaks with for loops
 			std::shared_ptr<ScopeNode> varScope = current;
 			std::string id = identifier.string;
 			while (varScope)

@@ -37,22 +37,28 @@ namespace ash
 		scopes.push_back(currentScope);
 
 		bool hadError = false;
-		for(const auto& declaration: ast->declarations)
+		for (const auto& declaration : ast->declarations)
 		{
 			auto scope = getScope((ParseNode*)declaration.get(), currentScope);
 			hadError |= enterNode((ParseNode*)declaration.get(), scope);
 			panicMode = false;
 		}
-		for (const auto& declaration : ast->declarations)
+		if (!hadError)
 		{
-			hadError |= functionValidator((ParseNode*)declaration.get());
+			for (const auto& declaration : ast->declarations)
+			{
+				hadError |= functionValidator((ParseNode*)declaration.get());
+			}
+			if(!hadError)
+			{
+				std::vector<std::shared_ptr<DeclarationNode>> newDeclarations;
+				for (const auto& declaration : ast->declarations)
+				{
+					newDeclarations.push_back(linearizeAST((ParseNode*)declaration.get(), newDeclarations, ast->globalScope));
+				}
+				ast->declarations = newDeclarations;
+			}
 		}
-		std::vector<std::shared_ptr<DeclarationNode>> newDeclarations;
-		for(const auto& declaration : ast->declarations)
-		{
-			newDeclarations.push_back(linearizeAST((ParseNode*)declaration.get(), newDeclarations, ast->globalScope));
-		}
-		ast->declarations = newDeclarations;
 		ast->hadError = hadError;
 		for (const auto& error : errorQueue)
 		{

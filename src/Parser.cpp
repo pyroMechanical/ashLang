@@ -683,6 +683,8 @@ namespace ash
 			if (panicMode) synchronize();
 		}
 
+		node->hadError = hadError;
+
 		return node;
 	}
 }
