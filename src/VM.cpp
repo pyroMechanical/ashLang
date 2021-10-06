@@ -7,6 +7,7 @@
 #include <bitset>
 #include <typeinfo>
 #include <typeindex>
+#include <chrono>
 
 #define STRESSTEST_GC
 //#define LOG_GC
@@ -112,7 +113,7 @@ namespace ash
 		if (!compileSuccess) return InterpretResult::INTERPRET_COMPILE_ERROR;
 		types = compiler.getTypes();
 
-		Disassembler debug;
+		//Disassembler debug;
 		//debug.disassembleChunk(compiler.getChunk(), "generated chunk");
 		InterpretResult result = interpret(compiler.getChunk());
 
@@ -124,7 +125,12 @@ namespace ash
 		this->chunk = chunk;
 		ip = chunk->code();
 		//this->types = chunk->types;
-		return run();
+		auto t1 = std::chrono::high_resolution_clock::now();
+		InterpretResult result = run();
+		auto t2 = std::chrono::high_resolution_clock::now();
+
+		std::cout << "Execution took " << (double)(std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count()) / 1000000.0 << "milliseconds.\n";
+		return result;
 	}
 
 	InterpretResult VM::run()
@@ -226,30 +232,30 @@ namespace ash
 					}
 					switch (fieldSize(type))
 					{
-					case 1:
-					{
-						auto addr = reinterpret_cast<uint8_t*>(alloc->memory + offset);
-						*addr = static_cast<uint8_t>(R[A]);
-						break;
-					}
-					case 2:
-					{
-						auto addr = reinterpret_cast<uint16_t*>(alloc->memory + offset);
-						*addr = static_cast<uint16_t>(R[A]);
-						break;
-					}
-					case 4:
-					{
-						auto addr = reinterpret_cast<uint32_t*>(alloc->memory + offset);
-						*addr = static_cast<uint32_t>(R[A]);
-						break;
-					}
-					case 8:
-					{
-						auto addr = reinterpret_cast<uint64_t*>(alloc->memory + offset);
-						*addr = static_cast<uint64_t>(R[A]);
-						break;
-					}
+						case 1:
+						{
+							auto addr = reinterpret_cast<uint8_t*>(alloc->memory + offset);
+							*addr = static_cast<uint8_t>(R[A]);
+							break;
+						}
+						case 2:
+						{
+							auto addr = reinterpret_cast<uint16_t*>(alloc->memory + offset);
+							*addr = static_cast<uint16_t>(R[A]);
+							break;
+						}
+						case 4:
+						{
+							auto addr = reinterpret_cast<uint32_t*>(alloc->memory + offset);
+							*addr = static_cast<uint32_t>(R[A]);
+							break;
+						}
+						case 8:
+						{
+							auto addr = reinterpret_cast<uint64_t*>(alloc->memory + offset);
+							*addr = static_cast<uint64_t>(R[A]);
+							break;
+						}
 					}
 					break;
 				}
@@ -365,30 +371,30 @@ namespace ash
 					uint64_t offset = span * R[C];
 					switch (span)
 					{
-					case 1:
-					{
-						auto addr = reinterpret_cast<uint8_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + offset);
-						*addr = static_cast<uint8_t>(R[A]);
-						break;
-					}
-					case 2:
-					{
-						auto addr = reinterpret_cast<uint16_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + offset);
-						*addr = static_cast<uint16_t>(R[A]);
-						break;
-					}
-					case 4:
-					{
-						auto addr = reinterpret_cast<uint32_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + offset);
-						*addr = static_cast<uint32_t>(R[A]);
-						break;
-					}
-					case 8:
-					{
-						auto addr = reinterpret_cast<uint64_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + offset);
-						*addr = R[A];
-						break;
-					}
+						case 1:
+						{
+							auto addr = reinterpret_cast<uint8_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + offset);
+							*addr = static_cast<uint8_t>(R[A]);
+							break;
+						}
+						case 2:
+						{
+							auto addr = reinterpret_cast<uint16_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + offset);
+							*addr = static_cast<uint16_t>(R[A]);
+							break;
+						}
+						case 4:
+						{
+							auto addr = reinterpret_cast<uint32_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + offset);
+							*addr = static_cast<uint32_t>(R[A]);
+							break;
+						}
+						case 8:
+						{
+							auto addr = reinterpret_cast<uint64_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + offset);
+							*addr = R[A];
+							break;
+						}
 					}
 					break;
 				}
@@ -409,30 +415,30 @@ namespace ash
 					uint64_t offset = span * R[C];
 					switch (span)
 					{
-					case 1:
-					{
-						auto addr = reinterpret_cast<uint8_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + offset);
-						R[A] = *addr;
-						break;
-					}
-					case 2:
-					{
-						auto addr = reinterpret_cast<uint16_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + offset);
-						R[A] = *addr;
-						break;
-					}
-					case 4:
-					{
-						auto addr = reinterpret_cast<uint32_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + offset);
-						R[A] = *addr;
-						break;
-					}
-					case 8:
-					{
-						auto addr = reinterpret_cast<uint64_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + offset);
-						R[A] = *addr;
-						break;
-					}
+						case 1:
+						{
+							auto addr = reinterpret_cast<uint8_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + offset);
+							R[A] = *addr;
+							break;
+						}
+						case 2:
+						{
+							auto addr = reinterpret_cast<uint16_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + offset);
+							R[A] = *addr;
+							break;
+						}
+						case 4:
+						{
+							auto addr = reinterpret_cast<uint32_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + offset);
+							R[A] = *addr;
+							break;
+						}
+						case 8:
+						{
+							auto addr = reinterpret_cast<uint64_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + offset);
+							R[A] = *addr;
+							break;
+						}
 					}
 					if (isPtr)
 					{
@@ -938,7 +944,6 @@ namespace ash
 
 	void VM::freeAllocation(Allocation* alloc)
 	{
-		std::cout << "deleting " << static_cast<void*>(alloc) << std::endl;
 		switch (alloc->type())
 		{
 			case AllocationType::Type:
@@ -1015,7 +1020,9 @@ namespace ash
 			if ((rFlags[i] & REGISTER_HOLDS_POINTER) != 0)
 			{
 				auto alloc = reinterpret_cast<Allocation*>(R[i]);
+#ifdef LOG_GC
 				std::cout << "adding " << static_cast<void*>(alloc) << " to greyset" << std::endl;
+#endif
 				refIncrement(alloc);
 				greyset.push(alloc);
 			}
@@ -1026,7 +1033,9 @@ namespace ash
 		for (int i = 0; i < stackPointers.size(); i++)
 		{
 			auto alloc = reinterpret_cast<Allocation*>(stack[stackPointers[i]]);
+#ifdef LOG_GC
 			std::cout << "adding " << static_cast<void*>(alloc) << " to greyset" << std::endl;
+#endif
 			refIncrement(alloc);
 			greyset.push(alloc);
 		}
@@ -1076,7 +1085,9 @@ namespace ash
 							Allocation* ptr = *(Allocation**)(mem + offset);
 							if (ptr)
 							{
+#ifdef LOG_GC
 								std::cout << "adding " << static_cast<void*>(ptr) << " to greyset" << std::endl;
+#endif
 								refIncrement(ptr);
 								greyset.push(ptr);
 							}
@@ -1099,7 +1110,6 @@ namespace ash
 				auto white = alloc;
 				alloc = alloc->next;
 				if (alloc) alloc->previous = white->previous;
-				freeAllocation(white);
 				if (white->previous == nullptr)
 				{
 					allocationList = alloc;
@@ -1108,8 +1118,9 @@ namespace ash
 				{
 					white->previous->next = alloc;
 				}
+				freeAllocation(white);
 			}
-			alloc = alloc->next;
+			else alloc = alloc->next;
 		}
 
 #ifdef LOG_GC
@@ -1193,8 +1204,10 @@ namespace ash
 
 	void VM::refIncrement(Allocation* ref)
 	{
+#ifdef LOG_GC
 		std::cout << "Incrementing " << static_cast<void*>(ref);
 		std::cout << " to " << (*(ref->memory + REFCOUNT_OFFSET)) + 1 << std::endl;
+#endif
 		uint8_t* refCount = (uint8_t*)(ref->memory + REFCOUNT_OFFSET);
 		if (*refCount == 255) return;
 		(*refCount)++;
@@ -1202,8 +1215,10 @@ namespace ash
 
 	void VM::refDecrement(Allocation* ref)
 	{
+#ifdef LOG_GC
 		std::cout << "Decrementing " << static_cast<void*>(ref);
 		std::cout << " to " << (*(ref->memory + REFCOUNT_OFFSET)) - 1 << std::endl;
+#endif
 		uint8_t* refCount = (uint8_t*)(ref->memory + REFCOUNT_OFFSET);
 		if (*refCount == 255) return;
 		if (*refCount == 0 || *refCount == 1)
@@ -1215,8 +1230,8 @@ namespace ash
 			}
 			else
 			{
-				ref->previous->next = ref->next;
-				ref->next->previous = ref->previous;
+				if(ref->previous)	ref->previous->next = ref->next;
+				if(ref->next) ref->next->previous = ref->previous;
 			}
 			freeAllocation(ref);
 			return;

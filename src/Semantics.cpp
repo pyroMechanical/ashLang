@@ -26,7 +26,7 @@ namespace ash
 				else if (!typeToken.string.compare("ulong")) return 11;
 				else if (!typeToken.string.compare("double")) return 12;
 			}
-			else return 13;
+			return 13;
 		}
 	}
 

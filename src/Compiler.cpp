@@ -38,7 +38,6 @@ namespace ash
 
 		static Token renameByScope(Token identifier, std::shared_ptr<ScopeNode> current)
 		{
-			//TODO: figure out why this breaks with for loops
 			std::shared_ptr<ScopeNode> varScope = current;
 			std::string id = identifier.string;
 			while (varScope)
@@ -90,6 +89,10 @@ namespace ash
 					return OP_DOUBLE_TO_INT;
 				}
 			}
+			else
+			{
+				return OP_HALT;
+			}
 		}
 
 		template<typename K, typename V>
@@ -138,10 +141,10 @@ namespace ash
 		std::cout << "Precompiling took " << (double)(std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count()) / 1000000.0 << "milliseconds.\n";
 		std::cout << std::endl;
 
-		for(const auto& instruction : result.code)
-		{
-			instruction->print();
-		}
+		//for(const auto& instruction : result.code)
+		//{
+		//	instruction->print();
+		//}
 
 		t1 = std::chrono::high_resolution_clock::now();
 		result = correctLoadStore(result);
@@ -158,10 +161,10 @@ namespace ash
 
 		std::cout << "Register Allocation took " << (double)(std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count()) / 1000000.0 << "milliseconds.\n";
 		
-		for (const auto& instruction : result.code)
-		{
-			instruction->print();
-		}
+		//for (const auto& instruction : result.code)
+		//{
+		//	instruction->print();
+		//}
 
 		currentChunk = finalizeCode(result);
 
@@ -451,15 +454,14 @@ namespace ash
 						result = compileNode(varNode->value.get(), &identifier);
 						if (result.back()->type() == Asm::TwoAddr)
 						{
-							Token id = ((twoAddress*)result.back().get())->result;
+							Token value = ((twoAddress*)result.back().get())->A;
 							OpCodes operator_ = ((twoAddress*)result.back().get())->op;
-							if (id.type == TokenType::IDENTIFIER && operator_ == OP_CONST_LOW && id.string.compare(identifier.string) != 0)
+							if (value.type == TokenType::IDENTIFIER && operator_ == OP_CONST_LOW && value.string.compare(identifier.string) != 0)
 							{
-								//TODO: come back to this for a rewrite.
-								result.clear();
+								result.pop_back();
 								auto move = std::make_shared<twoAddress>();
 								move->op = OP_MOVE;
-								move->A = id;
+								move->A = value;
 								move->result = identifier;
 								result.push_back(move);
 							}
@@ -1036,16 +1038,15 @@ namespace ash
 							chunk = compileNode(assignmentNode->value.get(), &id);
 							if (chunk.back()->type() == Asm::TwoAddr)
 							{
-								Token id = ((twoAddress*)chunk.back().get())->result;
+								Token value = ((twoAddress*)chunk.back().get())->A;
 								OpCodes operator_ = ((twoAddress*)chunk.back().get())->op;
-								if (id.type == TokenType::IDENTIFIER && operator_ == OP_CONST_LOW)
+								if (value.type == TokenType::IDENTIFIER && operator_ == OP_CONST_LOW && value.string.compare(id.string) != 0)
 								{
-									chunk.clear();
+									chunk.pop_back();
 									auto move = std::make_shared<twoAddress>();
 									move->op = OP_MOVE;
+									move->A = value;
 									move->result = id;
-									Token assigned = { TokenType::IDENTIFIER, assignedVar, assignmentNode->line() };
-									move->A = assigned;
 									chunk.push_back(move);
 								}
 							}
@@ -1477,6 +1478,22 @@ namespace ash
 					interferenceGraph.at(string).erase(string);
 				}
 			}
+
+			//show live variables at each code point:
+			//for(auto i = livePoints.rbegin(); i != livePoints.rend(); i++)
+			//{
+			//	bool first = true;
+			//	auto& node = *i;
+			//	for(const auto& string : node)
+			//	{
+			//		if (!first) std::cout << ", ";
+			//		else first = false;
+			//		std::cout << string;
+			//	}
+			//	std::cout << std::endl;
+			//}
+			
+			// output to graphvis:
 			//std::unordered_set<std::string> existingEdges;
 			//for(auto& kv : interferenceGraph)
 			//{				
@@ -1495,15 +1512,17 @@ namespace ash
 			//	}
 			//	existingEdges.insert(kv.first);
 			//}
-			for(auto& kv : interferenceGraph)
-			{
-				std::cout << kv.first << ": ";
-				for(const auto& string : kv.second)
-				{
-					std::cout << string << ", ";
-				}
-				std::cout << std::endl;
-			}
+			
+			// association graph:
+			//for(auto& kv : interferenceGraph)
+			//{
+			//	std::cout << kv.first << ": ";
+			//	for(const auto& string : kv.second)
+			//	{
+			//		std::cout << string << ", ";
+			//	}
+			//	std::cout << std::endl;
+			//}
 			std::unordered_set<std::string> poppedSet = {};
 			std::vector <std::pair<std::string, std::unordered_set<std::string>>> nodeStack = {};
 			std::unordered_map<std::string, std::unordered_set<std::string>> workingGraph = interferenceGraph;
@@ -1687,6 +1706,7 @@ namespace ash
 							if(liveNodes.find(twoAddr->result.string) == liveNodes.end())
 							{
 								//std::cout << twoAddr->result.string << " can be discarded, no longer used" << std::endl;
+								livePoints.back().insert(twoAddr->result.string);
 							}
 							else
 							{
@@ -1700,6 +1720,7 @@ namespace ash
 							if (liveNodes.find(twoAddr->result.string) == liveNodes.end())
 							{
 								//std::cout << threeAddr->result.string << " can be discarded, no longer used" << std::endl;
+								livePoints.back().insert(twoAddr->result.string);
 							}
 							else
 							{
@@ -1720,10 +1741,12 @@ namespace ash
 						case OP_FLOAT_TO_INT:
 						case OP_DOUBLE_TO_FLOAT:
 						case OP_DOUBLE_TO_INT:
+						case OP_MOVE:
 						{
 							if(liveNodes.find(twoAddr->result.string) == liveNodes.end())
 							{
 								//std::cout << twoAddr->result.string << " can be discarded, no longer used" << std::endl;
+								livePoints.back().insert(twoAddr->result.string);
 							}
 							else
 							{
@@ -1759,6 +1782,7 @@ namespace ash
 							if (liveNodes.find(threeAddr->A.string) == liveNodes.end())
 							{
 								//std::cout << threeAddr->A.string << " can be discarded, no longer used" << std::endl;
+								livePoints.back().insert(threeAddr->result.string);
 							}
 							else
 							{
@@ -1801,6 +1825,7 @@ namespace ash
 							if (liveNodes.find(threeAddr->result.string) == liveNodes.end())
 							{
 								//std::cout << threeAddr->result.string << " can be discarded, no longer used" << std::endl;
+								livePoints.back().insert(threeAddr->result.string);
 							}
 							else
 							{
@@ -1826,8 +1851,9 @@ namespace ash
 	Chunk Compiler::finalizeCode(pseudochunk chunk)
 	{
 		Chunk result = {};
+		result.reserve(chunk.code.size());
 		std::unordered_map<size_t, size_t> labelIndices;
-		std::unordered_multimap<size_t, uint32_t&> unpatchedJumps;
+		std::unordered_multimap<size_t, size_t> unpatchedJumps;
 		for(const auto& instruction : chunk.code)
 		{
 			switch(instruction->type())
@@ -1874,11 +1900,11 @@ namespace ash
 								uint64_t value = std::stoull(i->A.string);
 								if (value >= 0 && value <= INT16_MAX)
 								{
-									result.WriteU16(std::stoi(i->result.string), value);
+									result.WriteU16(std::stoi(i->result.string), static_cast<uint16_t>(value));
 								}
 								else if (value > INT16_MAX && value <= INT32_MAX)
 								{
-									result.WriteU32(std::stoi(i->result.string), value);
+									result.WriteU32(std::stoi(i->result.string), static_cast<uint32_t>(value));
 								}
 								else
 								{
@@ -1903,9 +1929,9 @@ namespace ash
 					if(unpatchedJumps.find(i->label) != unpatchedJumps.end())
 					{
 						auto jumps = unpatchedJumps.equal_range(i->label);
-						for(auto it = jumps.first; it != jumps.second; it++)
+						for(auto& it = jumps.first; it != jumps.second; it++)
 						{
-							it->second += labelIndices.at(i->label);
+							result.at(it->second) += (labelIndices.at(i->label) - it->second);
 						}
 					}
 					break;
@@ -1915,13 +1941,14 @@ namespace ash
 					auto i = std::dynamic_pointer_cast<relativeJump>(instruction);
 					if(labelIndices.find(i->jumpLabel) != labelIndices.end())
 					{
-						result.WriteRelativeJump(i->op, i->jumpLabel, 0);
+						auto count = result.size();
+						result.WriteRelativeJump(i->op, labelIndices.at(i->jumpLabel) - count , 0);
 					}
 					else
 					{
 						size_t index = result.size();
 						result.WriteRelativeJump(i->op, 0, 0);
-						unpatchedJumps.emplace(i->jumpLabel, result.at(index));
+						unpatchedJumps.emplace(i->jumpLabel, index);
 					}
 					break;
 				}

@@ -292,6 +292,7 @@ namespace ash
 		else
 		{
 			error("expected '(' or '.' for function or field call.");
+			return nullptr;
 		}
 	}
 

@@ -43,6 +43,7 @@ namespace ash
 			case FieldType::ULong:
 			case FieldType::Double: return 8;
 			}
+			return 0;
 		}
 	}
 
