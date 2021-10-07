@@ -1,6 +1,7 @@
 #include "VM.h"
 #include "Compiler.h"
 #include "Debug.h"
+#include "Timer.h"
 
 #include <iostream>
 #include <queue>
@@ -9,8 +10,9 @@
 #include <typeindex>
 #include <chrono>
 
-#define STRESSTEST_GC
+//#define STRESSTEST_GC
 //#define LOG_GC
+#define LOG_TIMES
 #define ARRAY_TYPE_OFFSET 8
 #define STRUCT_SPACING_OFFSET 8
 #define REFCOUNT_OFFSET 9
@@ -20,6 +22,20 @@ namespace ash
 {
 	namespace util
 	{
+		inline static uint8_t ilog2(size_t i)
+		{
+#ifdef _MSC_VER
+			unsigned long index;
+			_BitScanReverse64(&index, i);
+			return (uint8_t)index;
+#elif __GNUC__
+			return (uint8_t) 31 - __builtin_clzll(i);
+#else
+
+#endif
+
+		}
+
 		inline static uint32_t fetch_instruction(uint32_t*& ip)
 		{
 			return *ip++;
@@ -106,16 +122,20 @@ namespace ash
 
 	InterpretResult VM::interpret(std::string source)
 	{
-		Compiler compiler;
+		std::shared_ptr<Chunk> chunk;
+		{
+			Compiler compiler;
 
-		bool compileSuccess = compiler.compile(source.c_str());
+			bool compileSuccess = compiler.compile(source.c_str());
 
-		if (!compileSuccess) return InterpretResult::INTERPRET_COMPILE_ERROR;
-		types = compiler.getTypes();
+			if (!compileSuccess) return InterpretResult::INTERPRET_COMPILE_ERROR;
+			types = compiler.getTypes();
+			chunk = compiler.getChunk();
+		}
 
 		//Disassembler debug;
-		//debug.disassembleChunk(compiler.getChunk(), "generated chunk");
-		InterpretResult result = interpret(compiler.getChunk());
+		//debug.disassembleChunk(chunk.get(), "generated chunk");
+		InterpretResult result = interpret(chunk.get());
 
 		return result;
 	}
@@ -146,6 +166,9 @@ namespace ash
 			{
 				case OP_MOVE:
 				{
+					#ifdef LOG_TIMES
+					Timer t = { "OP_MOVE" };
+					#endif
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					if (rFlags[B] & REGISTER_HOLDS_POINTER) refDecrement(reinterpret_cast<Allocation*>(R[B]));
@@ -154,6 +177,9 @@ namespace ash
 				}
 				case OP_ALLOC:
 				{
+					#ifdef LOG_TIMES
+					Timer t = { "OP_ALLOC" };
+					#endif
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint64_t typeID = R[A];
@@ -163,6 +189,9 @@ namespace ash
 				}
 				case OP_ALLOC_ARRAY:
 				{
+					#ifdef LOG_TIMES
+					Timer t = { "OP_ALLOC_ARRAY" };
+					#endif
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
@@ -174,6 +203,9 @@ namespace ash
 				}
 				case OP_CONST_LOW:
 				{
+					#ifdef LOG_TIMES
+					Timer t = { "OP_CONST_LOW" };
+					#endif
 					uint8_t A = RegisterA(instruction);
 					uint64_t value = Value(instruction);
 					setRegister(A, value);
@@ -181,12 +213,18 @@ namespace ash
 				}
 				case OP_CONST_LOW_NEGATIVE:
 				{
+					#ifdef LOG_TIMES
+					Timer t = { "OP_CONST_LOW_NEGATIVE" };
+					#endif
 					uint8_t A = RegisterA(instruction);
 					uint64_t value = Value(instruction) | 0xFFFFFFFFFFFF0000;
 					setRegister(A, value);
 				}
 				case OP_CONST_MID_LOW:
 				{
+					#ifdef LOG_TIMES
+					Timer t = { "OP_CONST_MID_LOW" };
+					#endif
 					uint8_t A = RegisterA(instruction);
 					uint16_t value = Value(instruction);
 					setRegister(A, (R[A] & 0xFFFFFFFF0000FFFF) + (((uint64_t)value) <<16));
@@ -194,6 +232,9 @@ namespace ash
 				}
 				case OP_CONST_MID_HIGH:
 				{
+					#ifdef LOG_TIMES
+					Timer t = { "OP_CONST_MID_HIGH" };
+					#endif
 					uint8_t A = RegisterA(instruction);
 					uint16_t value = Value(instruction);
 					setRegister(A, (R[A] & 0xFFFF0000FFFFFFFF) + (((uint64_t)value) << 32));
@@ -201,6 +242,9 @@ namespace ash
 				}
 				case OP_CONST_HIGH:
 				{
+					#ifdef LOG_TIMES
+					Timer t = { "OP_CONST_HIGH" };
+					#endif
 					uint8_t A = RegisterA(instruction);
 					uint16_t value = Value(instruction);
 					setRegister(A,(R[A] & 0x0000FFFFFFFFFFFF) + (((uint64_t)value) << 48));
@@ -208,6 +252,9 @@ namespace ash
 				}
 				case OP_STORE_OFFSET:
 				{
+					#ifdef LOG_TIMES
+					Timer t = { "OP_STORE_OFFSET" };
+					#endif
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
@@ -261,6 +308,9 @@ namespace ash
 				}
 				case OP_LOAD_OFFSET:
 				{
+					#ifdef LOG_TIMES
+					Timer t = { "OP_LOAD_OFFSET" };
+					#endif
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
@@ -356,7 +406,10 @@ namespace ash
 					break;
 				}
 				case OP_ARRAY_STORE:
-				{
+					{
+					#ifdef LOG_TIMES
+					Timer t = { "OP_ARRAY_STORE" };
+					#endif
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
@@ -400,6 +453,9 @@ namespace ash
 				}
 				case OP_ARRAY_LOAD:
 				{
+					#ifdef LOG_TIMES
+					Timer t = { "OP_ARRAY_LOAD" };
+					#endif
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
@@ -457,6 +513,9 @@ namespace ash
 				}
 				case OP_PUSH:
 				{
+					#ifdef LOG_TIMES
+					Timer t = { "OP_PUSH" };
+					#endif
 					uint8_t A = RegisterA(instruction);
 					stack.push_back(R[A]);
 					stackFlags.push_back(rFlags[A]);
@@ -470,6 +529,9 @@ namespace ash
 				}
 				case OP_POP:
 				{
+					#ifdef LOG_TIMES
+					Timer t = { "OP_POP" };
+					#endif
 					uint8_t A = RegisterA(instruction);
 					R[A] =  stack.back();
 					rFlags[A] = stackFlags.back();
@@ -484,6 +546,9 @@ namespace ash
 				}
 				case OP_INT_ADD:
 				{
+					#ifdef LOG_TIMES
+					Timer t = { "OP_INT_ADD" };
+					#endif
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
@@ -492,6 +557,9 @@ namespace ash
 				}
 				case OP_INT_SUB:
 				{
+					#ifdef LOG_TIMES
+					Timer t = { "OP_INT_SUB" };
+					#endif
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
@@ -500,6 +568,9 @@ namespace ash
 				}
 				case OP_INT_NEGATE:
 				{
+					#ifdef LOG_TIMES
+					Timer t = { "OP_INT_NEGATE" };
+					#endif
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 
@@ -507,6 +578,9 @@ namespace ash
 				}
 				case OP_UNSIGN_MUL:
 				{
+					#ifdef LOG_TIMES
+					Timer t = { "OP_UNSIGN_MUL" };
+					#endif
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
@@ -515,6 +589,9 @@ namespace ash
 				}
 				case OP_UNSIGN_DIV:
 				{
+					#ifdef LOG_TIMES
+					Timer t = { "OP_UNSIGN_DIV" };
+					#endif
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
@@ -523,6 +600,9 @@ namespace ash
 				}
 				case OP_UNSIGN_LESS:
 				{
+					#ifdef LOG_TIMES
+					Timer t = { "OP_UNSIGN_LESS" };
+					#endif
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
@@ -531,6 +611,9 @@ namespace ash
 				}
 				case OP_INT_EQUAL:
 				{
+					#ifdef LOG_TIMES
+					Timer t = { "OP_INT_EQUAL" };
+					#endif
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
@@ -539,6 +622,9 @@ namespace ash
 				}
 				case OP_UNSIGN_GREATER:
 				{
+					#ifdef LOG_TIMES
+					Timer t = { "OP_UNSIGN_GREATER" };
+					#endif
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
@@ -547,6 +633,9 @@ namespace ash
 				}
 				case OP_SIGN_MUL:
 				{
+					#ifdef LOG_TIMES
+					Timer t = { "OP_SIGN_MUL" };
+					#endif
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
@@ -555,6 +644,9 @@ namespace ash
 				}
 				case OP_SIGN_DIV:
 				{
+					#ifdef LOG_TIMES
+					Timer t = { "OP_SIGN_DIV" };
+					#endif
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
@@ -563,6 +655,9 @@ namespace ash
 				}
 				case OP_SIGN_LESS:
 				{
+					#ifdef LOG_TIMES
+					Timer t = { "OP_SIGN_LESS" };
+					#endif
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
@@ -572,6 +667,9 @@ namespace ash
 				}
 				case OP_SIGN_GREATER:
 				{
+					#ifdef LOG_TIMES
+					Timer t = { "OP_SIGN_GREATER" };
+					#endif
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
@@ -580,6 +678,9 @@ namespace ash
 				}
 				case OP_FLOAT_ADD:
 				{
+					#ifdef LOG_TIMES
+					Timer t = { "OP_FLOAT_ADD" };
+					#endif
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
@@ -588,6 +689,9 @@ namespace ash
 				}
 				case OP_FLOAT_SUB:
 				{
+					#ifdef LOG_TIMES
+					Timer t = { "OP_FLOAT_SUB" };
+					#endif
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
@@ -596,6 +700,9 @@ namespace ash
 				}
 				case OP_FLOAT_MUL:
 				{
+					#ifdef LOG_TIMES
+					Timer t = { "OP_FLOAT_MUL" };
+					#endif
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
@@ -604,6 +711,9 @@ namespace ash
 				}
 				case OP_FLOAT_DIV:
 				{
+					#ifdef LOG_TIMES
+					Timer t = { "OP_FLOAT_DIV" };
+					#endif
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
@@ -612,6 +722,9 @@ namespace ash
 				}
 				case OP_FLOAT_NEGATE:
 				{
+					#ifdef LOG_TIMES
+					Timer t = { "OP_FLOAT_NEGATE" };
+					#endif
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 
@@ -620,6 +733,9 @@ namespace ash
 				}
 				case OP_FLOAT_LESS:
 				{
+					#ifdef LOG_TIMES
+					Timer t = { "OP_FLOAT_LESS" };
+					#endif
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
@@ -628,6 +744,9 @@ namespace ash
 				}
 				case OP_FLOAT_GREATER:
 				{
+					#ifdef LOG_TIMES
+					Timer t = { "OP_FLOAT_GREATER" };
+					#endif
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
@@ -636,6 +755,9 @@ namespace ash
 				}
 				case OP_FLOAT_EQUAL:
 				{
+					#ifdef LOG_TIMES
+					Timer t = { "OP_FLOAT_EQUAL" };
+					#endif
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
@@ -644,6 +766,9 @@ namespace ash
 				}
 				case OP_DOUBLE_ADD:
 				{
+					#ifdef LOG_TIMES
+					Timer t = { "OP_DOUBLE_ADD" };
+					#endif
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
@@ -652,6 +777,9 @@ namespace ash
 				}
 				case OP_DOUBLE_SUB:
 				{
+					#ifdef LOG_TIMES
+					Timer t = { "OP_DOUBLE_SUB" };
+					#endif
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
@@ -660,6 +788,9 @@ namespace ash
 				}
 				case OP_DOUBLE_MUL:
 				{
+					#ifdef LOG_TIMES
+					Timer t = { "OP_DOUBLE_MUL" };
+					#endif
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
@@ -668,6 +799,9 @@ namespace ash
 				}
 				case OP_DOUBLE_DIV:
 				{
+					#ifdef LOG_TIMES
+					Timer t = { "OP_DOUBLE_DIV" };
+					#endif
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
@@ -676,6 +810,9 @@ namespace ash
 				}
 				case OP_DOUBLE_NEGATE:
 				{
+					#ifdef LOG_TIMES
+					Timer t = { "OP_DOUBLE_NEGATE" };
+					#endif
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 
@@ -684,6 +821,9 @@ namespace ash
 				}
 				case OP_DOUBLE_LESS:
 				{
+					#ifdef LOG_TIMES
+					Timer t = { "OP_DOUBLE_LESS" };
+					#endif
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
@@ -692,6 +832,9 @@ namespace ash
 				}
 				case OP_DOUBLE_GREATER:
 				{
+					#ifdef LOG_TIMES
+					Timer t = { "OP_DOUBLE_GREATER" };
+					#endif
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
@@ -700,6 +843,9 @@ namespace ash
 				}
 				case OP_DOUBLE_EQUAL:
 				{
+					#ifdef LOG_TIMES
+					Timer t = { "OP_DOUBLE_EQUAL" };
+					#endif
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
@@ -708,6 +854,9 @@ namespace ash
 				}
 				case OP_INT_TO_FLOAT:
 				{
+					#ifdef LOG_TIMES
+					Timer t = { "OP_INT_TO_FLOAT" };
+					#endif
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					setRegister(B, (static_cast<float>(static_cast<int64_t>(R[A]))));
@@ -715,6 +864,9 @@ namespace ash
 				}
 				case OP_FLOAT_TO_INT:
 				{
+					#ifdef LOG_TIMES
+					Timer t = { "OP_FLOAT_TO_INT" };
+					#endif
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					setRegister(B, static_cast<uint64_t>(static_cast<int64_t>(static_cast<float>(R[A]))));
@@ -722,6 +874,9 @@ namespace ash
 				}
 				case OP_FLOAT_TO_DOUBLE:
 				{
+					#ifdef LOG_TIMES
+					Timer t = { "OP_FLOAT_TO_DOUBLE" };
+					#endif
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					setRegister(B, static_cast<double>(*reinterpret_cast<float*>(&R[A])));
@@ -729,6 +884,9 @@ namespace ash
 				}
 				case OP_DOUBLE_TO_FLOAT:
 				{
+					#ifdef LOG_TIMES
+					Timer t = { "OP_DOUBLE_TO_FLOAT" };
+					#endif
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					setRegister(B, static_cast<float>(*reinterpret_cast<double*>(&R[A])));
@@ -736,6 +894,9 @@ namespace ash
 				}
 				case OP_INT_TO_DOUBLE:
 				{
+					#ifdef LOG_TIMES
+					Timer t = { "OP_INT_TO_DOUBLE" };
+					#endif
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					setRegister(B, static_cast<double>(static_cast<int64_t>(R[A])));
@@ -743,6 +904,9 @@ namespace ash
 				}
 				case OP_DOUBLE_TO_INT:
 				{
+					#ifdef LOG_TIMES
+					Timer t = { "OP_DOUBLE_TO_INT" };
+					#endif
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					setRegister(B, static_cast<uint64_t>(static_cast<int64_t>(static_cast<double>(R[A]))));
@@ -750,6 +914,9 @@ namespace ash
 				}
 				case OP_BITWISE_AND:
 				{
+					#ifdef LOG_TIMES
+					Timer t = { "OP_BITWISE_AND" };
+					#endif
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
@@ -760,6 +927,9 @@ namespace ash
 				}
 				case OP_BITWISE_OR:
 				{
+					#ifdef LOG_TIMES
+					Timer t = { "OP_BITWISE_OR" };
+					#endif
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
@@ -770,6 +940,9 @@ namespace ash
 				}
 				case OP_LOGICAL_AND:
 				{
+					#ifdef LOG_TIMES
+					Timer t = { "OP_LOGICAL_AND" };
+					#endif
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
@@ -781,6 +954,9 @@ namespace ash
 				}
 				case OP_LOGICAL_OR:
 				{
+					#ifdef LOG_TIMES
+					Timer t = { "OP_LOGICAL_OR" };
+					#endif
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
@@ -792,6 +968,9 @@ namespace ash
 				}
 				case OP_LOGICAL_NOT:
 				{
+					#ifdef LOG_TIMES
+					Timer t = { "OP_LOGICAL_NOT" };
+					#endif
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					bool isATruthy = isTruthy(A);
@@ -801,6 +980,9 @@ namespace ash
 				}
 				case OP_STORE_IP_OFFSET:
 				{
+					#ifdef LOG_TIMES
+					Timer t = { "OP_STORE_IP_OFFSET" };
+					#endif
 					uint8_t A = RegisterA(instruction);
 					uint64_t temp = ip - chunk->code();
 					setRegister(A, temp);
@@ -808,6 +990,9 @@ namespace ash
 				}
 				case OP_RELATIVE_JUMP:
 				{
+					#ifdef LOG_TIMES
+					Timer t = { "OP_RELATIVE_JUMP" };
+					#endif
 					int32_t jump = (int32_t)JumpOffset(instruction);
 					if((ip - chunk->code()) + jump - 1 > static_cast<int64_t>(chunk->size()) || (ip - chunk->code()) + jump - 1 < 0) return error("attempted jump beyond code bounds!");
 					ip += jump - 1;
@@ -815,6 +1000,9 @@ namespace ash
 				}
 				case OP_RELATIVE_JUMP_IF_TRUE:
 				{
+					#ifdef LOG_TIMES
+					Timer t = { "OP_RELATIVE_JUMP_IF_TRUE" };
+					#endif
 					if (comparisonRegister)
 					{
 						comparisonRegister = false;
@@ -826,6 +1014,9 @@ namespace ash
 				}
 				case OP_REGISTER_JUMP:
 				{
+					#ifdef LOG_TIMES
+					Timer t = { "OP_REGISTER_JUMP" };
+					#endif
 					uint8_t A = RegisterA(instruction);
 					if (R[A] > chunk->size()) return error("attempted jump beyond code bounds!");
 					ip = chunk->code() + R[A];
@@ -833,6 +1024,9 @@ namespace ash
 				}
 				case OP_REGISTER_JUMP_IF_TRUE:
 				{
+					#ifdef LOG_TIMES
+					Timer t = { "OP_REGISTER_JUMP_IF_TRUE" };
+					#endif
 					if (comparisonRegister)
 					{
 						comparisonRegister = false;
@@ -844,6 +1038,9 @@ namespace ash
 				}
 				case OP_OUT:
 				{
+					#ifdef LOG_TIMES
+					Timer t = { "OP_OUT" };
+					#endif
 					uint8_t A = RegisterA(instruction);
 
 					if ((rFlags[A] & REGISTER_HOLDS_SIGNED) != 0) std::cout << static_cast<int64_t>(R[A]) << std::endl;
@@ -855,6 +1052,9 @@ namespace ash
 				}
 				case OP_HALT: 
 				{
+					#ifdef LOG_TIMES
+					Timer t = { "OP_HALT" };
+					#endif
 					return InterpretResult::INTERPRET_OK;
 				}
 			}
@@ -870,14 +1070,18 @@ namespace ash
 #endif
 		TypeMetadata* typeInfo = types[typeID].get();
 		
-		size_t dataSize = typeInfo->fields.back().offset + util::fieldSize(typeInfo->fields.back().type);
-		size_t size = 0;
-		size = 12 + dataSize; //8 bytes TypeMetadata*, 1 byte for spacing offset, 3 bytes for refcount
-		if (size % sizeof(void*))
+		size_t size = typeInfo->fields.back().offset + util::fieldSize(typeInfo->fields.back().type);
+		uint8_t exp;
+		if ((size & size-1) != 0)
 		{
-			size /= sizeof(void*);
-			size += 1;
-			size *= sizeof(void*);
+			size--;
+			size |= size >> 1;
+			size || size >> 2;
+			size |= size >> 4;
+			size |= size >> 8;
+			size |= size >> 16;
+			size |= size >> 32;
+
 		}
 		void* result = malloc(size);
 		if (result == nullptr) exit(1);
@@ -898,23 +1102,22 @@ namespace ash
 	Allocation* VM::allocateArray(ArrayAllocation* pointer, size_t oldCount, size_t newCount, uint8_t fieldType)
 	{
 		if (newCount > oldCount)
+		{
 #ifdef STRESSTEST_GC
 			collectGarbage();
 #else
-			//TODO: find a heuristic for calling the garbage collector
+			if (false) collectGarbage();
 #endif
-		int64_t padding = (int64_t)(fieldType & 0x7F) - 2;
-		if (fieldType & 0x80) padding = alignof(void*) - 2;
-		if (padding < 0) padding = 0;
+		}
 		size_t oldSize = 0;
 		if (pointer)
 		{
 		
 			uint8_t* oldArray = (uint8_t*)pointer;
 			fieldType = *oldArray;
-			oldSize = OBJECT_BEGIN_OFFSET + padding + (oldCount * (fieldType & 0x7F)); //8 bytes for capacity, 1 byte for span, 1 byte for refcount
+			oldSize = (oldCount * (fieldType & 0x7F)); //8 bytes for capacity, 1 byte for span, 1 byte for refcount
 		}
-		size_t newSize = OBJECT_BEGIN_OFFSET + padding + (newCount * (fieldType & 0x7F)); // 8 bytes for capacity, 1 byte for span, 1 byte for refcount
+		size_t newSize = (newCount * (fieldType & 0x7F)); // 8 bytes for capacity, 1 byte for span, 1 byte for refcount
 		
 		if (newSize % sizeof(void*))
 		{

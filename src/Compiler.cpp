@@ -114,58 +114,67 @@ namespace ash
 	}
 	bool Compiler::compile(const char* source)
 	{
-		Parser parser(source);
 
-		auto t1 = std::chrono::high_resolution_clock::now();
-		auto ast = parser.parse();
-		auto t2 = std::chrono::high_resolution_clock::now();
+		std::shared_ptr<ProgramNode> ast;
+		std::chrono::steady_clock::time_point t1;
+		std::chrono::steady_clock::time_point t2;
+		{
+			Parser parser(source);
+			t1 = std::chrono::high_resolution_clock::now();
+			ast = parser.parse();
+			t2 = std::chrono::high_resolution_clock::now();
 
-		std::cout << "Parsing took " << (double)(std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count()) / 1000000.0 << "milliseconds.\n";
+			std::cout << "Parsing took " << (double)(std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count()) / 1000000.0 << "milliseconds.\n";
 
-		if (ast->hadError) return false;
-		Semantics analyzer;
+			if (ast->hadError) return false;
+		}
 
-		//ast->print(0);
-		t1 = std::chrono::high_resolution_clock::now();
-		ast = analyzer.findSymbols(ast);
-		t2 = std::chrono::high_resolution_clock::now();
+		{
+			Semantics analyzer;
 
-		std::cout << "Semantic analysis took " << (double)(std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count()) / 1000000.0 << "milliseconds.\n";
-		temporaries = analyzer.temporaries;
-		if (ast->hadError) return false;
+			//ast->print(0);
+			t1 = std::chrono::high_resolution_clock::now();
+			ast = analyzer.findSymbols(ast);
+			t2 = std::chrono::high_resolution_clock::now();
 
-		t1 = std::chrono::high_resolution_clock::now();
-		pseudochunk result = precompile(ast);
-		t2 = std::chrono::high_resolution_clock::now();
+			std::cout << "Semantic analysis took " << (double)(std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count()) / 1000000.0 << "milliseconds.\n";
+			temporaries = analyzer.temporaries;
+			if (ast->hadError) return false;
+		}
+		pseudochunk result;
+		{
+			t1 = std::chrono::high_resolution_clock::now();
+			result = precompile(ast);
+			t2 = std::chrono::high_resolution_clock::now();
 
-		std::cout << "Precompiling took " << (double)(std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count()) / 1000000.0 << "milliseconds.\n";
-		std::cout << std::endl;
-
+			std::cout << "Precompiling took " << (double)(std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count()) / 1000000.0 << "milliseconds.\n";
+			std::cout << std::endl;
+		}
 		//for(const auto& instruction : result.code)
 		//{
 		//	instruction->print();
 		//}
-
-		t1 = std::chrono::high_resolution_clock::now();
-		result = correctLoadStore(result);
-		t2 = std::chrono::high_resolution_clock::now();
-
+		{
+			t1 = std::chrono::high_resolution_clock::now();
+			result = correctLoadStore(result);
+			t2 = std::chrono::high_resolution_clock::now();
+		}
 		for (const auto& instruction : result.code)
 		{
 			instruction->print();
 		}
+		{
+			t1 = std::chrono::high_resolution_clock::now();
+			result = allocateRegisters(result);
+			t2 = std::chrono::high_resolution_clock::now();
 
-		t1 = std::chrono::high_resolution_clock::now();
-		result = allocateRegisters(result);
-		t2 = std::chrono::high_resolution_clock::now();
-
-		std::cout << "Register Allocation took " << (double)(std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count()) / 1000000.0 << "milliseconds.\n";
-		
+			std::cout << "Register Allocation took " << (double)(std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count()) / 1000000.0 << "milliseconds.\n";
+		}
 		//for (const auto& instruction : result.code)
 		//{
 		//	instruction->print();
 		//}
-
+		
 		currentChunk = finalizeCode(result);
 
 
@@ -1848,10 +1857,10 @@ namespace ash
 		return livePoints;
 	}
 
-	Chunk Compiler::finalizeCode(pseudochunk chunk)
+	std::shared_ptr<Chunk> Compiler::finalizeCode(pseudochunk chunk)
 	{
-		Chunk result = {};
-		result.reserve(chunk.code.size());
+		std::shared_ptr<Chunk> result = std::make_shared<Chunk>();
+		result->reserve(chunk.code.size());
 		std::unordered_map<size_t, size_t> labelIndices;
 		std::unordered_multimap<size_t, size_t> unpatchedJumps;
 		for(const auto& instruction : chunk.code)
@@ -1861,7 +1870,7 @@ namespace ash
 				case Asm::OneAddr:
 				{
 					auto i = std::dynamic_pointer_cast<oneAddress>(instruction);
-					result.WriteA(i->op, std::stoi(i->A.string), i->A.line);
+					result->WriteA(i->op, std::stoi(i->A.string), i->A.line);
 					break;
 				}
 				case Asm::TwoAddr:
@@ -1871,11 +1880,11 @@ namespace ash
 					{
 						if (i->A.type == TokenType::FLOAT)
 						{
-							result.WriteFloat(std::stoi(i->result.string), std::stof(i->A.string));
+							result->WriteFloat(std::stoi(i->result.string), std::stof(i->A.string));
 						}
 						else if (i->A.type == TokenType::DOUBLE)
 						{
-							result.WriteDouble(std::stoi(i->result.string), std::stod(i->A.string));
+							result->WriteDouble(std::stoi(i->result.string), std::stod(i->A.string));
 						}
 						else if (i->A.type == TokenType::INT)
 						{
@@ -1884,15 +1893,15 @@ namespace ash
 								int64_t value = std::stoll(i->A.string);
 								if (-value > 0 && -value <= INT16_MAX)
 								{
-									result.WriteI16(std::stoi(i->result.string), value);
+									result->WriteI16(std::stoi(i->result.string), value);
 								}
 								else if (-value > INT16_MAX && -value <= INT32_MAX)
 								{
-									result.WriteI32(std::stoi(i->result.string), value);
+									result->WriteI32(std::stoi(i->result.string), value);
 								}
 								else
 								{
-									result.WriteI64(std::stoi(i->A.string), value);
+									result->WriteI64(std::stoi(i->A.string), value);
 								}
 							}
 							else
@@ -1900,38 +1909,38 @@ namespace ash
 								uint64_t value = std::stoull(i->A.string);
 								if (value >= 0 && value <= INT16_MAX)
 								{
-									result.WriteU16(std::stoi(i->result.string), static_cast<uint16_t>(value));
+									result->WriteU16(std::stoi(i->result.string), static_cast<uint16_t>(value));
 								}
 								else if (value > INT16_MAX && value <= INT32_MAX)
 								{
-									result.WriteU32(std::stoi(i->result.string), static_cast<uint32_t>(value));
+									result->WriteU32(std::stoi(i->result.string), static_cast<uint32_t>(value));
 								}
 								else
 								{
-									result.WriteU64(std::stoi(i->result.string), value);
+									result->WriteU64(std::stoi(i->result.string), value);
 								}
 							}
 						}
 					}
-					else result.WriteAB(i->op, std::stoi(i->A.string), std::stoi(i->result.string), i->result.line);
+					else result->WriteAB(i->op, std::stoi(i->A.string), std::stoi(i->result.string), i->result.line);
 					break;
 				}
 				case Asm::ThreeAddr:
 				{
 					auto i = std::dynamic_pointer_cast<threeAddress>(instruction);
-					result.WriteABC(i->op, std::stoi(i->A.string), std::stoi(i->B.string), std::stoi(i->result.string), i->result.line);
+					result->WriteABC(i->op, std::stoi(i->A.string), std::stoi(i->B.string), std::stoi(i->result.string), i->result.line);
 					break;
 				}
 				case Asm::Label:
 				{
 					auto i = std::dynamic_pointer_cast<label>(instruction);
-					labelIndices.emplace(i->label, result.size());
+					labelIndices.emplace(i->label, result->size());
 					if(unpatchedJumps.find(i->label) != unpatchedJumps.end())
 					{
 						auto jumps = unpatchedJumps.equal_range(i->label);
 						for(auto& it = jumps.first; it != jumps.second; it++)
 						{
-							result.at(it->second) += (labelIndices.at(i->label) - it->second);
+							result->at(it->second) += (labelIndices.at(i->label) - it->second);
 						}
 					}
 					break;
@@ -1941,13 +1950,13 @@ namespace ash
 					auto i = std::dynamic_pointer_cast<relativeJump>(instruction);
 					if(labelIndices.find(i->jumpLabel) != labelIndices.end())
 					{
-						auto count = result.size();
-						result.WriteRelativeJump(i->op, labelIndices.at(i->jumpLabel) - count , 0);
+						auto count = result->size();
+						result->WriteRelativeJump(i->op, labelIndices.at(i->jumpLabel) - count , 0);
 					}
 					else
 					{
-						size_t index = result.size();
-						result.WriteRelativeJump(i->op, 0, 0);
+						size_t index = result->size();
+						result->WriteRelativeJump(i->op, 0, 0);
 						unpatchedJumps.emplace(i->jumpLabel, index);
 					}
 					break;

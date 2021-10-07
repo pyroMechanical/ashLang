@@ -2,6 +2,7 @@
 
 #include <stdlib.h>
 #include <vector>
+#include <map>
 namespace ash
 {
 	enum class FieldType : uint8_t
@@ -71,9 +72,12 @@ namespace ash
 		char* memory;
 		Allocation* next;
 		Allocation* previous;
-		uint64_t size;
+		uint8_t exp;
+		//TypeMetadata* typeInfo;
+		//uint32_t refCount;
 
 		virtual AllocationType type() = 0;
+		size_t size() { return (size_t)1 << exp; }
 	};
 
 	struct TypeAllocation : public Allocation
@@ -84,5 +88,16 @@ namespace ash
 	struct ArrayAllocation : public Allocation
 	{
 		virtual AllocationType type() override { return AllocationType::Array; }
+	};
+
+	class MemBlock
+	{
+	public:
+		const void* begin;
+		std::map<void*, Allocation*> freeSet;
+		size_t size() { return (size_t)1 << exp; }
+
+	private:
+		uint8_t exp; //size is 1<<exp
 	};
 }
