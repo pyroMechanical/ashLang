@@ -24,14 +24,21 @@ namespace ash
 	{
 		inline static uint8_t ilog2(size_t i)
 		{
-#ifdef _MSC_VER
+#if defined(_MSC_VER)
 			unsigned long index;
 			_BitScanReverse64(&index, i);
 			return (uint8_t)index;
-#elif __GNUC__
-			return (uint8_t) 31 - __builtin_clzll(i);
+#elif defined(__GNUC__) || defined(__GNUG__)
+			return (uint8_t)31 - __builtin_clzll(i);
 #else
-
+			i |= (i >> 1);
+			i |= (i >> 2);
+			i |= (i >> 4);
+			i |= (i >> 8);
+			i |= (i >> 16);
+			i |= (i >> 32);
+			return (i & ~(i >> 1));
+		}
 #endif
 
 		}
@@ -1072,18 +1079,8 @@ namespace ash
 		
 		size_t size = typeInfo->fields.back().offset + util::fieldSize(typeInfo->fields.back().type);
 		uint8_t exp;
-		if ((size & size-1) != 0)
-		{
-			size--;
-			size |= size >> 1;
-			size || size >> 2;
-			size |= size >> 4;
-			size |= size >> 8;
-			size |= size >> 16;
-			size |= size >> 32;
-
-		}
-		void* result = malloc(size);
+		exp = util::ilog2(size) + 1;
+		void* result = malloc((size_t)1<<exp);
 		if (result == nullptr) exit(1);
 		memset(result, 0, size);
 		auto typePtr = (TypeMetadata**)result;
@@ -1094,7 +1091,7 @@ namespace ash
 		allocation->memory = static_cast<char*>(result);
 		allocation->next = allocationList;
 		if(allocationList) allocationList->previous = allocation;
-		allocation->size = size;
+		allocation->exp = exp;
 		allocationList = allocation;
 		return allocation;
 	}
@@ -1112,34 +1109,25 @@ namespace ash
 		size_t oldSize = 0;
 		if (pointer)
 		{
-		
-			uint8_t* oldArray = (uint8_t*)pointer;
-			fieldType = *oldArray;
 			oldSize = (oldCount * (fieldType & 0x7F)); //8 bytes for capacity, 1 byte for span, 1 byte for refcount
 		}
 		size_t newSize = (newCount * (fieldType & 0x7F)); // 8 bytes for capacity, 1 byte for span, 1 byte for refcount
 		
-		if (newSize % sizeof(void*))
-		{
-			newSize /= sizeof(void*);
-			newSize += 1;
-			newSize *= sizeof(void*);
-		}
-
-		void* result = realloc(pointer, newSize);
+		uint8_t exp = util::ilog2(newSize) + 1;
+		void* result = realloc(pointer, (size_t)1<<exp);
 		if (result == nullptr) exit(1);
 		memset((void*)(((char*)result) + oldSize), 0, newSize - oldSize);
 		uint64_t* count = reinterpret_cast<uint64_t*>(result);
 		*count = newCount;
 		uint8_t* arraySpan = ((uint8_t*)result) + 8;
-		*arraySpan = fieldType;
+
 		uint8_t* refCount = ((uint8_t*)result + 9);
 		*refCount = 1;
 		Allocation* allocation = new ArrayAllocation();
 		allocation->memory = (char*)result;
 		allocation->next = allocationList;
 		if(allocationList) allocationList->previous = allocation;
-		allocation->size = newSize;
+		allocation->exp = exp;
 		allocationList = allocation;
 		return allocation;
 	}

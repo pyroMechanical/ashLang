@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <vector>
 #include <map>
+#include <memory>
 namespace ash
 {
 	enum class FieldType : uint8_t
@@ -64,20 +65,22 @@ namespace ash
 
 	enum class AllocationType
 	{
-		Type, Array
+		Basic, Type, Array
 	};
 
 	struct Allocation
 	{
+		Allocation() = default;
 		char* memory;
 		Allocation* next;
 		Allocation* previous;
+		TypeMetadata* typeInfo;
+		size_t refCount;
 		uint8_t exp;
-		//TypeMetadata* typeInfo;
-		//uint32_t refCount;
 
-		virtual AllocationType type() = 0;
+		virtual AllocationType type() { return AllocationType::Basic; };
 		size_t size() { return (size_t)1 << exp; }
+		bool free() { return refCount == 0; }
 	};
 
 	struct TypeAllocation : public Allocation
@@ -99,5 +102,27 @@ namespace ash
 
 	private:
 		uint8_t exp; //size is 1<<exp
+	};
+
+	struct freeNode
+	{
+		freeNode* parent;
+		std::shared_ptr<freeNode> left;
+		std::shared_ptr<freeNode> right;
+		Allocation* value;
+
+		bool isSplit() { return !(left == nullptr && right == nullptr); }
+		void split();
+	};
+
+	class Memory
+	{
+	public:
+		static Allocation* allocate(uint8_t powerOfTwo);
+		static void allocateList();
+
+		static Allocation* freeStructList;
+	private:
+		static std::vector<MemBlock> blocks;
 	};
 }
