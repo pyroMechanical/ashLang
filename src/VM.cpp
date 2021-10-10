@@ -1080,23 +1080,17 @@ namespace ash
 		size_t size = typeInfo->fields.back().offset + util::fieldSize(typeInfo->fields.back().type);
 		uint8_t exp;
 		exp = util::ilog2(size) + 1;
-		void* result = malloc((size_t)1<<exp);
-		if (result == nullptr) exit(1);
-		memset(result, 0, size);
-		auto typePtr = (TypeMetadata**)result;
-		*typePtr = typeInfo;
-		auto refCount = (uint8_t*)result + 9;
-		*refCount = 1;
-		Allocation* allocation = new TypeAllocation();
-		allocation->memory = static_cast<char*>(result);
-		allocation->next = allocationList;
-		if(allocationList) allocationList->previous = allocation;
-		allocation->exp = exp;
-		allocationList = allocation;
-		return allocation;
+		Allocation* result = Memory::allocate(exp);
+		memset(result->memory, 0, 1<<exp);
+		result->refCount = 1;
+		result->right = allocationList;
+		if (allocationList) allocationList->left = result;
+		result->exp = exp;
+		allocationList = result;
+		return result;
 	}
 
-	Allocation* VM::allocateArray(ArrayAllocation* pointer, size_t oldCount, size_t newCount, uint8_t fieldType)
+	Allocation* VM::allocateArray(Allocation* pointer, size_t oldCount, size_t newCount, uint8_t fieldType)
 	{
 		if (newCount > oldCount)
 		{
@@ -1114,10 +1108,9 @@ namespace ash
 		size_t newSize = (newCount * (fieldType & 0x7F)); // 8 bytes for capacity, 1 byte for span, 1 byte for refcount
 		
 		uint8_t exp = util::ilog2(newSize) + 1;
-		void* result = realloc(pointer, (size_t)1<<exp);
-		if (result == nullptr) exit(1);
-		memset((void*)(((char*)result) + oldSize), 0, newSize - oldSize);
-		uint64_t* count = reinterpret_cast<uint64_t*>(result);
+		Allocation* result = Memory::allocate(exp);
+		memset((void*)(((char*)result->memory) + oldSize), 0, newSize - oldSize);
+		uint64_t* count = reinterpret_cast<uint64_t*>(result->memory);
 		*count = newCount;
 		uint8_t* arraySpan = ((uint8_t*)result) + 8;
 

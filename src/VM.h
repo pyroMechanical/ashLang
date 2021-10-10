@@ -55,7 +55,7 @@ namespace ash
 
 		Allocation* allocate(uint64_t typeID);
 
-		Allocation* allocateArray(ArrayAllocation* pointer, size_t oldCount, size_t newCount, uint8_t span);
+		Allocation* allocateArray(Allocation* pointer, size_t oldCount, size_t newCount, uint8_t span);
 
 		void freeAllocation(Allocation* alloc);
 

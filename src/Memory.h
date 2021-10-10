@@ -63,7 +63,7 @@ namespace ash
 		std::vector<FieldMetadata> fields;
 	};
 
-	enum class AllocationType
+	enum class AllocationType : uint8_t
 	{
 		Basic, Type, Array
 	};
@@ -71,48 +71,30 @@ namespace ash
 	struct Allocation
 	{
 		Allocation() = default;
+		uint8_t exp = 0;
+		bool isSplit = false;
+		AllocationType allocationType = AllocationType::Basic;
+		uint32_t refCount = 0;
 		char* memory;
-		Allocation* next;
-		Allocation* previous;
+		Allocation* left;
+		Allocation* right;
 		TypeMetadata* typeInfo;
-		size_t refCount;
-		uint8_t exp;
 
-		virtual AllocationType type() { return AllocationType::Basic; };
+		AllocationType type() { return allocationType; };
 		size_t size() { return (size_t)1 << exp; }
 		bool free() { return refCount == 0; }
-	};
-
-	struct TypeAllocation : public Allocation
-	{
-		virtual AllocationType type() override { return AllocationType::Type; }
-	};
-
-	struct ArrayAllocation : public Allocation
-	{
-		virtual AllocationType type() override { return AllocationType::Array; }
+		void split();
+		void merge();
 	};
 
 	class MemBlock
 	{
 	public:
-		const void* begin;
-		std::map<void*, Allocation*> freeSet;
+		Allocation* root;
 		size_t size() { return (size_t)1 << exp; }
 
 	private:
 		uint8_t exp; //size is 1<<exp
-	};
-
-	struct freeNode
-	{
-		freeNode* parent;
-		std::shared_ptr<freeNode> left;
-		std::shared_ptr<freeNode> right;
-		Allocation* value;
-
-		bool isSplit() { return !(left == nullptr && right == nullptr); }
-		void split();
 	};
 
 	class Memory
@@ -123,6 +105,7 @@ namespace ash
 
 		static Allocation* freeStructList;
 	private:
-		static std::vector<MemBlock> blocks;
+		static MemBlock block;
+		static Allocation* searchNode(Allocation* node, uint8_t exp);
 	};
 }
