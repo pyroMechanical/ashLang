@@ -249,7 +249,7 @@ namespace ash
 				auto& typeParameters = currentScope->typeParameters.at(typeNode->typeDefined.string);
 				auto typeName = util::renameByScope(typeNode->typeDefined, currentScope);
 				typeIDs.emplace(std::pair<std::string, size_t>(typeName.string, types.size()));
-				size_t offset = 12;
+				size_t offset = 0;
 				for(const parameter& field : typeParameters)
 				{
 					FieldMetadata fieldData{};

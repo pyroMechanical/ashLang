@@ -39,8 +39,8 @@ namespace ash
 		Allocation* allocationList = nullptr;
 		friend class Memory;
 
-		Chunk* chunk;
-		uint32_t* ip;
+		Chunk* chunk = nullptr;
+		uint32_t* ip = nullptr;
 	public:
 		VM();
 		~VM();
@@ -66,8 +66,6 @@ namespace ash
 		void refIncrement(Allocation* ref);
 
 		void refDecrement(Allocation* ref);
-
-		uint8_t refCount(Allocation* ref);
 
 		void setRegister(uint8_t _register, bool value);
 		void setRegister(uint8_t _register, uint64_t value);

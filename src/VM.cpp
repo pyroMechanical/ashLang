@@ -12,11 +12,7 @@
 
 //#define STRESSTEST_GC
 //#define LOG_GC
-#define LOG_TIMES
-#define ARRAY_TYPE_OFFSET 8
-#define STRUCT_SPACING_OFFSET 8
-#define REFCOUNT_OFFSET 9
-#define OBJECT_BEGIN_OFFSET 12
+//#define LOG_TIMES
 
 namespace ash
 {
@@ -268,8 +264,7 @@ namespace ash
 					if ((rFlags[B] & REGISTER_HOLDS_POINTER) == 0) return error("register not a memory address!");
 
 					auto alloc = reinterpret_cast<Allocation*>(R[B]);
-					auto spacing = *(alloc->memory + STRUCT_SPACING_OFFSET);
-					TypeMetadata* metadata = *(TypeMetadata**)alloc->memory;
+					TypeMetadata* metadata = alloc->typeInfo;
 					if (R[C] >= metadata->fields.size()) return error("field out of bounds!");
 					size_t offset = metadata->fields[R[C]].offset;
 					FieldType type = metadata->fields[R[C]].type;
@@ -324,8 +319,8 @@ namespace ash
 					if ((rFlags[B] & REGISTER_HOLDS_POINTER) == 0) return error("register not a memory address!");
 					
 					auto alloc = reinterpret_cast<Allocation*>(R[B]);
-					auto spacing = *(alloc->memory + STRUCT_SPACING_OFFSET);
-					TypeMetadata* metadata = *(TypeMetadata**)alloc->memory;
+					auto spacing = *(alloc->memory);
+					TypeMetadata* metadata = alloc->typeInfo;
 					if (R[C] >= metadata->fields.size()) return error("field out of bounds!");
 					size_t offset = metadata->fields[R[C]].offset;
 					FieldType type = metadata->fields[R[C]].type;
@@ -424,7 +419,7 @@ namespace ash
 					if ((rFlags[B] & REGISTER_HOLDS_ARRAY) == 0) return error("pointer held in register is not an array!");
 
 					auto alloc = reinterpret_cast<Allocation*>(R[B]);
-					uint8_t span = (*((char*)alloc->memory + ARRAY_TYPE_OFFSET)) & 0x7F;
+					uint8_t span = (*((char*)alloc->memory)) & 0x7F;
 					uint8_t spacing = (span - 2) * ((span - 2) > 0);
 					uint64_t arrayCount = *reinterpret_cast<uint64_t*>(alloc->memory);
 					if (R[C] >= arrayCount) return error("array index out of bounds!");
@@ -433,25 +428,25 @@ namespace ash
 					{
 						case 1:
 						{
-							auto addr = reinterpret_cast<uint8_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + offset);
+							auto addr = reinterpret_cast<uint8_t*>(alloc->memory + spacing + offset);
 							*addr = static_cast<uint8_t>(R[A]);
 							break;
 						}
 						case 2:
 						{
-							auto addr = reinterpret_cast<uint16_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + offset);
+							auto addr = reinterpret_cast<uint16_t*>(alloc->memory + spacing + offset);
 							*addr = static_cast<uint16_t>(R[A]);
 							break;
 						}
 						case 4:
 						{
-							auto addr = reinterpret_cast<uint32_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + offset);
+							auto addr = reinterpret_cast<uint32_t*>(alloc->memory + spacing + offset);
 							*addr = static_cast<uint32_t>(R[A]);
 							break;
 						}
 						case 8:
 						{
-							auto addr = reinterpret_cast<uint64_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + offset);
+							auto addr = reinterpret_cast<uint64_t*>(alloc->memory + spacing + offset);
 							*addr = R[A];
 							break;
 						}
@@ -470,9 +465,9 @@ namespace ash
 					if ((rFlags[B] & REGISTER_HOLDS_ARRAY) == 0) return error("pointer held in register is not an array!");
 					if (rFlags[A] & REGISTER_HOLDS_POINTER) refDecrement(reinterpret_cast<Allocation*>(R[A]));
 					auto alloc = reinterpret_cast<Allocation*>(R[B]);
-					uint8_t span = (*((char*)alloc->memory + ARRAY_TYPE_OFFSET)) & 0x7F;
+					uint8_t span = (*((char*)alloc->memory)) & 0x7F;
 					uint8_t spacing = (span - 2) * ((span - 2) > 0);
-					bool isPtr = (*((char*)alloc->memory + ARRAY_TYPE_OFFSET)) & 0x80;
+					bool isPtr = (*((char*)alloc->memory)) & 0x80;
 					uint64_t arrayCount = *reinterpret_cast<uint64_t*>(alloc->memory);
 					if (R[C] >= arrayCount) return error("array index out of bounds!");
 					uint64_t offset = span * R[C];
@@ -480,25 +475,25 @@ namespace ash
 					{
 						case 1:
 						{
-							auto addr = reinterpret_cast<uint8_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + offset);
+							auto addr = reinterpret_cast<uint8_t*>(alloc->memory + spacing + offset);
 							R[A] = *addr;
 							break;
 						}
 						case 2:
 						{
-							auto addr = reinterpret_cast<uint16_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + offset);
+							auto addr = reinterpret_cast<uint16_t*>(alloc->memory + spacing + offset);
 							R[A] = *addr;
 							break;
 						}
 						case 4:
 						{
-							auto addr = reinterpret_cast<uint32_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + offset);
+							auto addr = reinterpret_cast<uint32_t*>(alloc->memory + spacing + offset);
 							R[A] = *addr;
 							break;
 						}
 						case 8:
 						{
-							auto addr = reinterpret_cast<uint64_t*>(alloc->memory + OBJECT_BEGIN_OFFSET + spacing + offset);
+							auto addr = reinterpret_cast<uint64_t*>(alloc->memory + spacing + offset);
 							R[A] = *addr;
 							break;
 						}
@@ -1081,9 +1076,10 @@ namespace ash
 		uint8_t exp;
 		exp = util::ilog2(size) + 1;
 		Allocation* result = Memory::allocate(exp);
-		memset(result->memory, 0, 1<<exp);
+		memset(result->memory, 0, (size_t)1<<exp);
 		result->refCount = 1;
 		result->right = allocationList;
+		result->typeInfo = typeInfo;
 		if (allocationList) allocationList->left = result;
 		result->exp = exp;
 		allocationList = result;
@@ -1133,10 +1129,9 @@ namespace ash
 		{
 			case AllocationType::Type:
 			{
-				TypeAllocation* typeAlloc = (TypeAllocation*)alloc;
-				char* mem = typeAlloc->memory;
-				TypeMetadata* metadata = *(TypeMetadata**)typeAlloc->memory;
-				size_t currentOffset = OBJECT_BEGIN_OFFSET;
+				char* mem = alloc->memory;
+				TypeMetadata* metadata = alloc->typeInfo;
+				size_t currentOffset = 0;
 				for (const auto& field : metadata->fields)
 				{
 					currentOffset = field.offset;
@@ -1151,24 +1146,22 @@ namespace ash
 			}
 			case AllocationType::Array:
 			{
-				ArrayAllocation* arrayAlloc = (ArrayAllocation*)alloc;
-				uint8_t span = (*(arrayAlloc->memory + ARRAY_TYPE_OFFSET) & 0x7F);
-				uint8_t spacing = (span - 2) * (span - 2 > 0);
-				char* indexZero = arrayAlloc->memory + OBJECT_BEGIN_OFFSET;
-				bool nonbasic = (*(arrayAlloc->memory + ARRAY_TYPE_OFFSET) & 0x80);
-				if (nonbasic)
-				{
-					for (size_t i = 0; i < *(size_t*)arrayAlloc->memory; i++)
-					{
-						Allocation* ref = *(Allocation**)(indexZero + (span * i));
-						if (ref != nullptr)
-							refDecrement(ref);
-					}
-				}
+				//uint8_t span = (*(arrayAlloc->memory + ARRAY_TYPE_OFFSET) & 0x7F);
+				//uint8_t spacing = (span - 2) * (span - 2 > 0);
+				//char* indexZero = arrayAlloc->memory + OBJECT_BEGIN_OFFSET;
+				//bool nonbasic = (*(arrayAlloc->memory + ARRAY_TYPE_OFFSET) & 0x80);
+				//if (nonbasic)
+				//{
+				//	for (size_t i = 0; i < *(size_t*)arrayAlloc->memory; i++)
+				//	{
+				//		Allocation* ref = *(Allocation**)(indexZero + (span * i));
+				//		if (ref != nullptr)
+				//			refDecrement(ref);
+				//	}
+				//}
 			}
 		}
-		delete alloc->memory;
-		delete alloc;
+		Memory::free(alloc);
 	}
 
 	void VM::freeAllocations()
@@ -1191,7 +1184,7 @@ namespace ash
 		Allocation* ptr = allocationList;
 		while (ptr)
 		{
-			uint8_t* refCount = (uint8_t*)(ptr->memory + REFCOUNT_OFFSET);
+			uint32_t* refCount = &ptr->refCount;
 			*refCount = 0;
 			ptr = ptr->right;
 		}
@@ -1234,12 +1227,12 @@ namespace ash
 			{
 				case AllocationType::Array:
 				{
-					uint8_t span = *(uint8_t*)(current->memory + ARRAY_TYPE_OFFSET);
+					uint8_t span = *(uint8_t*)(current->memory);
 					if (span & 0x80)
 					{
 						size_t size = *(uint64_t*)current->memory;
 						uint8_t spacing = sizeof(Allocation*) - 2;
-						auto mem = current->memory + OBJECT_BEGIN_OFFSET + spacing;
+						auto mem = current->memory + spacing;
 						for (int i = 0; i < size; i++)
 						{
 							Allocation* ptr = *(Allocation**)(mem + sizeof(Allocation*) * i);
@@ -1260,7 +1253,7 @@ namespace ash
 						throw std::runtime_error("Invalid type object!");
 					}
 					size_t offset = 0;
-					uint8_t spacing = *(uint8_t*)(current->memory + STRUCT_SPACING_OFFSET);
+					uint8_t spacing = *(uint8_t*)(current->memory);
 					auto mem = current->memory;
 					for (const auto& field : metadata->fields)
 					{
@@ -1290,22 +1283,22 @@ namespace ash
 		Allocation* alloc = allocationList;
 		while (alloc != nullptr)
 		{
-			if(refCount(alloc) == 0)
+			if(alloc->refCount == 0)
 			{
 				auto white = alloc;
-				alloc = alloc->next;
-				if (alloc) alloc->previous = white->previous;
-				if (white->previous == nullptr)
+				alloc = alloc->right;
+				if (alloc) alloc->left = white->left;
+				if (white->left == nullptr)
 				{
 					allocationList = alloc;
 				}
 				else
 				{
-					white->previous->next = alloc;
+					white->left->right = alloc;
 				}
 				freeAllocation(white);
 			}
-			else alloc = alloc->next;
+			else alloc = alloc->right;
 		}
 
 #ifdef LOG_GC
@@ -1393,9 +1386,7 @@ namespace ash
 		std::cout << "Incrementing " << static_cast<void*>(ref);
 		std::cout << " to " << (*(ref->memory + REFCOUNT_OFFSET)) + 1 << std::endl;
 #endif
-		uint8_t* refCount = (uint8_t*)(ref->memory + REFCOUNT_OFFSET);
-		if (*refCount == 255) return;
-		(*refCount)++;
+		ref->refCount++;
 	}
 
 	void VM::refDecrement(Allocation* ref)
@@ -1404,28 +1395,21 @@ namespace ash
 		std::cout << "Decrementing " << static_cast<void*>(ref);
 		std::cout << " to " << (*(ref->memory + REFCOUNT_OFFSET)) - 1 << std::endl;
 #endif
-		uint8_t* refCount = (uint8_t*)(ref->memory + REFCOUNT_OFFSET);
-		if (*refCount == 255) return;
-		if (*refCount == 0 || *refCount == 1)
+		if (ref->refCount == 0 || ref->refCount == 1)
 		{
 			if (allocationList == ref)
 			{
-				allocationList = ref->next;
-				ref->next->previous = nullptr;
+				allocationList = ref->right;
+				ref->right->left = nullptr;
 			}
 			else
 			{
-				if(ref->previous)	ref->previous->next = ref->next;
-				if(ref->next) ref->next->previous = ref->previous;
+				if(ref->left)	ref->left->right = ref->right;
+				if(ref->right) ref->right->left = ref->left;
 			}
 			freeAllocation(ref);
 			return;
 		}
-		(*refCount)--;
-	}
-
-	uint8_t VM::refCount(Allocation* ref)
-	{
-		return *(uint8_t*)(ref->memory + REFCOUNT_OFFSET);
+		ref->refCount--;
 	}
 }

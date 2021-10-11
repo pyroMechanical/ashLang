@@ -188,7 +188,6 @@ namespace ash
 		opcode.push_back(result_mid_low);
 		opcode.push_back(result_mid_high);
 		opcode.push_back(result_high);
-
 	}
 
 

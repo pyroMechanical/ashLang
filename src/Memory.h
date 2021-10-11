@@ -89,23 +89,29 @@ namespace ash
 
 	class MemBlock
 	{
+	private:
+		uint8_t exp = 20; //size is 1<<exp
 	public:
-		Allocation* root;
+		void* begin;
+		Allocation* root = nullptr;
 		size_t size() { return (size_t)1 << exp; }
 
-	private:
-		uint8_t exp; //size is 1<<exp
+		MemBlock(uint8_t powerOfTwo);
+		~MemBlock();
+
 	};
 
 	class Memory
 	{
-	public:
-		static Allocation* allocate(uint8_t powerOfTwo);
-		static void allocateList();
-
-		static Allocation* freeStructList;
 	private:
 		static MemBlock block;
 		static Allocation* searchNode(Allocation* node, uint8_t exp);
+		static void returnNode(Allocation* node, Allocation* freed);
+	public:
+		static Allocation* allocate(uint8_t powerOfTwo);
+		static void allocateList();
+		static void free(Allocation* ptr);
+
+		static Allocation* freeStructList;
 	};
 }
