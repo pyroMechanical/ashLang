@@ -1090,9 +1090,9 @@ namespace ash
 		return result;
 	}
 
-	Allocation* VM::allocateArray(Allocation* pointer, size_t oldCount, size_t newCount, uint8_t fieldType)
+	Allocation* VM::allocateArray(Allocation* pointer, size_t oldCount, size_t newCount, uint64_t typeID)
 	{
-		if (newCount > oldCount)
+		/*if (newCount > oldCount)
 		{
 #ifdef STRESSTEST_GC
 			collectGarbage();
@@ -1109,20 +1109,21 @@ namespace ash
 		
 		uint8_t exp = util::ilog2(newSize) + 1;
 		Allocation* result = Memory::allocate(exp);
-		memset((void*)(((char*)result->memory) + oldSize), 0, newSize - oldSize);
+		memset((void*)(((char*)result->memory) + oldSize), 0, (1<<exp) - oldSize);
 		uint64_t* count = reinterpret_cast<uint64_t*>(result->memory);
 		*count = newCount;
 		uint8_t* arraySpan = ((uint8_t*)result) + 8;
 
-		uint8_t* refCount = ((uint8_t*)result + 9);
-		*refCount = 1;
-		Allocation* allocation = new ArrayAllocation();
+		result->refCount = 1;
+		Allocation* allocation = new Allocation();
 		allocation->memory = (char*)result;
-		allocation->next = allocationList;
-		if(allocationList) allocationList->previous = allocation;
+		allocation->right = allocationList;
+		if(allocationList) allocationList->left = allocation;
 		allocation->exp = exp;
 		allocationList = allocation;
 		return allocation;
+		*/
+		return pointer;
 	}
 
 
@@ -1176,7 +1177,7 @@ namespace ash
 
 		while (allocation != nullptr)
 		{
-			Allocation* next = allocation->next;
+			Allocation* next = allocation->right;
 			freeAllocation(allocation);
 			allocation = next;
 		}
@@ -1192,7 +1193,7 @@ namespace ash
 		{
 			uint8_t* refCount = (uint8_t*)(ptr->memory + REFCOUNT_OFFSET);
 			*refCount = 0;
-			ptr = ptr->next;
+			ptr = ptr->right;
 		}
 
 #ifdef LOG_GC
