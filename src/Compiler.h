@@ -98,6 +98,8 @@ namespace ash
 		bool traversed = false;
 	};
 
+	void cleanupCFGNode(std::shared_ptr<controlFlowNode> node);
+
 	struct controlFlowGraph
 	{
 		std::vector<std::shared_ptr<controlFlowNode>> procedures;

@@ -1,11 +1,12 @@
 #include "Memory.h"
 #include <iostream>
+#include <deque>
 
 namespace ash
 {
 	constexpr uint8_t minExponentSize = 4;
 	Allocation* Memory::freeStructList = nullptr;
-	MemBlock Memory::block{20};
+	MemBlock Memory::block{12};
 
 	MemBlock::MemBlock(uint8_t powerOfTwo)
 	{
@@ -14,12 +15,13 @@ namespace ash
 		if (begin == nullptr)
 		{
 			std::cerr << "Malloc failed! size: " << ((size_t)1 << exp ) << std::endl;
+			std::cerr << "Allocation structs: " << allocationStructs << std::endl;
 			exit(1);
 		}
 
 		if (Memory::freeStructList == nullptr)
 		{
-			Memory::allocateList();
+			Memory::allocateList(exp);
 		}
 		if (Memory::freeStructList != nullptr)
 		{
@@ -32,7 +34,12 @@ namespace ash
 			root->left = nullptr;
 			root->right = nullptr;
 		}
-		else exit(1);
+		else
+		{
+			std::cerr << "No free structs found!" << std::endl;
+			std::cerr << "Allocation structs: " << allocationStructs << std::endl;
+			exit(1);
+		}
 	}
 
 	MemBlock::~MemBlock()
@@ -45,7 +52,7 @@ namespace ash
 	{
 		if (isSplit || exp <= minExponentSize) return;
 
-		if (Memory::freeStructList == nullptr || Memory::freeStructList->right == nullptr) Memory::allocateList();
+		if (Memory::freeStructList == nullptr || Memory::freeStructList->right == nullptr) Memory::allocateList(exp);
 
 		if (Memory::freeStructList != nullptr && Memory::freeStructList->right != nullptr)
 		{
@@ -53,9 +60,10 @@ namespace ash
 			Memory::freeStructList = Memory::freeStructList->right;
 			right = Memory::freeStructList;
 			Memory::freeStructList = Memory::freeStructList->right;
-			left->exp = right->exp = exp - 1;
+			left->exp = exp - 1;
+			right->exp = exp - 1;
 			left->memory = memory;
-			right->memory = (memory + right->size()); //split block in two, one offset by the size of the split allocation
+			right->memory = (memory + left->size()); //split block in two, one offset by the size of the split allocation
 			left->right = nullptr;
 			left->left = nullptr;
 			left->refCount = 0;
@@ -71,27 +79,29 @@ namespace ash
 	void Allocation::merge()
 	{
 		if(right->memory != left->memory + left->size()) return;
-		auto& head = Memory::freeStructList;
-		right->right = head;
-		head->left = right;
+		
+		right->right = Memory::freeStructList;
+		Memory::freeStructList->left = right;
 		right->left = left;
 		left->right = right;
-		head = left;
+		Memory::freeStructList = left;
 		left = nullptr;
 		right = nullptr;
 		isSplit = false;
 	}
 
-	void Memory::allocateList()
+	void Memory::allocateList(uint8_t count)
 	{
-		Allocation* newStructs = new Allocation[10];
-		for (int i = 0; i < 10; i++)
+		Allocation* newStructs = new Allocation[count];
+		for (int i = 0; i < count; i++)
 		{
 			newStructs->right = freeStructList;
 			if(freeStructList) freeStructList->left = newStructs;
 			freeStructList = newStructs;
 			newStructs++;
 		}
+		block.allocationStructs += count;
+		std::cout << block.allocationStructs << std::endl;
 	}
 
 	Allocation* Memory::allocate(uint8_t exp)
@@ -100,14 +110,19 @@ namespace ash
 
 		Allocation* result = searchNode(block.root, exp);
 
-		if (result == nullptr) exit(1);
+		if (result == nullptr)
+		{
+			printAllocation(block.root);
+			std::cerr << "Malloc failed! size: " << ((size_t)1 << exp) << std::endl;
+			std::cerr << "Allocation structs: " << block.allocationStructs << std::endl;
+			exit(1);
+		}
 
 		return result;
 	}
 
 	Allocation* Memory::searchNode(Allocation* node, uint8_t exp)
 	{
-		if (node->refCount != 0) return nullptr;
 		if(node->isSplit == false)
 		{
 			if (exp == node->exp) return node;
@@ -122,11 +137,13 @@ namespace ash
 		if (freeLeft)
 		{
 			Allocation* leftResult = searchNode(node->left, exp);
+			if (leftResult == node->left) node->left = nullptr;
 			if (leftResult != nullptr) return leftResult;
 		}
 		if (freeRight)
 		{
 			Allocation* rightResult = searchNode(node->right, exp);
+			if (rightResult == node->right) node->right = nullptr;
 			if (rightResult != nullptr) return rightResult;
 		}
 		return nullptr;
@@ -134,37 +151,63 @@ namespace ash
 
 	void Memory::free(Allocation* ptr)
 	{
+		ptr->left = nullptr;
+		ptr->right = nullptr;
 		returnNode(block.root, ptr);
 	}
 
 	void Memory::returnNode(Allocation* node, Allocation* freed)
 	{
-		if (freed->exp + 1 == node->exp)
+		if(freed->exp >= node->exp)
 		{
-			std::cout << (void*)(freed->memory + freed->exp) << std::endl;
-			if(freed->memory > node->memory)
+			std::cout << "Error: memory returned to wrong node!" << std::endl;
+			exit(3);
+		}
+		if(freed->memory >= node->memory + ((size_t)1<<(node->exp - 1)))
+		{
+			if (freed->exp == node->exp - 1)
 			{
 				node->right = freed;
-				if (node->left && !node->left->isSplit) node->merge();
 			}
-			else if (freed->memory == node->memory)
-			{
-				node->left = freed;
-				if (node->right && !node->right->isSplit) node->merge();
-			}
-		}
-		else
-		{
-			if(freed->memory >= node->memory + (node->exp - 1))
+			else
 			{
 				returnNode(node->right, freed);
-				if (!node->right->isSplit && node->left && node->left->isSplit) node->merge();
+			}
+		}
+		else if (freed->memory >= node->memory && freed->memory < node->memory + ((size_t)1 << (node->exp - 1)))
+		{
+			if (freed->exp == node->exp - 1) 
+			{ 
+				node->left = freed; 
 			}
 			else
 			{
 				returnNode(node->left, freed);
-				if (!node->left->isSplit && node->right && node->right->isSplit) node->merge();
 			}
+		}
+		else
+		{
+			std::cerr << "Memory in wrong node! freed: " << (void*)freed->memory << " current: " << (void*)node->memory << std::endl;
+			exit(2);
+		}
+
+		if (node->left && node->right && !(node->left->isSplit) && !(node->right->isSplit))
+		{
+			node->merge();
+		}
+	}
+
+	void Memory::printAllocation(Allocation* node)
+	{
+		std::deque<Allocation*> allocations;
+		allocations.push_back(node);
+		while(allocations.size())
+		{
+			Allocation* current = allocations.front();
+			allocations.pop_front();
+			std::cout << std::string(block.root->exp - current->exp, ' ') << "node size: " << ((size_t)1 << current->exp) << " node begin: " << (void*)(current->memory) << " split?: " << (current->isSplit? "true" : "false") << std::endl;
+			if (current->right && current->right->exp < current->exp) allocations.push_front(current->right);
+			if (current->left && current->left->exp < current->exp) allocations.push_front(current->left);
 		}
 	}
 }

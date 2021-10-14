@@ -91,9 +91,11 @@ namespace ash
 	{
 	private:
 		uint8_t exp = 20; //size is 1<<exp
+		
 	public:
 		void* begin;
 		Allocation* root = nullptr;
+		size_t allocationStructs = 0;
 		size_t size() { return (size_t)1 << exp; }
 
 		MemBlock(uint8_t powerOfTwo);
@@ -109,8 +111,12 @@ namespace ash
 		static void returnNode(Allocation* node, Allocation* freed);
 	public:
 		static Allocation* allocate(uint8_t powerOfTwo);
-		static void allocateList();
+		static void allocateList(uint8_t count);
 		static void free(Allocation* ptr);
+
+		static void printAllocation(Allocation* node);
+
+		static void printMemoryTree() { printAllocation(block.root); }
 
 		static Allocation* freeStructList;
 	};

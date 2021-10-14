@@ -12,7 +12,7 @@ public:
 	~Timer()
 	{
 		auto end = std::chrono::high_resolution_clock::now();
-		std::cout <<  name << " took " << (double)(std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin).count()) / 1000.0 << "microseconds.\n";
+		std::cout <<  name << " took " << ((double)(std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin).count())) / 1000.0 << "microseconds.\n";
 	}
 public:
 	const std::string name;

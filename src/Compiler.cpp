@@ -159,10 +159,10 @@ namespace ash
 			result = correctLoadStore(result);
 			t2 = std::chrono::high_resolution_clock::now();
 		}
-		for (const auto& instruction : result.code)
-		{
-			instruction->print();
-		}
+		//for (const auto& instruction : result.code)
+		//{
+		//	instruction->print();
+		//}
 		{
 			t1 = std::chrono::high_resolution_clock::now();
 			result = allocateRegisters(result);
@@ -241,6 +241,7 @@ namespace ash
 				currentScope = hold;
 				return ifChunk;
 			}
+
 			case NodeType::TypeDeclaration:
 			{
 				std::vector<std::shared_ptr<assembly>> defChunk;
@@ -479,7 +480,6 @@ namespace ash
 				}
 				else
 				{
-					
 					auto varType = util::renameByScope(varNode->type, currentScope);
 					std::string temp = std::string("#");
 					temp.append(std::to_string(temporaries++));
@@ -503,6 +503,11 @@ namespace ash
 				}
 
 				return result;
+			}
+
+			case NodeType::FunctionDeclaration:
+			{
+				
 			}
 
 			case NodeType::ExpressionStatement:
@@ -1634,6 +1639,10 @@ namespace ash
 				}
 			}
 		}
+		for(const auto& procedure : cfg.procedures)
+		{
+			cleanupCFGNode(procedure);
+		}
 		return chunk;
 	}
 
@@ -1964,5 +1973,23 @@ namespace ash
 			}
 		}
 		return result;
+	}
+
+	void cleanupCFGNode(std::shared_ptr<controlFlowNode> node)
+	{
+		if (node->trueBlock && node->trueBlock->traversed)
+		{
+			node->trueBlock->traversed = false;
+			cleanupCFGNode(node->trueBlock);
+		}
+
+		if (node->falseBlock && node->falseBlock->traversed)
+		{
+			node->falseBlock->traversed = false;
+			cleanupCFGNode(node->falseBlock);
+		}
+
+		node->trueBlock = nullptr;
+		node->falseBlock = nullptr;
 	}
 }

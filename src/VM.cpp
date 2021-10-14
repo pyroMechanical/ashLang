@@ -27,16 +27,14 @@ namespace ash
 #elif defined(__GNUC__) || defined(__GNUG__)
 			return (uint8_t)31 - __builtin_clzll(i);
 #else
-			i |= (i >> 1);
-			i |= (i >> 2);
-			i |= (i >> 4);
-			i |= (i >> 8);
-			i |= (i >> 16);
-			i |= (i >> 32);
-			return (i & ~(i >> 1));
-		}
+			//i |= (i >> 1);
+			//i |= (i >> 2);
+			//i |= (i >> 4);
+			//i |= (i >> 8);
+			//i |= (i >> 16);
+			//i |= (i >> 32);
+			//return (i - (i >> 1));
 #endif
-
 		}
 
 		inline static uint32_t fetch_instruction(uint32_t*& ip)
@@ -1057,6 +1055,14 @@ namespace ash
 					#ifdef LOG_TIMES
 					Timer t = { "OP_HALT" };
 					#endif
+					freeAllocations();
+					R.fill(0);
+					rFlags.fill(0);
+					stack.clear();
+					stackFlags.clear();
+					stackPointers.clear();
+					types.clear();
+					comparisonRegister = false;
 					return InterpretResult::INTERPRET_OK;
 				}
 			}
@@ -1077,9 +1083,10 @@ namespace ash
 		exp = util::ilog2(size) + 1;
 		Allocation* result = Memory::allocate(exp);
 		memset(result->memory, 0, (size_t)1<<exp);
-		result->refCount = 1;
+		result->refCount = 0;
 		result->right = allocationList;
 		result->typeInfo = typeInfo;
+		result->allocationType = AllocationType::Type;
 		if (allocationList) allocationList->left = result;
 		result->exp = exp;
 		allocationList = result;
@@ -1171,9 +1178,10 @@ namespace ash
 		while (allocation != nullptr)
 		{
 			Allocation* next = allocation->right;
-			freeAllocation(allocation);
+			Memory::free(allocation);
 			allocation = next;
 		}
+		allocationList = nullptr;
 	}
 
 	void VM::collectGarbage()
@@ -1384,7 +1392,7 @@ namespace ash
 	{
 #ifdef LOG_GC
 		std::cout << "Incrementing " << static_cast<void*>(ref);
-		std::cout << " to " << (*(ref->memory + REFCOUNT_OFFSET)) + 1 << std::endl;
+		std::cout << " to " << (ref->refCount) + 1 << std::endl;
 #endif
 		ref->refCount++;
 	}
@@ -1393,10 +1401,11 @@ namespace ash
 	{
 #ifdef LOG_GC
 		std::cout << "Decrementing " << static_cast<void*>(ref);
-		std::cout << " to " << (*(ref->memory + REFCOUNT_OFFSET)) - 1 << std::endl;
+		std::cout << " to " << (ref->refCount) - 1 << std::endl;
 #endif
 		if (ref->refCount == 0 || ref->refCount == 1)
 		{
+			ref->refCount = 0;
 			if (allocationList == ref)
 			{
 				allocationList = ref->right;
