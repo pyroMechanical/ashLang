@@ -49,7 +49,7 @@ namespace ash
 		OP_POP,  //A; pop value from stack into R[A]
 		OP_RETURN, 
 		OP_OUT,  // A, outputs value of R[A] in terminal
-		OP_STORE_IP_OFFSET, // A; R[A] = instruction pointer - chunk beginning
+		OP_CALL, // A, R[StackFrame] = stack.size(), push ip, ip = funcTable[R[A]]
 			//two-register instructions: 8-bit opcode | 8-bit register A | 8-bit register B | 8 bits space
 		OP_MOVE,    // A, B; move value from R[A] to R[B]
 		OP_ALLOC,   // A, B; allocate the size of type pointed by R[A] bytes of memory on the heap, store address in R[B]

@@ -14,6 +14,9 @@
 //#define LOG_GC
 //#define LOG_TIMES
 
+#define ZERO_REGISTER 0
+#define STACK_FRAME_REGISTER 1
+
 namespace ash
 {
 	namespace util
@@ -978,14 +981,17 @@ namespace ash
 					setRegister(B, comparisonRegister = !isATruthy);
 					break;
 				}
-				case OP_STORE_IP_OFFSET:
+				case OP_CALL:
 				{
 					#ifdef LOG_TIMES
 					Timer t = { "OP_STORE_IP_OFFSET" };
 					#endif
 					uint8_t A = RegisterA(instruction);
 					uint64_t temp = ip - chunk->code();
-					setRegister(A, temp);
+					R[STACK_FRAME_REGISTER] = stack.size();
+					stack.push_back(temp);
+					stackFlags.push_back(0);
+
 					break;
 				}
 				case OP_RELATIVE_JUMP:
