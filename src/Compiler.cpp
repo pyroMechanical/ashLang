@@ -170,10 +170,10 @@ namespace ash
 
 			std::cout << "Register Allocation took " << (double)(std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count()) / 1000000.0 << "milliseconds.\n";
 		}
-		//for (const auto& instruction : result.code)
-		//{
-		//	instruction->print();
-		//}
+		for (const auto& instruction : result.code)
+		{
+			instruction->print();
+		}
 		
 		currentChunk = finalizeCode(result);
 
@@ -507,7 +507,28 @@ namespace ash
 
 			case NodeType::FunctionDeclaration:
 			{
+				auto funcNode = (FunctionDeclarationNode*)node;
+				std::vector<std::shared_ptr<assembly>> result;
+				for(size_t i = 0; i < funcNode->parameters.size(); i++)
+				{
+					auto constant = std::make_shared<twoAddress>();
+					constant->op = OP_CONST_LOW;
+					constant->A = { TokenType::INT, std::to_string(i), funcNode->parameters[i].type.line };
+					std::string temp{ "#" };
+					temp.append(std::to_string(temporaries++));
+					Token tempToken = { TokenType::IDENTIFIER, temp, funcNode->parameters[i].type.line };
+					constant->result = tempToken;
+					result.push_back(constant);
+					auto move = std::make_shared<twoAddress>();
+					move->op = OP_MOVE_FROM_STACK_FRAME;
+					move->A = tempToken;
+					move->result = util::renameByScope(funcNode->parameters[i].identifier, funcNode->body->scope);
+					result.push_back(move);
+				}
+				auto body = compileNode(funcNode->body.get(), nullptr);
+				result.insert(result.end(), body.begin(), body.end());
 				
+				return result;
 			}
 
 			case NodeType::ExpressionStatement:
@@ -1544,7 +1565,7 @@ namespace ash
 			{
 				std::unordered_set<std::string> liveEdges = {};
 				std::copy_if(kv.second.begin(), kv.second.end(), std::inserter(liveEdges, liveEdges.begin()), [&poppedSet](std::string s) { return (poppedSet.find(s) == poppedSet.end()); });
-				if(liveEdges.size() < 256)
+				if(liveEdges.size() < 253)
 				{
 					poppedSet.emplace(kv.first);
 					nodeStack.push_back(std::make_pair(kv.first,liveEdges));
@@ -1560,11 +1581,12 @@ namespace ash
 				auto kv = *it;
 				if (kv.second.size() == 0)
 				{
-					registers.emplace(kv.first, 0);
+					registers.emplace(kv.first, 3);
 				}
 				else
 				{
-					std::bitset<256> openRegisters;
+					std::bitset<256> openRegisters{ 0x7 }; //set first three bits as reserved registers
+					openRegisters.set(0, true);
 					for (auto& node : kv.second)
 					{
 						int16_t usedRegister = registers.at(node);
@@ -1702,7 +1724,6 @@ namespace ash
 					case OP_POP:
 					case OP_RETURN:
 					case OP_OUT:
-					case OP_STORE_IP_OFFSET:
 						if(liveNodes.find(oneAddr->A.string) == liveNodes.end())
 						{
 							liveNodes.insert(oneAddr->A.string);

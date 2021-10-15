@@ -10,6 +10,7 @@ namespace ash
 	enum class Asm
 	{
 		Label,
+		FunctionLabel,
 		Jump,
 		pseudocode,
 		OneAddr,
@@ -31,6 +32,12 @@ namespace ash
 		{
 			std::cout << label << ":" << std::endl;
 		}
+	};
+
+	struct functonLabel : public assembly
+	{
+		std::string name;
+		virtual Asm type() override { return Asm::FunctionLabel; }
 	};
 
 	struct pseudocode : public assembly

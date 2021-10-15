@@ -44,12 +44,15 @@ namespace ash
 	enum OpCodes : uint8_t
 	{
 		OP_HALT, //stops program execution
+		OP_PUSH_IP, // push (instruction pointer - chunk beginning) to the stack
+		OP_NEW_STACK_FRAME, //push R[FRAME_REGISTER] onto the stack, then store stack.size() in R[FRAME_REGISTER]
+
 			//one-register instructions: 8-bit opcode | 8-bit register A | 16 bits space
 		OP_PUSH, //A; push value from R[A] onto stack
 		OP_POP,  //A; pop value from stack into R[A]
-		OP_RETURN, 
+		OP_RETURN, // A; sets R[RETURN_REGISTER] = R[A], pop back of stack and perform absolute jump to it, reset stack size to R[FRAME_REGISTER]
 		OP_OUT,  // A, outputs value of R[A] in terminal
-		OP_STORE_IP_OFFSET, // A; R[A] = instruction pointer - chunk beginning
+		
 			//two-register instructions: 8-bit opcode | 8-bit register A | 8-bit register B | 8 bits space
 		OP_MOVE,    // A, B; move value from R[A] to R[B]
 		OP_ALLOC,   // A, B; allocate the size of type pointed by R[A] bytes of memory on the heap, store address in R[B]
@@ -58,6 +61,7 @@ namespace ash
 		OP_CONST_MID_LOW,  // A, writes to second lowest two bytes
 		OP_CONST_MID_HIGH, // A, writes to second higest two bytes
 		OP_CONST_HIGH, // A, writes to highest two bytes
+		OP_MOVE_FROM_STACK_FRAME, // A, B; R[B] = stack[R[FRAME_REGISTER] + R[A]]
 			//three-register instructions: 8-bit opcode | 8-bit register A | 8-bit register B | 8-bit register C
 		OP_STORE_OFFSET,  // A, B, C; store value from R[A] in memory address R[B] + R[C]
 		OP_LOAD_OFFSET,  // A, B, C; load value from address R[B] + R[C] to R[A]
@@ -123,11 +127,12 @@ namespace ash
 
 	static const std::vector<std::string> OpcodeNames = {
 			"OP_HALT",
+			"OP_PUSH_IP",
+			"OP_NEW_STACK_FRAME",
 			"OP_PUSH",
 			"OP_POP",
 			"OP_RETURN",
 			"OP_OUT",
-			"OP_STORE_IP_OFFSET",
 			"OP_MOVE",
 			"OP_ALLOC",
 			"OP_CONST_LOW",
@@ -135,6 +140,7 @@ namespace ash
 			"OP_CONST_MID_LOW",
 			"OP_CONST_MID_HIGH",
 			"OP_CONST_HIGH",
+			"OP_MOVE_FROM_STACK_FRAME",
 			"OP_STORE_OFFSET", 
 			"OP_LOAD_OFFSET",
 			"OP_ALLOC_ARRAY",

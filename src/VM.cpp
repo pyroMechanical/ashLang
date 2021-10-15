@@ -13,6 +13,10 @@
 //#define STRESSTEST_GC
 //#define LOG_GC
 //#define LOG_TIMES
+#define RETURN_REGISTER 2
+#define FRAME_REGISTER 1
+#define ZERO_REGISTER 0
+
 
 namespace ash
 {
@@ -978,14 +982,12 @@ namespace ash
 					setRegister(B, comparisonRegister = !isATruthy);
 					break;
 				}
-				case OP_STORE_IP_OFFSET:
+				case OP_PUSH_IP:
 				{
 					#ifdef LOG_TIMES
-					Timer t = { "OP_STORE_IP_OFFSET" };
+					Timer t = { "OP_PUSH_IP" };
 					#endif
-					uint8_t A = RegisterA(instruction);
-					uint64_t temp = ip - chunk->code();
-					setRegister(A, temp);
+					stack.push_back(ip - chunk->code());
 					break;
 				}
 				case OP_RELATIVE_JUMP:
@@ -1049,6 +1051,17 @@ namespace ash
 					else std::cout << R[A] << std::endl;
 
 					break;
+				}
+				case OP_RETURN:
+				{
+#ifdef LOG_TIMES
+					Timer t = { "OP_RETURN" };
+#endif
+					uint8_t A = RegisterA(instruction);
+					setRegister(RETURN_REGISTER, &R[A]);
+					auto addr = stack.back();
+					stack.resize(R[FRAME_REGISTER]);
+					ip = chunk->code() + addr;
 				}
 				case OP_HALT: 
 				{
