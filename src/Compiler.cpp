@@ -522,7 +522,7 @@ namespace ash
 				{
 					auto constant = std::make_shared<twoAddress>();
 					constant->op = OP_CONST_LOW;
-					constant->A = { TokenType::INT, std::to_string(i), funcNode->parameters[i].type.line };
+					constant->A = { TokenType::INT, std::to_string(i + 1), funcNode->parameters[i].type.line };
 					std::string temp{ "#" };
 					temp.append(std::to_string(temporaries++));
 					Token tempToken = { TokenType::IDENTIFIER, temp, funcNode->parameters[i].type.line };
@@ -543,6 +543,26 @@ namespace ash
 				return result;
 			}
 
+			case NodeType::ReturnStatement:
+			{
+				auto retNode = (ReturnStatementNode*)node;
+
+				std::vector<std::shared_ptr<assembly>> result;
+
+				if(retNode->returnValue)
+				{
+					std::string returnRegister("@");
+					returnRegister.append(std::to_string(RETURN_REGISTER));
+					Token returnRegisterToken = { TokenType::IDENTIFIER, returnRegister, retNode->returnValue->line() };
+					result = compileNode(retNode->returnValue.get(), &returnRegisterToken);
+				}
+
+				auto ret = std::make_shared<pseudocode>();
+				ret->op = OP_RETURN;
+				result.push_back(ret);
+
+				return result;
+			}
 
 			case NodeType::ExpressionStatement:
 			{
@@ -1179,8 +1199,6 @@ namespace ash
 										}
 										else
 										{
-											
-
 											auto store = std::make_shared<threeAddress>();
 											store->op = OP_STORE_OFFSET;
 											store->A = tempToken;
@@ -1214,7 +1232,43 @@ namespace ash
 					}
 					case ExpressionNode::ExpressionType::FunctionCall:
 					{
-						
+						auto callNode = (FunctionCallNode*)exprNode;
+
+						std::vector<std::shared_ptr<assembly>> result;
+
+						auto stackFrame = std::make_shared<pseudocode>();
+						stackFrame->op = OP_NEW_STACK_FRAME;
+						result.push_back(stackFrame);
+
+						for (const auto& argument : callNode->arguments)
+						{
+							std::string temp("#");
+							temp.append(std::to_string(temporaries++));
+							Token tempToken = { TokenType::IDENTIFIER, temp, argument->line() };
+							auto argResult = compileNode(argument.get(), &tempToken);
+							result.insert(result.end(), argResult.begin(), argResult.end());
+							auto push = std::make_shared<oneAddress>();
+							push->op = OP_PUSH;
+							push->A = tempToken;
+						}
+						auto ipPush = std::make_shared<pseudocode>();
+						ipPush->op = OP_PUSH_IP;
+						result.push_back(ipPush);
+
+						auto call = std::make_shared<functionJump>();
+						call->op = OP_REGISTER_JUMP;
+						call->name = callNode->resolveName();
+						result.push_back(call);
+
+						std::string frameRegister("@");
+						frameRegister.append(std::to_string(FRAME_REGISTER));
+						Token frameRegisterToken = { TokenType::IDENTIFIER, frameRegister, callNode->left->line() };
+						auto framePop = std::make_shared<oneAddress>();
+						framePop->op = OP_POP;
+						framePop->A = frameRegisterToken;
+						result.push_back(framePop);
+
+						return result;
 					}
 					case ExpressionNode::ExpressionType::Constructor:
 					{
@@ -1353,8 +1407,13 @@ namespace ash
 
 						auto constant = std::make_shared<twoAddress>();
 						constant->A = primaryNode->primary;
-						if (primaryNode->primary.type == TokenType::IDENTIFIER) constant->A = util::renameByScope(primaryNode->primary, currentScope);
 						constant->op = OP_CONST_LOW;
+						if (primaryNode->primary.type == TokenType::IDENTIFIER)
+						{
+							constant->A = util::renameByScope(primaryNode->primary, currentScope);
+							constant->op = OP_MOVE;
+						}
+						
 						if(result != nullptr)
 						{
 							constant->result = *result;
@@ -1592,28 +1651,36 @@ namespace ash
 			for (auto it = nodeStack.rbegin(); it != nodeStack.rend(); it++)
 			{
 				auto kv = *it;
-				if (kv.second.size() == 0)
+				if(kv.first.find('@') == 0)
 				{
-					registers.emplace(kv.first, 3);
+					auto value = kv.first.substr(1);
+					registers.emplace(kv.first, std::stoi(value));
 				}
 				else
 				{
-					std::bitset<256> openRegisters{ 0x7 }; //set first three bits as reserved registers
-					openRegisters.set(0, true);
-					for (auto& node : kv.second)
+					if (kv.second.size() == 0)
 					{
-						int16_t usedRegister = registers.at(node);
-						if (usedRegister >= 0 && usedRegister < 256)
-						{
-							openRegisters.set(usedRegister);
-						}
+						registers.emplace(kv.first, 3);
 					}
-					for (int i = 0; i < 256; i++)
+					else
 					{
-						if (!openRegisters[i])
+						std::bitset<256> openRegisters{ 0x7 }; //set first three bits as reserved registers
+						openRegisters.set(0, true);
+						for (auto& node : kv.second)
 						{
-							registers.emplace(kv.first, i);
-							break;
+							int16_t usedRegister = registers.at(node);
+							if (usedRegister >= 0 && usedRegister < 256)
+							{
+								openRegisters.set(usedRegister);
+							}
+						}
+						for (int i = 0; i < 256; i++)
+						{
+							if (!openRegisters[i])
+							{
+								registers.emplace(kv.first, i);
+								break;
+							}
 						}
 					}
 				}

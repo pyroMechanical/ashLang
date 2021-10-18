@@ -13,9 +13,6 @@
 //#define STRESSTEST_GC
 //#define LOG_GC
 //#define LOG_TIMES
-#define RETURN_REGISTER 2
-#define FRAME_REGISTER 1
-#define ZERO_REGISTER 0
 
 
 namespace ash
@@ -987,7 +984,7 @@ namespace ash
 					#ifdef LOG_TIMES
 					Timer t = { "OP_PUSH_IP" };
 					#endif
-					stack.push_back(ip - chunk->code());
+					stack.push_back((ip - chunk->code()) + 2);
 					break;
 				}
 				case OP_RELATIVE_JUMP:
@@ -1086,8 +1083,7 @@ namespace ash
 #ifdef LOG_TIMES
 					Timer t = { "OP_RETURN" };
 #endif
-					if (stack.size() <= R[FRAME_REGISTER]) return error("stack frame is beyond stack size!");
-					auto addr = stack[R[FRAME_REGISTER]];
+					auto addr = stack.back();
 					stack.resize(R[FRAME_REGISTER]);
 					ip = chunk->code() + addr;
 				}

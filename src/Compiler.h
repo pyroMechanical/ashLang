@@ -7,11 +7,16 @@
 namespace ash
 {
 
+#define RETURN_REGISTER 2
+#define FRAME_REGISTER 1
+#define ZERO_REGISTER 0
+
 	enum class Asm
 	{
 		Label,
 		FunctionLabel,
 		Jump,
+		FunctionJump,
 		pseudocode,
 		OneAddr,
 		TwoAddr,
@@ -61,6 +66,16 @@ namespace ash
 		virtual void print() override
 		{
 			std::cout << "    " << OpcodeNames[op] << " " << jumpLabel << std::endl;
+		}
+	};
+
+	struct functionJump : public pseudocode
+	{
+		std::string name;
+		virtual Asm type() override { return Asm::FunctionJump; }
+		virtual void print() override
+		{
+			std::cout << "    " << OpcodeNames[op] << " " << name << std::endl;
 		}
 	};
 

@@ -131,6 +131,7 @@ namespace ash
 			TokenType::DEF,
 			TokenType::IF,
 			TokenType::TYPE,
+			TokenType::RETURN,
 			TokenType::IDENTIFIER,
 			TokenType::ELSE,
 			TokenType::WHILE,
