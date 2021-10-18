@@ -31,7 +31,7 @@ namespace ash
 			case OP_POP: return AInstruction("OP_POP", offset);
 			case OP_RETURN: return SimpleInstruction("OP_RETURN", offset);
 			case OP_OUT: return AInstruction("OP_OUT", offset);
-			case OP_STORE_IP_OFFSET: return AInstruction("OP_STORE_IP_OFFSET", offset);
+			case OP_PUSH_IP: return AInstruction("OP_PUSH_IP", offset);
 			case OP_MOVE: return ABInstruction("OP_MOVE", offset);
 			case OP_ALLOC: return ABInstruction("OP_ALLOC", offset);
 			case OP_CONST_LOW: return ConstantInstruction("OP_CONST_LOW", offset);

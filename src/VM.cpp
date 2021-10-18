@@ -13,9 +13,10 @@
 //#define STRESSTEST_GC
 //#define LOG_GC
 //#define LOG_TIMES
-
+#define RETURN_REGISTER 2
+#define FRAME_REGISTER 1
 #define ZERO_REGISTER 0
-#define STACK_FRAME_REGISTER 1
+
 
 namespace ash
 {
@@ -981,17 +982,12 @@ namespace ash
 					setRegister(B, comparisonRegister = !isATruthy);
 					break;
 				}
-				case OP_CALL:
+				case OP_PUSH_IP:
 				{
 					#ifdef LOG_TIMES
-					Timer t = { "OP_STORE_IP_OFFSET" };
+					Timer t = { "OP_PUSH_IP" };
 					#endif
-					uint8_t A = RegisterA(instruction);
-					uint64_t temp = ip - chunk->code();
-					R[STACK_FRAME_REGISTER] = stack.size();
-					stack.push_back(temp);
-					stackFlags.push_back(0);
-
+					stack.push_back(ip - chunk->code());
 					break;
 				}
 				case OP_RELATIVE_JUMP:
@@ -1055,6 +1051,45 @@ namespace ash
 					else std::cout << R[A] << std::endl;
 
 					break;
+				}
+				case OP_MOVE_FROM_STACK_FRAME:
+				{
+					uint8_t A = RegisterA(instruction);
+					uint8_t B = RegisterB(instruction);
+
+					if (stack.size() <= (R[FRAME_REGISTER] + R[A])) return error("value is beyond stack size!");
+					auto temp = stack[R[FRAME_REGISTER] + R[A]];
+					if (stackFlags[R[FRAME_REGISTER] + R[A]] & REGISTER_HOLDS_SIGNED)
+					{
+						setRegister(B, static_cast<int64_t>(temp));
+					}
+					else if (stackFlags[R[FRAME_REGISTER] + R[A]] & REGISTER_HOLDS_FLOAT)
+					{
+						setRegister(B, *reinterpret_cast<float*>(&temp));
+					}
+					else if (stackFlags[R[FRAME_REGISTER] + R[A]] & REGISTER_HOLDS_DOUBLE)
+					{
+						setRegister(B, *reinterpret_cast<double*>(&temp));
+					}
+					else if (stackFlags[R[FRAME_REGISTER] + R[A]] & REGISTER_HOLDS_POINTER)
+					{
+						setRegister(B, reinterpret_cast<Allocation*>(temp));
+					}
+					else
+					{
+						setRegister(B, temp);
+					}
+					break;
+				}
+				case OP_RETURN:
+				{
+#ifdef LOG_TIMES
+					Timer t = { "OP_RETURN" };
+#endif
+					if (stack.size() <= R[FRAME_REGISTER]) return error("stack frame is beyond stack size!");
+					auto addr = stack[R[FRAME_REGISTER]];
+					stack.resize(R[FRAME_REGISTER]);
+					ip = chunk->code() + addr;
 				}
 				case OP_HALT: 
 				{
