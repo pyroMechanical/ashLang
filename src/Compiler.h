@@ -16,7 +16,6 @@ namespace ash
 		Label,
 		FunctionLabel,
 		Jump,
-		FunctionJump,
 		pseudocode,
 		OneAddr,
 		TwoAddr,
@@ -69,16 +68,6 @@ namespace ash
 		}
 	};
 
-	struct functionJump : public pseudocode
-	{
-		std::string name;
-		virtual Asm type() override { return Asm::FunctionJump; }
-		virtual void print() override
-		{
-			std::cout << "    " << OpcodeNames[op] << " " << name << std::endl;
-		}
-	};
-
 	struct oneAddress : public pseudocode
 	{
 		Token A;
@@ -128,7 +117,7 @@ namespace ash
 
 	struct controlFlowGraph
 	{
-		std::vector<std::shared_ptr<controlFlowNode>> procedures;
+		std::unordered_map<std::string, std::shared_ptr<controlFlowNode>> procedures;
 	};
 
 	struct Local

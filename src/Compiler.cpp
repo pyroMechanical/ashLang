@@ -522,7 +522,7 @@ namespace ash
 				{
 					auto constant = std::make_shared<twoAddress>();
 					constant->op = OP_CONST_LOW;
-					constant->A = { TokenType::INT, std::to_string(i + 1), funcNode->parameters[i].type.line };
+					constant->A = { TokenType::INT, std::to_string(i), funcNode->parameters[i].type.line };
 					std::string temp{ "#" };
 					temp.append(std::to_string(temporaries++));
 					Token tempToken = { TokenType::IDENTIFIER, temp, funcNode->parameters[i].type.line };
@@ -536,9 +536,12 @@ namespace ash
 				}
 				auto body = compileNode(funcNode->body.get(), nullptr);
 				result.insert(result.end(), body.begin(), body.end());
-				auto retn = std::make_shared<pseudocode>();
-				retn->op = OP_RETURN;
-				result.push_back(retn);
+				if (result.back()->type() != Asm::pseudocode || std::dynamic_pointer_cast<pseudocode>(result.back())->op != OP_RETURN)
+				{
+					auto retn = std::make_shared<pseudocode>();
+					retn->op = OP_RETURN;
+					result.push_back(retn);
+				}
 				result.push_back(skipLabel);
 				return result;
 			}
@@ -1250,14 +1253,24 @@ namespace ash
 							auto push = std::make_shared<oneAddress>();
 							push->op = OP_PUSH;
 							push->A = tempToken;
+							result.push_back(push);
 						}
 						auto ipPush = std::make_shared<pseudocode>();
 						ipPush->op = OP_PUSH_IP;
 						result.push_back(ipPush);
 
-						auto call = std::make_shared<functionJump>();
+						std::string temp2("#");
+						temp2.append(std::to_string(temporaries++));
+						Token tempToken2 = { TokenType::IDENTIFIER, temp2, callNode->line() };
+						auto constant = std::make_shared<twoAddress>();
+						constant->op = OP_CONST_LOW;
+						constant->result = tempToken2;
+						constant->A = { TokenType::IDENTIFIER, callNode->resolveName(), callNode->line() };
+						result.push_back(constant);
+
+						auto call = std::make_shared<oneAddress>();
 						call->op = OP_REGISTER_JUMP;
-						call->name = callNode->resolveName();
+						call->A = tempToken2;
 						result.push_back(call);
 
 						std::string frameRegister("@");
@@ -1480,7 +1493,7 @@ namespace ash
 		controlFlowGraph graph{};
 
 		std::shared_ptr<controlFlowNode> currentNode = std::make_shared<controlFlowNode>();
-		graph.procedures.push_back(currentNode);
+		graph.procedures.emplace("<global>",currentNode);
 		std::vector<std::shared_ptr<controlFlowNode>> nodes;
 		std::unordered_map<size_t, std::shared_ptr<controlFlowNode>> nodeLabels;
 		nodes.push_back(currentNode);
@@ -1528,6 +1541,20 @@ namespace ash
 					if (currentLabel != -1) nodeLabels.emplace(currentLabel, currentNode);
 					break;
 				}
+				case Asm::FunctionLabel:
+				{
+					auto fLabel = std::dynamic_pointer_cast<functionLabel>(instruction);
+					auto nextNode = std::make_shared<controlFlowNode>();
+					if (nodes.size() && nodes.back()->block.size() == 0)
+					{
+						nextNode = currentNode;
+						nodes.pop_back();
+					}
+					currentLabel = -1;
+					currentNode = nextNode;
+					graph.procedures.emplace(fLabel->name, currentNode);
+					break;
+				}
 				default:
 				{
 					currentNode->block.push_back(instruction);
@@ -1568,7 +1595,7 @@ namespace ash
 		{
 			std::unordered_map<std::string, int16_t> registers;
 			std::unordered_map<std::string, std::unordered_set<std::string>> interferenceGraph;
-			livePoints = liveVariables(procedure);
+			livePoints = liveVariables(procedure.second);
 			for(auto i = livePoints.rbegin(); i != livePoints.rend(); i++)
 			{
 				auto& set = *i;
@@ -1743,7 +1770,7 @@ namespace ash
 		}
 		for(const auto& procedure : cfg.procedures)
 		{
-			cleanupCFGNode(procedure);
+			cleanupCFGNode(procedure.second);
 		}
 		return chunk;
 	}
@@ -1802,7 +1829,10 @@ namespace ash
 					switch(oneAddr->op)
 					{
 					case OP_POP:
+					case OP_PUSH:
 					case OP_RETURN:
+					case OP_RELATIVE_JUMP:
+					case OP_RELATIVE_JUMP_IF_TRUE:
 					case OP_OUT:
 						if(liveNodes.find(oneAddr->A.string) == liveNodes.end())
 						{
@@ -1973,10 +2003,20 @@ namespace ash
 		result->reserve(chunk.code.size());
 		std::unordered_map<size_t, size_t> labelIndices;
 		std::unordered_multimap<size_t, size_t> unpatchedJumps;
-		for(const auto& instruction : chunk.code)
+		std::unordered_map<std::string, size_t> functionAddrs;
+		size_t labelCodes = 0;
+		for(size_t i = 0; i < chunk.code.size(); i++)
 		{
+			const auto& instruction = chunk.code[i];
+
 			switch(instruction->type())
 			{
+				case Asm::pseudocode:
+				{
+					auto pCode = std::dynamic_pointer_cast<pseudocode>(instruction);
+					result->WriteOp(pCode->op);
+					break;
+				}
 				case Asm::OneAddr:
 				{
 					auto i = std::dynamic_pointer_cast<oneAddress>(instruction);
@@ -2017,17 +2057,35 @@ namespace ash
 							else
 							{
 								uint64_t value = std::stoull(i->A.string);
-								if (value >= 0 && value <= INT16_MAX)
+								if (value >= 0 && value <= UINT16_MAX)
 								{
 									result->WriteU16(std::stoi(i->result.string), static_cast<uint16_t>(value));
 								}
-								else if (value > INT16_MAX && value <= INT32_MAX)
+								else if (value > UINT16_MAX && value <= UINT32_MAX)
 								{
 									result->WriteU32(std::stoi(i->result.string), static_cast<uint32_t>(value));
 								}
 								else
 								{
 									result->WriteU64(std::stoi(i->result.string), value);
+								}
+							}
+						}
+						else if (i->A.type == TokenType::IDENTIFIER)
+						{
+							if(functionAddrs.find(i->A.string) != functionAddrs.end())
+							{
+								if(functionAddrs.at(i->A.string) <= UINT16_MAX)
+								{
+									result->WriteU16(std::stoi(i->result.string), static_cast<uint16_t>(functionAddrs.at(i->A.string)));
+								}
+								if (functionAddrs.at(i->A.string) > UINT16_MAX && functionAddrs.at(i->A.string) <= UINT32_MAX)
+								{
+									result->WriteU32(std::stoi(i->result.string), static_cast<uint32_t>(functionAddrs.at(i->A.string)));
+								}
+								else
+								{
+									result->WriteU64(std::stoi(i->result.string), functionAddrs.at(i->A.string));
 								}
 							}
 						}
@@ -2045,14 +2103,22 @@ namespace ash
 				{
 					auto i = std::dynamic_pointer_cast<label>(instruction);
 					labelIndices.emplace(i->label, result->size());
-					if(unpatchedJumps.find(i->label) != unpatchedJumps.end())
+					if (unpatchedJumps.find(i->label) != unpatchedJumps.end())
 					{
 						auto jumps = unpatchedJumps.equal_range(i->label);
-						for(auto& it = jumps.first; it != jumps.second; it++)
+						for (auto& it = jumps.first; it != jumps.second; it++)
 						{
 							result->at(it->second) += (labelIndices.at(i->label) - it->second);
 						}
 					}
+					labelCodes++;
+					break;
+				}
+				case Asm::FunctionLabel:
+				{
+					auto fLabel = std::dynamic_pointer_cast<functionLabel>(instruction);
+					labelCodes++;
+					functionAddrs.emplace(fLabel->name, i);
 					break;
 				}
 				case Asm::Jump:

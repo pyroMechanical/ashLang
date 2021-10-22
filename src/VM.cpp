@@ -177,6 +177,17 @@ namespace ash
 					setRegister(B, R[A]);
 					break;
 				}
+				case OP_NEW_STACK_FRAME:
+				{
+#ifdef LOG_TIMES
+					Timer t = { "OP_NEW_STACK_FRAME" };
+#endif
+					stack.push_back(R[FRAME_REGISTER]);
+					stackFlags.push_back(0);
+					R[FRAME_REGISTER] = stack.size();
+					break;
+				}
+
 				case OP_ALLOC:
 				{
 					#ifdef LOG_TIMES
@@ -534,7 +545,7 @@ namespace ash
 					Timer t = { "OP_POP" };
 					#endif
 					uint8_t A = RegisterA(instruction);
-					R[A] =  stack.back();
+					R[A] =  stack.back(); //TODO: clean up possible memory leak; overwriting register without setRegister();
 					rFlags[A] = stackFlags.back();
 					if (stackPointers.back() == stack.size() - 1)
 					{
@@ -985,6 +996,7 @@ namespace ash
 					Timer t = { "OP_PUSH_IP" };
 					#endif
 					stack.push_back((ip - chunk->code()) + 2);
+					stackFlags.push_back(0);
 					break;
 				}
 				case OP_RELATIVE_JUMP:
@@ -1083,9 +1095,15 @@ namespace ash
 #ifdef LOG_TIMES
 					Timer t = { "OP_RETURN" };
 #endif
+					if ((rFlags[RETURN_REGISTER] & REGISTER_HOLDS_SIGNED) != 0) std::cout << static_cast<int64_t>(R[RETURN_REGISTER]) << std::endl;
+					else if ((rFlags[RETURN_REGISTER] & REGISTER_HOLDS_FLOAT) != 0) std::cout << r_cast<float>(&R[RETURN_REGISTER]) << std::endl;
+					else if ((rFlags[RETURN_REGISTER] & REGISTER_HOLDS_FLOAT) != 0) std::cout << r_cast<double>(&R[RETURN_REGISTER]) << std::endl;
+					else std::cout << R[RETURN_REGISTER] << std::endl;
 					auto addr = stack.back();
 					stack.resize(R[FRAME_REGISTER]);
+					stackFlags.resize(R[FRAME_REGISTER]);
 					ip = chunk->code() + addr;
+
 				}
 				case OP_HALT: 
 				{
