@@ -1235,11 +1235,11 @@ namespace ash
 					{
 						auto callNode = (FunctionCallNode*)exprNode;
 
-						std::vector<std::shared_ptr<assembly>> result;
+						std::vector<std::shared_ptr<assembly>> chunk;
 
 						auto stackFrame = std::make_shared<pseudocode>();
 						stackFrame->op = OP_NEW_STACK_FRAME;
-						result.push_back(stackFrame);
+						chunk.push_back(stackFrame);
 
 						for (const auto& argument : callNode->arguments)
 						{
@@ -1247,15 +1247,12 @@ namespace ash
 							temp.append(std::to_string(temporaries++));
 							Token tempToken = { TokenType::IDENTIFIER, temp, argument->line() };
 							auto argResult = compileNode(argument.get(), &tempToken);
-							result.insert(result.end(), argResult.begin(), argResult.end());
+							chunk.insert(chunk.end(), argResult.begin(), argResult.end());
 							auto push = std::make_shared<oneAddress>();
 							push->op = OP_PUSH;
 							push->A = tempToken;
-							result.push_back(push);
+							chunk.push_back(push);
 						}
-						auto ipPush = std::make_shared<pseudocode>();
-						ipPush->op = OP_PUSH_IP;
-						result.push_back(ipPush);
 
 						std::string temp2("#");
 						temp2.append(std::to_string(temporaries++));
@@ -1264,12 +1261,16 @@ namespace ash
 						constant->op = OP_CONST_LOW;
 						constant->result = tempToken2;
 						constant->A = { TokenType::IDENTIFIER, callNode->resolveName(), callNode->line() };
-						result.push_back(constant);
+						chunk.push_back(constant);
+
+						auto ipPush = std::make_shared<pseudocode>();
+						ipPush->op = OP_PUSH_IP;
+						chunk.push_back(ipPush);
 
 						auto call = std::make_shared<oneAddress>();
 						call->op = OP_REGISTER_JUMP;
 						call->A = tempToken2;
-						result.push_back(call);
+						chunk.push_back(call);
 
 						std::string frameRegister("@");
 						frameRegister.append(std::to_string(FRAME_REGISTER));
@@ -1277,9 +1278,21 @@ namespace ash
 						auto framePop = std::make_shared<oneAddress>();
 						framePop->op = OP_POP;
 						framePop->A = frameRegisterToken;
-						result.push_back(framePop);
+						chunk.push_back(framePop);
 
-						return result;
+						if (result)
+						{
+							frameRegister = "@";
+							frameRegister.append(std::to_string(RETURN_REGISTER));
+							frameRegisterToken.string = frameRegister;
+							auto move = std::make_shared<twoAddress>();
+							move->op = OP_MOVE;
+							move->A = frameRegisterToken;
+							move->result = *result;
+							chunk.push_back(move);
+						}
+
+						return chunk;
 					}
 					case ExpressionNode::ExpressionType::Constructor:
 					{
@@ -1486,8 +1499,6 @@ namespace ash
 		return result;
 	}
 
-
-
 	controlFlowGraph Compiler::analyzeControlFlow(pseudochunk chunk)
 	{
 		controlFlowGraph graph{};
@@ -1519,19 +1530,24 @@ namespace ash
 						std::shared_ptr<relativeJump> jump = std::dynamic_pointer_cast<relativeJump>(instruction);
 						auto op = jump->op;
 						currentNode->block.push_back(instruction);
+						auto nextNode = std::make_shared<controlFlowNode>();
 						switch (op)
 						{
 						case OP_RELATIVE_JUMP_IF_TRUE:
 						{
-							auto nextNode = std::make_shared<controlFlowNode>();
+
 							if (nodes.size() && nodes.back()->block.size() == 0) nextNode = currentNode;
 							else
 							{
 								nodes.push_back(nextNode);
 								currentNode->falseBlock = nextNode;
 							}
-							currentNode = nextNode;
 							currentLabel = -1;
+							break;
+						}
+						default:
+						{
+							currentNode = nextNode;
 							break;
 						}
 						}
@@ -1560,11 +1576,7 @@ namespace ash
 						endLabels.push_back(fSkip->jumpLabel);
 						functionTails.push_back(currentNode);
 						auto nextNode = std::make_shared<controlFlowNode>();
-						if (nodes.size() && nodes.back()->block.size() == 0)
-						{
-							nodes.pop_back();
-						}
-						
+						currentNode = nextNode;
 						currentLabel = -1;
 						graph.procedures.emplace(fLabel->name, nextNode);
 						break;
@@ -1634,51 +1646,52 @@ namespace ash
 				}
 			}
 
-			//show live variables at each code point:
-			//for(auto i = livePoints.rbegin(); i != livePoints.rend(); i++)
-			//{
-			//	bool first = true;
-			//	auto& node = *i;
-			//	for(const auto& string : node)
-			//	{
-			//		if (!first) std::cout << ", ";
-			//		else first = false;
-			//		std::cout << string;
-			//	}
-			//	std::cout << std::endl;
-			//}
-			
-			// output to graphvis:
-			//std::unordered_set<std::string> existingEdges;
-			//for(auto& kv : interferenceGraph)
-			//{				
-			//	std::string node = kv.first;
-			//	node.insert(0, 1, '\"');
-			//	node.append("\"");
-			//	for(auto string : kv.second)
-			//	{
-			//		if (existingEdges.find(string) == existingEdges.end())
-			//		{
-			//			string.insert(0, 1, '\"');
-			//			string.append("\"");
-			//			std::cout << node << " -- ";
-			//			std::cout << string << ";" << std::endl;
-			//		}
-			//	}
-			//	existingEdges.insert(kv.first);
-			//}
-			
-			// association graph:
-			//for(auto& kv : interferenceGraph)
-			//{
-			//	std::cout << kv.first << ": ";
-			//	for(const auto& string : kv.second)
-			//	{
-			//		std::cout << string << ", ";
-			//	}
-			//	std::cout << std::endl;
-			//}
-			std::unordered_set<std::string> poppedSet = {};
+				//show live variables at each code point:
+				//for (auto i = livePoints.rbegin(); i != livePoints.rend(); i++)
+				//{
+				//	bool first = true;
+				//	auto& node = *i;
+				//	for(const auto& string : node)
+				//	{
+				//		if (!first) std::cout << ", ";
+				//		else first = false;
+				//		std::cout << string;
+				//	}
+				//	std::cout << std::endl;
+				//}
+
+				// output to graphvis:
+				//std::unordered_set<std::string> existingEdges;
+				//for(auto& kv : interferenceGraph)
+				//{				
+				//	std::string node = kv.first;
+				//	node.insert(0, 1, '\"');
+				//	node.append("\"");
+				//	for(auto string : kv.second)
+				//	{
+				//		if (existingEdges.find(string) == existingEdges.end())
+				//		{
+				//			string.insert(0, 1, '\"');
+				//			string.append("\"");
+				//			std::cout << node << " -- ";
+				//			std::cout << string << ";" << std::endl;
+				//		}
+				//	}
+				//	existingEdges.insert(kv.first);
+				//}
+
+				// association graph:
+				//for(auto& kv : interferenceGraph)
+				//{
+				//	std::cout << kv.first << ": ";
+				//	for(const auto& string : kv.second)
+				//	{
+				//		std::cout << string << ", ";
+				//	}
+				//	std::cout << std::endl;
+				//}
+
+			std::unordered_set<std::string> poppedSet;
 			std::vector <std::pair<std::string, std::unordered_set<std::string>>> nodeStack = {};
 			std::bitset<256> functionRegister;
 			std::unordered_map<std::string, std::unordered_set<std::string>> workingGraph = interferenceGraph;
@@ -1688,7 +1701,7 @@ namespace ash
 				std::copy_if(kv.second.begin(), kv.second.end(), std::inserter(liveEdges, liveEdges.begin()), [&poppedSet](std::string s) { return (poppedSet.find(s) == poppedSet.end()); });
 				if(liveEdges.size() < 253)
 				{
-					poppedSet.emplace(kv.first);
+					poppedSet.insert(kv.first);
 					nodeStack.push_back(std::make_pair(kv.first,liveEdges));
 				}
 				else
@@ -1697,6 +1710,19 @@ namespace ash
 				}	
 				
 			}
+
+			for(auto& node : nodeStack)
+			{
+				std::cout << node.first << ": ";
+				bool first = true;
+				for(auto& string : node.second)
+				{
+					if (!first) std::cout << ", ";
+					std::cout << string;
+				}
+				std::cout << std::endl;
+			}
+
 			for (auto it = nodeStack.rbegin(); it != nodeStack.rend(); it++)
 			{
 				auto kv = *it;
@@ -1707,10 +1733,9 @@ namespace ash
 				}
 				else
 				{
-					if (kv.second.size() == 0)
+					if (kv.second.size() == 0 && registers.find(kv.first) != registers.end())
 					{
 						registers.emplace(kv.first, 3);
-						functionRegister.set(3);
 					}
 					else
 					{
@@ -1721,19 +1746,19 @@ namespace ash
 							if (usedRegister >= 0 && usedRegister < 256)
 							{
 								openRegisters.set(usedRegister);
-								functionRegister.set(usedRegister);
 							}
 						}
 
 						for (int i = 0; i < 256; i++)
 						{
-							if (!openRegisters[i])
+							if (!openRegisters[i] && registers.find(kv.first) == registers.end())
 							{
 								registers.emplace(kv.first, i);
+								openRegisters.set(i);
 								break;
 							}
 						}
-						
+						functionRegister |= openRegisters;
 					}
 				}
 			}
@@ -1741,17 +1766,25 @@ namespace ash
 			{
 				functionRegisters.emplace(procedure.first, functionRegister);
 			}
-			
+			std::vector<std::string> remove;
+			for(auto& kv : registers)
+			{
+				if (kv.first.find('@') == 0) remove.push_back(kv.first);
+			}
+			for(auto& str : remove)
+			{
+				registers.erase(str);
+			}
 			for (size_t j = 0; j < chunk.code.size(); j++)
 			{
 
 				auto& instruction = chunk.code[j];
-				switch(instruction->type())
+				switch (instruction->type())
 				{
 					case Asm::OneAddr:
 					{
 						auto& oneAddr = std::dynamic_pointer_cast<oneAddress>(instruction);
-						if(registers.find(oneAddr->A.string) != registers.end())
+						if (registers.find(oneAddr->A.string) != registers.end())
 						{
 							oneAddr->A = { TokenType::IDENTIFIER, std::to_string(registers.at(oneAddr->A.string)), oneAddr->A.line };
 						}
@@ -1762,7 +1795,7 @@ namespace ash
 						auto& twoAddr = std::dynamic_pointer_cast<twoAddress>(instruction);
 						if (twoAddr->op == OP_CONST_LOW)
 						{
-							if(registers.find(twoAddr->result.string) != registers.end())
+							if (registers.find(twoAddr->result.string) != registers.end())
 							{
 								twoAddr->result = { TokenType::IDENTIFIER, std::to_string(registers.at(twoAddr->result.string)), twoAddr->result.line };
 							}
@@ -1793,7 +1826,7 @@ namespace ash
 						}
 						if (registers.find(threeAddr->result.string) != registers.end())
 						{
-							threeAddr->result = { TokenType::IDENTIFIER, 
+							threeAddr->result = { TokenType::IDENTIFIER,
 								std::to_string(registers.at(threeAddr->result.string)),
 								threeAddr->result.line };
 						}
@@ -1802,11 +1835,12 @@ namespace ash
 					case Asm::FunctionLabel:
 					{
 						auto fLabel = std::dynamic_pointer_cast<functionLabel>(instruction);
+						auto fSkip = std::dynamic_pointer_cast<relativeJump>(chunk.code[j - 1]);
 						functions.emplace(fLabel->name, j);
+						break;
 					}
 				}
 			}
-			
 		}
 		for (auto& kv : functions)
 		{
@@ -1814,7 +1848,7 @@ namespace ash
 			std::vector<std::shared_ptr<assembly>> pushes;
 			std::vector<std::shared_ptr<assembly>> pops;
 			auto& registers = functionRegisters.at(kv.first);
-			for (size_t j = 2; j < registers.size(); j++)
+			for (size_t j = 3; j < registers.size(); j++)
 			{
 				if (registers[j])
 				{
@@ -1923,7 +1957,6 @@ namespace ash
 					{
 					case OP_POP:
 					case OP_PUSH:
-					case OP_RETURN:
 					case OP_RELATIVE_JUMP:
 					case OP_RELATIVE_JUMP_IF_TRUE:
 					case OP_OUT:
@@ -1984,6 +2017,7 @@ namespace ash
 						case OP_DOUBLE_TO_FLOAT:
 						case OP_DOUBLE_TO_INT:
 						case OP_MOVE:
+						case OP_MOVE_FROM_STACK_FRAME:
 						{
 							if(liveNodes.find(twoAddr->result.string) == liveNodes.end())
 							{
@@ -2113,12 +2147,15 @@ namespace ash
 				case Asm::OneAddr:
 				{
 					auto i = std::dynamic_pointer_cast<oneAddress>(instruction);
+					if (i->A.string.find('@') == 0) i->A.string = i->A.string.substr(1);
 					result->WriteA(i->op, std::stoi(i->A.string), i->A.line);
 					break;
 				}
 				case Asm::TwoAddr:
 				{
 					auto i = std::dynamic_pointer_cast<twoAddress>(instruction);
+					if (i->A.string.find('@') == 0) i->A.string = i->A.string.substr(1);
+					if (i->result.string.find('@') == 0) i->result.string = i->result.string.substr(1);
 					if (i->op == OP_CONST_LOW)
 					{
 						if (i->A.type == TokenType::FLOAT)
@@ -2189,6 +2226,9 @@ namespace ash
 				case Asm::ThreeAddr:
 				{
 					auto i = std::dynamic_pointer_cast<threeAddress>(instruction);
+					if (i->A.string.find('@') == 0) i->A.string = i->A.string.substr(1);
+					if (i->B.string.find('@') == 0) i->B.string = i->B.string.substr(1);
+					if (i->result.string.find('@') == 0) i->result.string = i->result.string.substr(1);
 					result->WriteABC(i->op, std::stoi(i->A.string), std::stoi(i->B.string), std::stoi(i->result.string), i->result.line);
 					break;
 				}
