@@ -197,8 +197,6 @@ namespace ash
 		}
 		auto halt = std::make_shared<pseudocode>();
 		halt->op = OP_HALT;
-		auto out = std::make_shared<oneAddress>();
-		out->op = OP_OUT;
 		if(chunk.code.size())
 		{
 			chunk.code.push_back(halt);
@@ -1488,6 +1486,8 @@ namespace ash
 		return result;
 	}
 
+
+
 	controlFlowGraph Compiler::analyzeControlFlow(pseudochunk chunk)
 	{
 		controlFlowGraph graph{};
@@ -1497,18 +1497,30 @@ namespace ash
 		std::vector<std::shared_ptr<controlFlowNode>> nodes;
 		std::unordered_map<size_t, std::shared_ptr<controlFlowNode>> nodeLabels;
 		nodes.push_back(currentNode);
+		
 		size_t currentLabel = -1;
-		for(const auto& instruction : chunk.code)
-		{
-			switch (instruction->type())
+		std::vector<size_t> endLabels;
+		std::vector<std::shared_ptr<controlFlowNode>> functionTails;
+			for (size_t i = 0; i < chunk.code.size(); i++)
 			{
-				case Asm::Jump:
+				if (endLabels.size() &&
+					chunk.code[i]->type() == Asm::Label &&
+					std::dynamic_pointer_cast<label>(chunk.code[i])->label == endLabels.back())
 				{
-					std::shared_ptr<relativeJump> jump = std::dynamic_pointer_cast<relativeJump>(instruction);
-					auto op = jump->op;
-					currentNode->block.push_back(instruction);
-					switch(op)
+					currentNode = functionTails.back();
+					endLabels.pop_back();
+					functionTails.pop_back();
+				}
+				auto& instruction = chunk.code[i];
+				switch (instruction->type())
+				{
+					case Asm::Jump:
 					{
+						std::shared_ptr<relativeJump> jump = std::dynamic_pointer_cast<relativeJump>(instruction);
+						auto op = jump->op;
+						currentNode->block.push_back(instruction);
+						switch (op)
+						{
 						case OP_RELATIVE_JUMP_IF_TRUE:
 						{
 							auto nextNode = std::make_shared<controlFlowNode>();
@@ -1522,45 +1534,47 @@ namespace ash
 							currentLabel = -1;
 							break;
 						}
+						}
+						break;
 					}
-					break;
-				}
-				case Asm::Label:
-				{
-					auto newLabel = std::dynamic_pointer_cast<label>(instruction);
-					auto nextNode = std::make_shared<controlFlowNode>();
-					if (nodes.size() && nodes.back()->block.size() == 0) nextNode = currentNode;
-					else
+					case Asm::Label:
 					{
-						nodes.push_back(nextNode);
-						if (currentNode->block.size() && currentNode->block.back()->type() != Asm::Jump) currentNode->trueBlock = nextNode;
+						auto newLabel = std::dynamic_pointer_cast<label>(instruction);
+						auto nextNode = std::make_shared<controlFlowNode>();
+						if (nodes.size() && nodes.back()->block.size() == 0) nextNode = currentNode;
+						else
+						{
+							nodes.push_back(nextNode);
+							if (currentNode->block.size() && currentNode->block.back()->type() != Asm::Jump) currentNode->trueBlock = nextNode;
+						}
+						nextNode->block.push_back(instruction);
+						currentLabel = newLabel->label;
+						currentNode = nextNode;
+						if (currentLabel != -1) nodeLabels.emplace(currentLabel, currentNode);
+						break;
 					}
-					nextNode->block.push_back(instruction);
-					currentLabel = newLabel->label;
-					currentNode = nextNode;
-					if (currentLabel != -1) nodeLabels.emplace(currentLabel, currentNode);
-					break;
-				}
-				case Asm::FunctionLabel:
-				{
-					auto fLabel = std::dynamic_pointer_cast<functionLabel>(instruction);
-					auto nextNode = std::make_shared<controlFlowNode>();
-					if (nodes.size() && nodes.back()->block.size() == 0)
+					case Asm::FunctionLabel:
 					{
-						nextNode = currentNode;
-						nodes.pop_back();
+						auto fLabel = std::dynamic_pointer_cast<functionLabel>(instruction);
+						auto fSkip = std::dynamic_pointer_cast<relativeJump>(chunk.code[i - 1]);
+						endLabels.push_back(fSkip->jumpLabel);
+						functionTails.push_back(currentNode);
+						auto nextNode = std::make_shared<controlFlowNode>();
+						if (nodes.size() && nodes.back()->block.size() == 0)
+						{
+							nodes.pop_back();
+						}
+						
+						currentLabel = -1;
+						graph.procedures.emplace(fLabel->name, nextNode);
+						break;
 					}
-					currentLabel = -1;
-					currentNode = nextNode;
-					graph.procedures.emplace(fLabel->name, currentNode);
-					break;
-				}
-				default:
-				{
-					currentNode->block.push_back(instruction);
+					default:
+					{
+						currentNode->block.push_back(instruction);
+					}
 				}
 			}
-		}
 		for(const auto& node : nodes)
 		{
 			if (node->block.size())
@@ -1590,7 +1604,14 @@ namespace ash
 	pseudochunk Compiler::allocateRegisters(pseudochunk chunk)
 	{
 		auto cfg = analyzeControlFlow(chunk);
+
+		for(const auto& i : chunk.code)
+		{
+			i->print();
+		}
 		std::vector<std::unordered_set<std::string>> livePoints;
+		std::unordered_map<std::string, size_t> functions;
+		std::unordered_map<std::string, std::bitset<256>> functionRegisters;
 		for (const auto& procedure : cfg.procedures)
 		{
 			std::unordered_map<std::string, int16_t> registers;
@@ -1659,6 +1680,7 @@ namespace ash
 			//}
 			std::unordered_set<std::string> poppedSet = {};
 			std::vector <std::pair<std::string, std::unordered_set<std::string>>> nodeStack = {};
+			std::bitset<256> functionRegister;
 			std::unordered_map<std::string, std::unordered_set<std::string>> workingGraph = interferenceGraph;
 			for(auto& kv : workingGraph)
 			{
@@ -1688,19 +1710,21 @@ namespace ash
 					if (kv.second.size() == 0)
 					{
 						registers.emplace(kv.first, 3);
+						functionRegister.set(3);
 					}
 					else
 					{
 						std::bitset<256> openRegisters{ 0x7 }; //set first three bits as reserved registers
-						openRegisters.set(0, true);
 						for (auto& node : kv.second)
 						{
 							int16_t usedRegister = registers.at(node);
 							if (usedRegister >= 0 && usedRegister < 256)
 							{
 								openRegisters.set(usedRegister);
+								functionRegister.set(usedRegister);
 							}
 						}
+
 						for (int i = 0; i < 256; i++)
 						{
 							if (!openRegisters[i])
@@ -1709,11 +1733,19 @@ namespace ash
 								break;
 							}
 						}
+						
 					}
 				}
 			}
-			for(auto& instruction : chunk.code)
+			if (procedure.first.compare("<global>") != 0)
 			{
+				functionRegisters.emplace(procedure.first, functionRegister);
+			}
+			
+			for (size_t j = 0; j < chunk.code.size(); j++)
+			{
+
+				auto& instruction = chunk.code[j];
 				switch(instruction->type())
 				{
 					case Asm::OneAddr:
@@ -1761,12 +1793,73 @@ namespace ash
 						}
 						if (registers.find(threeAddr->result.string) != registers.end())
 						{
-							threeAddr->result = { TokenType::IDENTIFIER, std::to_string(registers.at(threeAddr->result.string)), threeAddr->result.line };
+							threeAddr->result = { TokenType::IDENTIFIER, 
+								std::to_string(registers.at(threeAddr->result.string)),
+								threeAddr->result.line };
 						}
 						break;
 					}
+					case Asm::FunctionLabel:
+					{
+						auto fLabel = std::dynamic_pointer_cast<functionLabel>(instruction);
+						functions.emplace(fLabel->name, j);
+					}
 				}
 			}
+			
+		}
+		for (auto& kv : functions)
+		{
+			if (kv.first.compare("<global>") == 0) continue;
+			std::vector<std::shared_ptr<assembly>> pushes;
+			std::vector<std::shared_ptr<assembly>> pops;
+			auto& registers = functionRegisters.at(kv.first);
+			for (size_t j = 2; j < registers.size(); j++)
+			{
+				if (registers[j])
+				{
+					auto pop = std::make_shared<oneAddress>();
+					pop->op = OP_POP;
+					pop->A = { TokenType::INT, std::to_string(j), 0 };
+					pops.push_back(pop);
+					auto push = std::make_shared<oneAddress>();
+					push->op = OP_PUSH;
+					push->A = { TokenType::INT, std::to_string(j), 0 };
+					pushes.push_back(push);
+				}
+ 			}
+
+			auto& fSkip = std::dynamic_pointer_cast<relativeJump>(chunk.code[kv.second - 1]);
+			std::vector<size_t> returns;
+			for (size_t i = kv.second + 1; (chunk.code[i]->type() != Asm::Label ||
+				std::dynamic_pointer_cast<label>(chunk.code[i])->label != fSkip->jumpLabel); i++)
+			{
+				auto& instruction = chunk.code[i];
+				switch (instruction->type())
+				{
+				case Asm::FunctionLabel:
+				{
+					auto& fSkip = std::dynamic_pointer_cast<relativeJump>(chunk.code[i - 1]);
+					while (chunk.code[i]->type() != Asm::Label ||
+						std::dynamic_pointer_cast<label>(chunk.code[i])->label != fSkip->jumpLabel)
+					{
+						i++;
+					}
+				}
+				case Asm::pseudocode:
+				{
+					auto& one = std::dynamic_pointer_cast<pseudocode>(instruction);
+					if (one->op == OP_RETURN)
+						returns.push_back(i);
+				}
+				}
+			}
+			std::reverse(pops.begin(), pops.end());
+			for (auto it = returns.rbegin(); it != returns.rend(); it++)
+			{
+				chunk.code.insert(chunk.code.begin() + *it, pops.begin(), pops.end()); // maybe needs to be -1?
+			}
+			chunk.code.insert(chunk.code.begin() + kv.second + 1, pushes.begin(), pushes.end());
 		}
 		for(const auto& procedure : cfg.procedures)
 		{
@@ -2117,8 +2210,9 @@ namespace ash
 				case Asm::FunctionLabel:
 				{
 					auto fLabel = std::dynamic_pointer_cast<functionLabel>(instruction);
+					functionAddrs.emplace(fLabel->name, i - labelCodes);
+
 					labelCodes++;
-					functionAddrs.emplace(fLabel->name, i);
 					break;
 				}
 				case Asm::Jump:
