@@ -170,10 +170,10 @@ namespace ash
 
 			std::cout << "Register Allocation took " << (double)(std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count()) / 1000000.0 << "milliseconds.\n";
 		}
-		for (const auto& instruction : result.code)
-		{
-			instruction->print();
-		}
+		//for (const auto& instruction : result.code)
+		//{
+		//	instruction->print();
+		//}
 		
 		currentChunk = finalizeCode(result);
 
@@ -1229,6 +1229,10 @@ namespace ash
 					}
 					case ExpressionNode::ExpressionType::FieldCall:
 					{
+						auto fieldNode = (FieldCallNode*)exprNode;
+
+						std::vector<std::shared_ptr<assembly>> chunk;
+
 						
 					}
 					case ExpressionNode::ExpressionType::FunctionCall:
@@ -1616,11 +1620,6 @@ namespace ash
 	pseudochunk Compiler::allocateRegisters(pseudochunk chunk)
 	{
 		auto cfg = analyzeControlFlow(chunk);
-
-		for(const auto& i : chunk.code)
-		{
-			i->print();
-		}
 		std::vector<std::unordered_set<std::string>> livePoints;
 		std::unordered_map<std::string, size_t> functions;
 		std::unordered_map<std::string, std::bitset<256>> functionRegisters;
@@ -1711,17 +1710,17 @@ namespace ash
 				
 			}
 
-			for(auto& node : nodeStack)
-			{
-				std::cout << node.first << ": ";
-				bool first = true;
-				for(auto& string : node.second)
-				{
-					if (!first) std::cout << ", ";
-					std::cout << string;
-				}
-				std::cout << std::endl;
-			}
+			//for(auto& node : nodeStack)
+			//{
+			//	std::cout << node.first << ": ";
+			//	bool first = true;
+			//	for(auto& string : node.second)
+			//	{
+			//		if (!first) std::cout << ", ";
+			//		std::cout << string;
+			//	}
+			//	std::cout << std::endl;
+			//}
 
 			for (auto it = nodeStack.rbegin(); it != nodeStack.rend(); it++)
 			{
@@ -1957,8 +1956,8 @@ namespace ash
 					{
 					case OP_POP:
 					case OP_PUSH:
-					case OP_RELATIVE_JUMP:
-					case OP_RELATIVE_JUMP_IF_TRUE:
+					case OP_REGISTER_JUMP:
+					case OP_REGISTER_JUMP_IF_TRUE:
 					case OP_OUT:
 						if(liveNodes.find(oneAddr->A.string) == liveNodes.end())
 						{

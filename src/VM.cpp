@@ -1109,6 +1109,11 @@ namespace ash
 					#ifdef LOG_TIMES
 					Timer t = { "OP_HALT" };
 					#endif
+
+					if ((rFlags[RETURN_REGISTER] & REGISTER_HOLDS_SIGNED) != 0) std::cout << static_cast<int64_t>(R[RETURN_REGISTER]) << std::endl;
+					else if ((rFlags[RETURN_REGISTER] & REGISTER_HOLDS_FLOAT) != 0) std::cout << r_cast<float>(&R[RETURN_REGISTER]) << std::endl;
+					else if ((rFlags[RETURN_REGISTER] & REGISTER_HOLDS_FLOAT) != 0) std::cout << r_cast<double>(&R[RETURN_REGISTER]) << std::endl;
+					else std::cout << R[RETURN_REGISTER] << std::endl;
 					freeAllocations();
 					R.fill(0);
 					rFlags.fill(0);

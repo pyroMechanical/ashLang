@@ -234,6 +234,8 @@ namespace ash
 		virtual NodeType nodeType() override { return NodeType::Expression; }
 		virtual ExpressionType expressionType() = 0;
 
+		virtual std::string resolve() = 0;
+
 		virtual Token typeToken() = 0;
 
 		virtual int line() = 0;
@@ -529,6 +531,8 @@ namespace ash
 
 		virtual ExpressionType expressionType() override { return ExpressionType::Primary; }
 
+		virtual std::string resolve() override { return primary.string; }
+
 		virtual void print(int depth) override
 		{
 			util::spaces(depth);
@@ -547,6 +551,13 @@ namespace ash
 		virtual Token typeToken() override { return fieldType; }
 
 		virtual ExpressionType expressionType() override { return ExpressionType::FieldCall; }
+
+		virtual std::string resolve() override 
+		{ 
+			std::string ret;
+			if (left) ret = left->resolve().append(".");
+			return ret.append(field.string); 
+		}
 
 		virtual void print(int depth) override
 		{
