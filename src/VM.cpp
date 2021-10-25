@@ -1087,6 +1087,7 @@ namespace ash
 					{
 						setRegister(B, temp);
 					}
+					rFlags[B] = stackFlags[R[FRAME_REGISTER] + R[A]];
 					break;
 				}
 				case OP_RETURN:

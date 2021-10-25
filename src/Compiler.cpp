@@ -170,10 +170,10 @@ namespace ash
 
 			std::cout << "Register Allocation took " << (double)(std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count()) / 1000000.0 << "milliseconds.\n";
 		}
-		//for (const auto& instruction : result.code)
-		//{
-		//	instruction->print();
-		//}
+		for (const auto& instruction : result.code)
+		{
+			instruction->print();
+		}
 		
 		currentChunk = finalizeCode(result);
 
@@ -1232,8 +1232,91 @@ namespace ash
 						auto fieldNode = (FieldCallNode*)exprNode;
 
 						std::vector<std::shared_ptr<assembly>> chunk;
+						std::string temp("#");
+						temp.append(std::to_string(temporaries++));
+						Token tempToken = { TokenType::IDENTIFIER, temp, fieldNode->field.line };
+						auto var = fieldNode->resolve().substr(0, fieldNode->resolve().find("."));
+						auto substr = fieldNode->resolve();
+						std::string remainder = util::renameByScope({ TokenType::IDENTIFIER, fieldNode->resolve().substr(0, fieldNode->resolve().find(".")), 0 }, currentScope).string;
+						substr =substr.substr(substr.find("."));
+						substr = substr.substr(substr.find(".") + 1);
+						auto scope = currentScope;
+						std::string currentType;
+						while (scope != nullptr)
+						{
+							if (scope->symbols.find(var) != scope->symbols.end())
+							{
+								currentType = scope->symbols.at(var).type.string;
+								scope = nullptr;
+							}
+							else
+							{
+								scope = scope->parentScope;
+							}
+						}
+						Token lastTempToken = {};
+						while (substr.length() > 0)
+						{
+							size_t offset = substr.find(".");
+							std::string last = remainder;
+							remainder = substr.substr(0, offset);
+							substr = substr.substr(offset + 1);
+							if (offset == std::string::npos)
+							{
+								substr = std::string("");
+							}
+							auto scope = currentScope;
+							std::vector<parameter> params;
+							while (scope != nullptr)
+							{
+								if (scope->typeParameters.find(currentType) != scope->typeParameters.end())
+								{
+									params = scope->typeParameters.at(currentType);
+									scope = nullptr;
+								}
+								else
+								{
+									scope = scope->parentScope;
+								}
+							}
+							for (size_t i = 0; i < params.size(); i++)
+							{
+								if (remainder.compare(params[i].identifier.string) == 0)
+								{
+									currentType = params[i].type.string;
+									auto load = std::make_shared<threeAddress>();
+									load->op = OP_LOAD_OFFSET;
 
-						
+									std::string newTemp("#");
+									newTemp.append(std::to_string(temporaries++));
+									Token newTempToken = { TokenType::IDENTIFIER, newTemp, fieldNode->line() };
+									if (substr.size() || !result)
+									{
+										load->A = newTempToken;
+									}
+									else
+									{
+										load->A = *result;
+									}
+									if (lastTempToken.type == TokenType::ERROR)
+									{
+										load->B = { TokenType::IDENTIFIER, last , fieldNode->line() };
+									}
+									else
+									{
+										load->B = lastTempToken;
+									}
+									load->result = { TokenType::INT, std::to_string(i), fieldNode->line() };
+									chunk.push_back(load);
+									lastTempToken = newTempToken;
+								}
+								else
+								{
+									
+								}
+							}
+						}
+						return chunk;
 					}
 					case ExpressionNode::ExpressionType::FunctionCall:
 					{
@@ -1646,18 +1729,18 @@ namespace ash
 			}
 
 				//show live variables at each code point:
-				//for (auto i = livePoints.rbegin(); i != livePoints.rend(); i++)
-				//{
-				//	bool first = true;
-				//	auto& node = *i;
-				//	for(const auto& string : node)
-				//	{
-				//		if (!first) std::cout << ", ";
-				//		else first = false;
-				//		std::cout << string;
-				//	}
-				//	std::cout << std::endl;
-				//}
+				for (auto i = livePoints.rbegin(); i != livePoints.rend(); i++)
+				{
+					bool first = true;
+					auto& node = *i;
+					for(const auto& string : node)
+					{
+						if (!first) std::cout << ", ";
+						else first = false;
+						std::cout << string;
+					}
+					std::cout << std::endl;
+				}
 
 				// output to graphvis:
 				//std::unordered_set<std::string> existingEdges;
