@@ -583,6 +583,8 @@ namespace ash
 
 		virtual ExpressionType expressionType() override { return ExpressionType::ArrayIndex; }
 
+		virtual std::string resolve() override { return ""; };
+
 		virtual void print(int depth) override
 		{
 			util::spaces(depth);
@@ -614,6 +616,8 @@ namespace ash
 
 		virtual Token typeToken() override { return binaryType; }
 
+		virtual std::string resolve() override { return ""; };
+
 		virtual void print(int depth) override
 		{
 			util::spaces(depth);
@@ -636,6 +640,8 @@ namespace ash
 		virtual Token typeToken() override { return assignmentType; }
 
 		virtual ExpressionType expressionType() override { return ExpressionType::Assignment; }
+
+		virtual std::string resolve() override { return ""; };
 
 		virtual void print(int depth) override
 		{
@@ -711,6 +717,8 @@ namespace ash
 
 		virtual ExpressionType expressionType() override { return ExpressionType::Unary; }
 
+		virtual std::string resolve() override { return ""; };
+
 		virtual void print(int depth) override
 		{
 			util::spaces(depth);
@@ -732,6 +740,8 @@ namespace ash
 		virtual Token typeToken() override { return functionType; }
 
 		virtual ExpressionType expressionType() override { return ExpressionType::FunctionCall; }
+
+		virtual std::string resolve() override { return left->resolve().append("()"); };
 
 		std::string resolveName()
 		{
@@ -791,6 +801,8 @@ namespace ash
 		virtual Token typeToken() override { return ConstructorType; }
 
 		virtual ExpressionType expressionType() override { return ExpressionType::Constructor; }
+
+		virtual std::string resolve() override { return ""; };
 
 		virtual void print(int depth) override
 		{
