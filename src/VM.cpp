@@ -175,6 +175,26 @@ namespace ash
 					uint8_t B = RegisterB(instruction);
 					if (rFlags[B] & REGISTER_HOLDS_POINTER) refDecrement(reinterpret_cast<Allocation*>(R[B]));
 					setRegister(B, R[A]);
+					if (rFlags[A] & REGISTER_HOLDS_SIGNED)
+					{
+						setRegister(B, static_cast<int64_t>(R[A]));
+					}
+					else if (rFlags[A] & REGISTER_HOLDS_FLOAT)
+					{
+						setRegister(B, *reinterpret_cast<float*>(&R[A]));
+					}
+					else if (rFlags[A] & REGISTER_HOLDS_DOUBLE)
+					{
+						setRegister(B, *reinterpret_cast<double*>(&R[A]));
+					}
+					else if (rFlags[A] & REGISTER_HOLDS_POINTER)
+					{
+						setRegister(B, reinterpret_cast<Allocation*>(R[A]));
+					}
+					else
+					{
+						setRegister(B, R[A]);
+					}
 					break;
 				}
 				case OP_NEW_STACK_FRAME:
@@ -535,7 +555,6 @@ namespace ash
 						stackPointers.push_back(stack.size() - 1);
 						refIncrement(*reinterpret_cast<Allocation**>(&R[A]));
 					}
-					rFlags[A] = 0;
 					break;
 				}
 				case OP_POP:
@@ -586,6 +605,7 @@ namespace ash
 					uint8_t B = RegisterB(instruction);
 
 					setRegister(B, -static_cast<int64_t>(R[A]));
+					break;
 				}
 				case OP_UNSIGN_MUL:
 				{
@@ -1062,6 +1082,9 @@ namespace ash
 				}
 				case OP_MOVE_FROM_STACK_FRAME:
 				{
+					#ifdef LOG_TIMES
+					Timer t = { "OP_MOVE_FROM_STACK_FRAME" };
+					#endif
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 
@@ -1115,7 +1138,6 @@ namespace ash
 					else if ((rFlags[RETURN_REGISTER] & REGISTER_HOLDS_FLOAT) != 0) std::cout << r_cast<float>(&R[RETURN_REGISTER]) << std::endl;
 					else if ((rFlags[RETURN_REGISTER] & REGISTER_HOLDS_FLOAT) != 0) std::cout << r_cast<double>(&R[RETURN_REGISTER]) << std::endl;
 					else std::cout << R[RETURN_REGISTER] << std::endl;
-					freeAllocations();
 					R.fill(0);
 					rFlags.fill(0);
 					stack.clear();
@@ -1123,6 +1145,7 @@ namespace ash
 					stackPointers.clear();
 					types.clear();
 					comparisonRegister = false;
+					freeAllocations();
 					return InterpretResult::INTERPRET_OK;
 				}
 			}
@@ -1148,7 +1171,7 @@ namespace ash
 		result->typeInfo = typeInfo;
 		result->allocationType = AllocationType::Type;
 		if (allocationList) allocationList->left = result;
-		result->exp = exp;
+		result->exp = (exp >= Memory::minExponentSize) ? exp : Memory::minExponentSize;
 		allocationList = result;
 		return result;
 	}

@@ -110,6 +110,7 @@ namespace ash
 		static Allocation* searchNode(Allocation* node, uint8_t exp);
 		static void returnNode(Allocation* node, Allocation* freed);
 	public:
+		const static uint8_t minExponentSize = 4;
 		static Allocation* allocate(uint8_t powerOfTwo);
 		static void allocateList(uint8_t count);
 		static void free(Allocation* ptr);

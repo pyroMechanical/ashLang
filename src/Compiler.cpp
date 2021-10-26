@@ -170,19 +170,12 @@ namespace ash
 
 			std::cout << "Register Allocation took " << (double)(std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count()) / 1000000.0 << "milliseconds.\n";
 		}
-		for (const auto& instruction : result.code)
-		{
-			instruction->print();
-		}
+		//for (const auto& instruction : result.code)
+		//{
+		//	instruction->print();
+		//}
 		
 		currentChunk = finalizeCode(result);
-
-
-		/*for (const auto& typeID : typeIDs)
-		{
-			std::cout << typeID.first << ": " << typeID.second << std::endl;
-		}*/
-
 		return true;
 	}
 
@@ -460,7 +453,7 @@ namespace ash
 					if (varNode->value)
 					{ 
 						result = compileNode(varNode->value.get(), &identifier);
-						if (result.back()->type() == Asm::TwoAddr)
+						if (result.size() && result.back()->type() == Asm::TwoAddr)
 						{
 							Token value = ((twoAddress*)result.back().get())->A;
 							OpCodes operator_ = ((twoAddress*)result.back().get())->op;
@@ -1729,18 +1722,18 @@ namespace ash
 			}
 
 				//show live variables at each code point:
-				for (auto i = livePoints.rbegin(); i != livePoints.rend(); i++)
-				{
-					bool first = true;
-					auto& node = *i;
-					for(const auto& string : node)
-					{
-						if (!first) std::cout << ", ";
-						else first = false;
-						std::cout << string;
-					}
-					std::cout << std::endl;
-				}
+				//for (auto i = livePoints.rbegin(); i != livePoints.rend(); i++)
+				//{
+				//	bool first = true;
+				//	auto& node = *i;
+				//	for(const auto& string : node)
+				//	{
+				//		if (!first) std::cout << ", ";
+				//		else first = false;
+				//		std::cout << string;
+				//	}
+				//	std::cout << std::endl;
+				//}
 
 				// output to graphvis:
 				//std::unordered_set<std::string> existingEdges;
@@ -2332,7 +2325,7 @@ namespace ash
 				case Asm::FunctionLabel:
 				{
 					auto fLabel = std::dynamic_pointer_cast<functionLabel>(instruction);
-					functionAddrs.emplace(fLabel->name, i - labelCodes);
+					functionAddrs.emplace(fLabel->name, result->size());
 
 					labelCodes++;
 					break;

@@ -4,9 +4,8 @@
 
 namespace ash
 {
-	constexpr uint8_t minExponentSize = 4;
 	Allocation* Memory::freeStructList = nullptr;
-	MemBlock Memory::block{12};
+	MemBlock Memory::block{20};
 
 	MemBlock::MemBlock(uint8_t powerOfTwo)
 	{
@@ -50,7 +49,7 @@ namespace ash
 
 	void Allocation::split()
 	{
-		if (isSplit || exp <= minExponentSize) return;
+		if (isSplit || exp <= Memory::minExponentSize) return;
 
 		if (Memory::freeStructList == nullptr || Memory::freeStructList->right == nullptr) Memory::allocateList(exp);
 
@@ -81,9 +80,9 @@ namespace ash
 		if(right->memory != left->memory + left->size()) return;
 		
 		right->right = Memory::freeStructList;
-		Memory::freeStructList->left = right;
 		right->left = left;
 		left->right = right;
+		if(Memory::freeStructList) Memory::freeStructList->left = right;
 		Memory::freeStructList = left;
 		left = nullptr;
 		right = nullptr;
@@ -117,7 +116,6 @@ namespace ash
 			std::cerr << "Allocation structs: " << block.allocationStructs << std::endl;
 			exit(1);
 		}
-
 		return result;
 	}
 
