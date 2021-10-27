@@ -1492,7 +1492,7 @@ namespace ash
 			if (allocationList == ref)
 			{
 				allocationList = ref->right;
-				ref->right->left = nullptr;
+				if(ref->right) ref->right->left = nullptr;
 			}
 			else
 			{

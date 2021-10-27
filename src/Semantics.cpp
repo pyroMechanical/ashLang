@@ -817,9 +817,9 @@ namespace ash
 
 						std::vector<Token> args;
 
-						for (const auto& argument : functionCallNode->arguments)
+						for (int i = 0; i < functionCallNode->arguments.size(); i++)
 						{
-							args.push_back(expressionTypeInfo(argument.get(), currentScope));
+							args.push_back(expressionTypeInfo(functionCallNode->arguments[i].get(), currentScope, parameters[i].type));
 						}
 
 						if (args.size() != parameters.size())

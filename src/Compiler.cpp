@@ -159,10 +159,10 @@ namespace ash
 			result = correctLoadStore(result);
 			t2 = std::chrono::high_resolution_clock::now();
 		}
-		//for (const auto& instruction : result.code)
-		//{
-		//	instruction->print();
-		//}
+		for (const auto& instruction : result.code)
+		{
+			instruction->print();
+		}
 		{
 			t1 = std::chrono::high_resolution_clock::now();
 			result = allocateRegisters(result);
@@ -170,10 +170,10 @@ namespace ash
 
 			std::cout << "Register Allocation took " << (double)(std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count()) / 1000000.0 << "milliseconds.\n";
 		}
-		//for (const auto& instruction : result.code)
-		//{
-		//	instruction->print();
-		//}
+		for (const auto& instruction : result.code)
+		{
+			instruction->print();
+		}
 		
 		currentChunk = finalizeCode(result);
 		return true;
@@ -1684,10 +1684,6 @@ namespace ash
 					}
 				}
 			}
-			else
-			{
-				std::cout << "block is empty!" << std::endl;
-			}
 		}
 
 		return graph;
@@ -1722,18 +1718,18 @@ namespace ash
 			}
 
 				//show live variables at each code point:
-				//for (auto i = livePoints.rbegin(); i != livePoints.rend(); i++)
-				//{
-				//	bool first = true;
-				//	auto& node = *i;
-				//	for(const auto& string : node)
-				//	{
-				//		if (!first) std::cout << ", ";
-				//		else first = false;
-				//		std::cout << string;
-				//	}
-				//	std::cout << std::endl;
-				//}
+				for (auto i = livePoints.rbegin(); i != livePoints.rend(); i++)
+				{
+					bool first = true;
+					auto& node = *i;
+					for(const auto& string : node)
+					{
+						if (!first) std::cout << ", ";
+						else first = false;
+						std::cout << string;
+					}
+					std::cout << std::endl;
+				}
 
 				// output to graphvis:
 				//std::unordered_set<std::string> existingEdges;
