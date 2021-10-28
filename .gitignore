@@ -2,9 +2,12 @@
 **/CMakeCache.txt
 **/cmake_install.cmake
 
+
 # IDE-specific files.
 **/Debug
 **/Release
+**/RelWithDebInfo
+**/MinSizeRel
 **/x64
 **/.vs
 *.sln
@@ -13,4 +16,6 @@
 *.vcxproj.user
 .vscode/
 .history/
+**/ashlang.dir
+
 *.code-workspace

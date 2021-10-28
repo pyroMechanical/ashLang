@@ -145,6 +145,8 @@ namespace ash
 		Compiler()
 			:scopeDepth(0) {}
 
+		Token newTemp(int line);
+
 		bool compile(const char* source);
 
 		std::shared_ptr<Chunk> getChunk() { return currentChunk; }

@@ -39,12 +39,16 @@ namespace ash
 		static Token renameByScope(Token identifier, std::shared_ptr<ScopeNode> current)
 		{
 			std::shared_ptr<ScopeNode> varScope = current;
-			std::string id = identifier.string;
+			size_t offset = identifier.string.find(".");
+			std::string id = identifier.string.substr(0, offset);
+			std::string remainder;
+			if (offset != std::string::npos)
+				remainder = identifier.string.substr(offset);
 			while (varScope)
 			{
 				if (varScope->symbols.find(id) != varScope->symbols.end())
 				{
-					return { identifier.type, id.append("#").append(std::to_string(varScope->scopeIndex)), identifier.line };
+					return { identifier.type, id.append("#").append(std::to_string(varScope->scopeIndex)).append(remainder), identifier.line };
 				}
 				else
 				{
@@ -112,6 +116,12 @@ namespace ash
 			}
 		}
 	}
+
+	Token Compiler::newTemp(int line)
+	{
+		return { TokenType::IDENTIFIER, std::string("#").append(std::to_string(temporaries++)), line };
+	}
+
 	bool Compiler::compile(const char* source)
 	{
 
@@ -472,9 +482,7 @@ namespace ash
 				else
 				{
 					auto varType = util::renameByScope(varNode->type, currentScope);
-					std::string temp = std::string("#");
-					temp.append(std::to_string(temporaries++));
-					Token tempToken = { TokenType::IDENTIFIER, temp, varType.line };
+					Token tempToken = newTemp(varType.line);
 					auto allocType = std::make_shared<twoAddress>();
 					allocType->op = OP_CONST_LOW;
 					allocType->A = { TokenType::INT,  std::to_string(typeIDs.at(varType.string)), varType.line };
@@ -514,9 +522,7 @@ namespace ash
 					auto constant = std::make_shared<twoAddress>();
 					constant->op = OP_CONST_LOW;
 					constant->A = { TokenType::INT, std::to_string(i), funcNode->parameters[i].type.line };
-					std::string temp{ "#" };
-					temp.append(std::to_string(temporaries++));
-					Token tempToken = { TokenType::IDENTIFIER, temp, funcNode->parameters[i].type.line };
+					Token tempToken = newTemp(funcNode->parameters[i].type.line);
 					constant->result = tempToken;
 					result.push_back(constant);
 					auto move = std::make_shared<twoAddress>();
@@ -573,40 +579,6 @@ namespace ash
 					{
 						auto binaryNode = (BinaryNode*)exprNode;
 						std::vector<std::shared_ptr<assembly>> chunk;
-						Token left = ((CallNode*)binaryNode->left.get())->primary;
-						if(left.type != TokenType::IDENTIFIER)
-						{
-							auto constant = std::make_shared<twoAddress>();
-							std::string temp = { "#" };
-							temp.append(std::to_string(temporaries++));
-							Token tempToken = { TokenType::IDENTIFIER, temp, ((CallNode*)binaryNode->left.get())->line() };
-							constant->op = OP_CONST_LOW;
-							constant->A = left;
-							constant->result = tempToken;
-							chunk.push_back(constant);
-							left = tempToken;
-						}
-						else if(left.string.find('#') == std::string::npos)
-						{
-							left = util::renameByScope(left, currentScope);
-						}
-						Token right = ((CallNode*)binaryNode->right.get())->primary;
-						if (right.type != TokenType::IDENTIFIER)
-						{
-							auto constant = std::make_shared<twoAddress>();
-							std::string temp = { "#" };
-							temp.append(std::to_string(temporaries++));
-							Token tempToken = { TokenType::IDENTIFIER, temp, ((CallNode*)binaryNode->left.get())->line() };
-							constant->op = OP_CONST_LOW;
-							constant->A = right;
-							constant->result = tempToken;
-							chunk.push_back(constant);
-							right = tempToken;
-						}
-						else if( right.string.find('#') == std::string::npos)
-						{
-							right = util::renameByScope(right, currentScope);
-						}
 						if(util::isBasic(binaryNode->leftType) && util::isBasic(binaryNode->rightType))
 						{
 							auto expressionType = util::resolveBasicTypes(binaryNode->leftType, binaryNode->rightType);
@@ -625,34 +597,36 @@ namespace ash
 								case TokenType::BANG_EQUAL:
 								{
 									auto binaryInstruction = std::make_shared<threeAddress>();
-
+									Token leftTemp = newTemp(binaryNode->left->line());
+									auto leftChunk = compileNode((ParseNode*)binaryNode->left.get(), &leftTemp);
+									chunk.insert(chunk.end(), leftChunk.begin(), leftChunk.end());
 									if (binaryNode->leftType.string.compare(expressionType.string) == 0)
 									{
-										binaryInstruction->A = left;
+										binaryInstruction->A = leftTemp;
+										
 									}
 									else
 									{
 										auto conversion = std::make_shared<twoAddress>();
-										conversion->A = left;
-										std::string temp("#");
-										temp.append(std::to_string(temporaries++));
-										Token tempToken = { TokenType::IDENTIFIER, temp, binaryNode->left->line() };
+										conversion->A = leftTemp;
+										Token tempToken = newTemp(binaryNode->left->line());
 										conversion->result = tempToken;
 										conversion->op = util::typeConversion(binaryNode->leftType, expressionType);
 										chunk.push_back(conversion);
 										binaryInstruction->A = tempToken;
 									}
+									Token rightTemp = newTemp(binaryNode->right->line());
+									auto rightChunk = compileNode((ParseNode*)binaryNode->right.get(), &leftTemp);
+									chunk.insert(chunk.end(), rightChunk.begin(), rightChunk.end());
 									if (binaryNode->leftType.string.compare(expressionType.string) == 0)
 									{
-										binaryInstruction->B = right;
+										binaryInstruction->B = rightTemp;
 									}
 									else
 									{
 										auto conversion = std::make_shared<twoAddress>();
-										conversion->A = right;
-										std::string temp("#");
-										temp.append(std::to_string(temporaries++));
-										Token tempToken = { TokenType::IDENTIFIER, temp, binaryNode->right->line() };
+										conversion->A = rightTemp;
+										Token tempToken = newTemp(binaryNode->right->line());
 										conversion->result = tempToken;
 										conversion->op = util::typeConversion(binaryNode->rightType, expressionType);
 										chunk.push_back(conversion);
@@ -664,9 +638,7 @@ namespace ash
 									}
 									else
 									{
-										std::string temp("#");
-										temp.append(std::to_string(temporaries++));
-										binaryInstruction->result = { TokenType::IDENTIFIER, temp, binaryNode->left->line() };
+										binaryInstruction->result = newTemp(binaryNode->left->line());
 									}
 
 									if(expressionType.string.compare("double") == 0)
@@ -704,12 +676,8 @@ namespace ash
 											equal->A = binaryInstruction->A;
 											equal->B = binaryInstruction->B;
 											equal->op = OP_DOUBLE_EQUAL;
-											std::string temp1("#");
-											temp1.append(std::to_string(temporaries++));
-											equal->result = { TokenType::IDENTIFIER, temp1, binaryNode->left->line() };
-											std::string temp2("#");
-											temp2.append(std::to_string(temporaries++));
-											binaryInstruction->result = { TokenType::IDENTIFIER, temp2, binaryNode->left->line() };
+											equal->result = newTemp(binaryNode->left->line());
+											binaryInstruction->result = newTemp(binaryNode->left->line());
 											or_->A = equal->result;
 											or_->B = binaryInstruction->result;
 											binaryInstruction->op = OP_DOUBLE_LESS;
@@ -730,12 +698,8 @@ namespace ash
 											equal->A = binaryInstruction->A;
 											equal->B = binaryInstruction->B;
 											equal->op = OP_DOUBLE_EQUAL;
-											std::string temp1("#");
-											temp1.append(std::to_string(temporaries++));
-											equal->result = { TokenType::IDENTIFIER, temp1, binaryNode->left->line() };
-											std::string temp2("#");
-											temp2.append(std::to_string(temporaries++));
-											binaryInstruction->result = { TokenType::IDENTIFIER, temp2, binaryNode->left->line() };
+											equal->result = newTemp(binaryNode->left->line());
+											binaryInstruction->result = newTemp(binaryNode->left->line());
 											or_->A = equal->result;
 											or_->B = binaryInstruction->result;
 											binaryInstruction->op = OP_DOUBLE_GREATER;
@@ -753,9 +717,7 @@ namespace ash
 											std::shared_ptr<twoAddress> not;
 											not->result = binaryInstruction->result;
 											not->op = OP_LOGICAL_NOT;
-											std::string temp("#");
-											temp.append(std::to_string(temporaries++));
-											binaryInstruction->result = { TokenType::IDENTIFIER, temp, binaryNode->left->line() };
+											binaryInstruction->result = newTemp(binaryNode->left->line());
 											not->A = binaryInstruction->result;
 											binaryInstruction->op = OP_DOUBLE_EQUAL;
 											chunk.push_back(binaryInstruction);
@@ -797,12 +759,8 @@ namespace ash
 											equal->A = binaryInstruction->A;
 											equal->B = binaryInstruction->B;
 											equal->op = OP_FLOAT_EQUAL;
-											std::string temp1("#");
-											temp1.append(std::to_string(temporaries++));
-											equal->result = { TokenType::IDENTIFIER, temp1, binaryNode->left->line() };
-											std::string temp2("#");
-											temp2.append(std::to_string(temporaries++));
-											binaryInstruction->result = { TokenType::IDENTIFIER, temp2, binaryNode->left->line() };
+											equal->result = newTemp(binaryNode->left->line());
+											binaryInstruction->result = newTemp(binaryNode->left->line());
 											or_->A = equal->result;
 											or_->B = binaryInstruction->result;
 											or_->op = OP_LOGICAL_OR;
@@ -824,12 +782,8 @@ namespace ash
 											equal->A = binaryInstruction->A;
 											equal->B = binaryInstruction->B;
 											equal->op = OP_FLOAT_EQUAL;
-											std::string temp1("#");
-											temp1.append(std::to_string(temporaries++));
-											equal->result = { TokenType::IDENTIFIER, temp1, binaryNode->left->line() };
-											std::string temp2("#");
-											temp2.append(std::to_string(temporaries++));
-											binaryInstruction->result = { TokenType::IDENTIFIER, temp2, binaryNode->left->line() };
+											equal->result = newTemp(binaryNode->left->line());
+											binaryInstruction->result = newTemp(binaryNode->left->line());
 											or_->A = equal->result;
 											or_->B = binaryInstruction->result;
 											or_->op = OP_LOGICAL_OR;
@@ -848,9 +802,7 @@ namespace ash
 											auto not = std::make_shared<twoAddress>();
 											not->result = binaryInstruction->result;
 											not->op = OP_LOGICAL_NOT;
-											std::string temp("#");
-											temp.append(std::to_string(temporaries++));
-											binaryInstruction->result = { TokenType::IDENTIFIER, temp, binaryNode->left->line() };
+											binaryInstruction->result = newTemp(binaryNode->left->line());
 											not->A = binaryInstruction->result;
 											binaryInstruction->op = OP_FLOAT_EQUAL;
 											chunk.push_back(binaryInstruction);
@@ -892,12 +844,8 @@ namespace ash
 											equal->A = binaryInstruction->A;
 											equal->B = binaryInstruction->B;
 											equal->op = OP_INT_EQUAL;
-											std::string temp1("#");
-											temp1.append(std::to_string(temporaries++));
-											equal->result = { TokenType::IDENTIFIER, temp1, binaryNode->left->line() };
-											std::string temp2("#");
-											temp2.append(std::to_string(temporaries++));
-											binaryInstruction->result = { TokenType::IDENTIFIER, temp2, binaryNode->left->line() };
+											equal->result = newTemp(binaryNode->left->line());
+											binaryInstruction->result = newTemp(binaryNode->left->line());
 											or_->A = equal->result;
 											or_->B = binaryInstruction->result;
 											or_->op = OP_LOGICAL_OR;
@@ -919,12 +867,8 @@ namespace ash
 											equal->A = binaryInstruction->A;
 											equal->B = binaryInstruction->B;
 											equal->op = OP_INT_EQUAL;
-											std::string temp1("#");
-											temp1.append(std::to_string(temporaries++));
-											equal->result = { TokenType::IDENTIFIER, temp1, binaryNode->left->line() };
-											std::string temp2("#");
-											temp2.append(std::to_string(temporaries++));
-											binaryInstruction->result = { TokenType::IDENTIFIER, temp2, binaryNode->left->line() };
+											equal->result = newTemp(binaryNode->left->line());
+											binaryInstruction->result = newTemp(binaryNode->left->line());
 											or_->A = equal->result;
 											or_->B = binaryInstruction->result;
 											or_->op = OP_LOGICAL_OR;
@@ -943,9 +887,7 @@ namespace ash
 											auto not = std::make_shared<twoAddress>();
 											not->result = binaryInstruction->result;
 											not->op = OP_LOGICAL_NOT;
-											std::string temp("#");
-											temp.append(std::to_string(temporaries++));
-											binaryInstruction->result = { TokenType::IDENTIFIER, temp, binaryNode->left->line() };
+											binaryInstruction->result = newTemp(binaryNode->left->line());
 											not->A = binaryInstruction->result;
 											binaryInstruction->op = OP_INT_EQUAL;
 											chunk.push_back(binaryInstruction);
@@ -987,12 +929,8 @@ namespace ash
 											equal->A = binaryInstruction->A;
 											equal->B = binaryInstruction->B;
 											equal->op = OP_INT_EQUAL;
-											std::string temp1("#");
-											temp1.append(std::to_string(temporaries++));
-											equal->result = { TokenType::IDENTIFIER, temp1, binaryNode->left->line() };
-											std::string temp2("#");
-											temp2.append(std::to_string(temporaries++));
-											binaryInstruction->result = { TokenType::IDENTIFIER, temp2, binaryNode->left->line() };
+											equal->result = newTemp(binaryNode->left->line());
+											binaryInstruction->result = newTemp(binaryNode->left->line());
 											or_->A = equal->result;
 											or_->B = binaryInstruction->result;
 											or_->op = OP_LOGICAL_OR;
@@ -1014,12 +952,8 @@ namespace ash
 											equal->A = binaryInstruction->A;
 											equal->B = binaryInstruction->B;
 											equal->op = OP_INT_EQUAL;
-											std::string temp1("#");
-											temp1.append(std::to_string(temporaries++));
-											equal->result = { TokenType::IDENTIFIER, temp1, binaryNode->left->line() };
-											std::string temp2("#");
-											temp2.append(std::to_string(temporaries++));
-											binaryInstruction->result = { TokenType::IDENTIFIER, temp2, binaryNode->left->line() };
+											equal->result = newTemp(binaryNode->left->line());
+											binaryInstruction->result = newTemp(binaryNode->left->line());
 											or_->A = equal->result;
 											or_->B = binaryInstruction->result;
 											or_->op = OP_LOGICAL_OR;
@@ -1038,9 +972,7 @@ namespace ash
 											auto not = std::shared_ptr<twoAddress>();
 											not->result = binaryInstruction->result;
 											not->op = OP_LOGICAL_NOT;
-											std::string temp("#");
-											temp.append(std::to_string(temporaries++));
-											binaryInstruction->result = { TokenType::IDENTIFIER, temp, binaryNode->left->line() };
+											binaryInstruction->result = newTemp(binaryNode->left->line());
 											not->A = binaryInstruction->result;
 											binaryInstruction->op = OP_INT_EQUAL;
 											chunk.push_back(binaryInstruction);
@@ -1061,9 +993,7 @@ namespace ash
 									}
 									else
 									{
-										std::string temp("#");
-										temp.append(std::to_string(temporaries++));
-										binaryInstruction->result = { TokenType::IDENTIFIER, temp, binaryNode->left->line() };
+										binaryInstruction->result = newTemp(binaryNode->left->line());
 									}
 									if (op.type == TokenType::AND)
 										binaryInstruction->op = OP_LOGICAL_AND;
@@ -1090,8 +1020,7 @@ namespace ash
 						size_t pos = assigned.find(".");
 						bool isFieldAssignment = (pos != std::string::npos);
 						
-						std::string assignedVar = util::renameByScope({ TokenType::IDENTIFIER, assigned.substr(0, pos) , assignmentNode->line() }, currentScope).string;
-						if (isFieldAssignment) assignedVar = assignedVar.append(assigned.substr(pos));
+						std::string assignedVar = util::renameByScope({ TokenType::IDENTIFIER, assigned, assignmentNode->line() }, currentScope).string;
 
 						Token id = { TokenType::IDENTIFIER, assignedVar, assignmentNode->line() };
 
@@ -1115,9 +1044,7 @@ namespace ash
 						}
 						else
 						{
-							std::string temp("#");
-							temp.append(std::to_string(temporaries++));
-							Token tempToken = { TokenType::IDENTIFIER, temp, assignmentNode->value->line() };
+							Token tempToken = newTemp(assignmentNode->value->line());
 							chunk = compileNode(assignmentNode->value.get(), &tempToken);
 							auto substr = assignedVar;
 							std::string remainder = substr.substr(0, substr.find("."));
@@ -1169,9 +1096,7 @@ namespace ash
 										if (offset != std::string::npos)
 										{
 											auto load = std::make_shared<threeAddress>();
-											std::string newTemp("#");
-											newTemp.append(std::to_string(temporaries++));
-											Token newTempToken = { TokenType::IDENTIFIER, newTemp, assignmentNode->value->line() };
+											Token newTempToken = newTemp(assignmentNode->value->line());
 											load->op = OP_LOAD_OFFSET;
 											load->A = newTempToken;
 											if (last.compare(assignedVar.substr(0, assignedVar.find("."))) == 0)
@@ -1225,13 +1150,10 @@ namespace ash
 						auto fieldNode = (FieldCallNode*)exprNode;
 
 						std::vector<std::shared_ptr<assembly>> chunk;
-						std::string temp("#");
-						temp.append(std::to_string(temporaries++));
-						Token tempToken = { TokenType::IDENTIFIER, temp, fieldNode->field.line };
+						Token tempToken = newTemp(fieldNode->field.line);
 						auto var = fieldNode->resolve().substr(0, fieldNode->resolve().find("."));
 						auto substr = fieldNode->resolve();
 						std::string remainder = util::renameByScope({ TokenType::IDENTIFIER, fieldNode->resolve().substr(0, fieldNode->resolve().find(".")), 0 }, currentScope).string;
-						substr =substr.substr(substr.find("."));
 						substr = substr.substr(substr.find(".") + 1);
 						auto scope = currentScope;
 						std::string currentType;
@@ -1279,10 +1201,7 @@ namespace ash
 									currentType = params[i].type.string;
 									auto load = std::make_shared<threeAddress>();
 									load->op = OP_LOAD_OFFSET;
-
-									std::string newTemp("#");
-									newTemp.append(std::to_string(temporaries++));
-									Token newTempToken = { TokenType::IDENTIFIER, newTemp, fieldNode->line() };
+									Token newTempToken = newTemp(fieldNode->line());
 									if (substr.size() || !result)
 									{
 										load->A = newTempToken;
@@ -1323,9 +1242,7 @@ namespace ash
 
 						for (const auto& argument : callNode->arguments)
 						{
-							std::string temp("#");
-							temp.append(std::to_string(temporaries++));
-							Token tempToken = { TokenType::IDENTIFIER, temp, argument->line() };
+							Token tempToken = newTemp(argument->line());
 							auto argResult = compileNode(argument.get(), &tempToken);
 							chunk.insert(chunk.end(), argResult.begin(), argResult.end());
 							auto push = std::make_shared<oneAddress>();
@@ -1334,9 +1251,7 @@ namespace ash
 							chunk.push_back(push);
 						}
 
-						std::string temp2("#");
-						temp2.append(std::to_string(temporaries++));
-						Token tempToken2 = { TokenType::IDENTIFIER, temp2, callNode->line() };
+						Token tempToken2 = newTemp(callNode->line());
 						auto constant = std::make_shared<twoAddress>();
 						constant->op = OP_CONST_LOW;
 						constant->result = tempToken2;
@@ -1382,9 +1297,7 @@ namespace ash
 						if (result->string.front() == '#')
 						{
 							auto tempType = util::renameByScope(constructorNode->ConstructorType, currentScope);
-							std::string temp = std::string("#");
-							temp.append(std::to_string(temporaries++));
-							Token tempToken = { TokenType::IDENTIFIER, temp, tempType.line };
+							Token tempToken = newTemp(tempType.line);
 							auto allocType = std::make_shared<twoAddress>();
 							allocType->op = OP_CONST_LOW;
 							allocType->A = { TokenType::INT,  std::to_string(typeIDs.at(tempType.string)), tempType.line };
@@ -1399,9 +1312,7 @@ namespace ash
 						size_t index = 0;
 						for(const auto& arg : constructorNode->arguments)
 						{
-							std::string temp("#");
-							temp.append(std::to_string(temporaries++));
-							Token tempToken = { TokenType::IDENTIFIER, temp, constructorNode->line() };
+							Token tempToken = newTemp(constructorNode->line());
 							auto argChunk = compileNode(arg.get(), &tempToken);
 							chunk.insert(chunk.end(), argChunk.begin(), argChunk.end());
 							auto store = std::make_shared<threeAddress>();
@@ -1456,9 +1367,7 @@ namespace ash
 						}
 						else
 						{
-							std::string temp("#");
-							temp.append(std::to_string(temporaries++));
-							not->result = { TokenType::IDENTIFIER, temp, unaryNode->line() };
+							not->result = newTemp(unaryNode->line());
 						}
 						not->A = not->result;
 
@@ -1524,9 +1433,7 @@ namespace ash
 						}
 						else
 						{
-							std::string temp("#");
-							temp.append(std::to_string(temporaries++));
-							constant->result = { TokenType::IDENTIFIER, temp, primaryNode->line() };
+							constant->result = newTemp(primaryNode->line());
 						}
 						std::vector<std::shared_ptr<assembly>> chunk;
 						chunk.push_back(constant);
@@ -1552,9 +1459,7 @@ namespace ash
 						instruction->op == OP_ARRAY_LOAD ||
 						instruction->op == OP_ARRAY_STORE)
 					{
-						auto temp = std::string("#");
-						temp.append(std::to_string(temporaries++));
-						Token tempToken = { TokenType::IDENTIFIER, temp, instruction->result.line };
+						Token tempToken = newTemp(instruction->result.line);
 						auto constant = std::make_shared<twoAddress>();
 						constant->op = OP_CONST_LOW;
 						constant->A = instruction->result;

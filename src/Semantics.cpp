@@ -30,6 +30,11 @@ namespace ash
 		}
 	}
 
+	Token Semantics::newTemp(int line)
+	{
+		return { TokenType::IDENTIFIER, std::string("#").append(std::to_string(temporaries++)), line };
+	}
+
 	std::shared_ptr<ProgramNode> Semantics::findSymbols(std::shared_ptr<ProgramNode> ast)
 	{
 		std::shared_ptr<ScopeNode> currentScope = ast->globalScope = std::make_shared<ScopeNode>();
@@ -49,15 +54,15 @@ namespace ash
 			{
 				hadError |= functionValidator((ParseNode*)declaration.get());
 			}
-			if(!hadError)
-			{
-				std::vector<std::shared_ptr<DeclarationNode>> newDeclarations;
-				for (const auto& declaration : ast->declarations)
-				{
-					newDeclarations.push_back(linearizeAST((ParseNode*)declaration.get(), newDeclarations, ast->globalScope));
-				}
-				ast->declarations = newDeclarations;
-			}
+			//if(!hadError)
+			//{
+			//	std::vector<std::shared_ptr<DeclarationNode>> newDeclarations;
+			//	for (const auto& declaration : ast->declarations)
+			//	{
+			//		newDeclarations.push_back(linearizeAST((ParseNode*)declaration.get(), newDeclarations, ast->globalScope));
+			//	}
+			//	ast->declarations = newDeclarations;
+			//}
 		}
 		ast->hadError = hadError;
 		for (const auto& error : errorQueue)
@@ -1148,10 +1153,9 @@ namespace ash
 					auto temp = std::make_shared<VariableDeclarationNode>();
 					temp->value = pruneBinaryExpressions(binaryNode->left.get(), currentBlock, currentScope);
 					temp->type = binaryNode->leftType;
-					std::string tempName = std::string("#").append(std::to_string(temporaries++));
-					temp->identifier = Token{ TokenType::IDENTIFIER, tempName, binaryNode->left->line() };
+					temp->identifier = newTemp(binaryNode->left->line());
 
-					currentScope->symbols.emplace(tempName, Symbol{ tempName, category::Variable, temp->type });
+					currentScope->symbols.emplace(temp->identifier.string, Symbol{ temp->identifier.string, category::Variable, temp->type });
 					currentBlock.push_back(temp);
 
 					leftPrimary = std::make_shared<CallNode>();
@@ -1167,10 +1171,9 @@ namespace ash
 					auto temp = std::make_shared<VariableDeclarationNode>();
 					temp->value = pruneBinaryExpressions(binaryNode->right.get(), currentBlock, currentScope);
 					temp->type = binaryNode->leftType;
-					std::string tempName = std::string("#").append(std::to_string(temporaries++));
-					temp->identifier = Token{ TokenType::IDENTIFIER, tempName, binaryNode->right->line() };
+					temp->identifier = newTemp(binaryNode->right->line());
 
-					currentScope->symbols.emplace(tempName, Symbol{ tempName, category::Variable, temp->type });
+					currentScope->symbols.emplace(temp->identifier.string, Symbol{ temp->identifier.string, category::Variable, temp->type });
 					currentBlock.push_back(temp);
 
 					rightPrimary = std::make_shared<CallNode>();

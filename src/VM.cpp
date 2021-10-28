@@ -38,11 +38,6 @@ namespace ash
 #endif
 		}
 
-		inline static uint32_t fetch_instruction(uint32_t*& ip)
-		{
-			return *ip++;
-		}
-
 		inline static uint8_t RegisterA(uint32_t instruction)
 		{
 			uint8_t A = instruction >> 16;
@@ -161,7 +156,7 @@ namespace ash
 
 		while(true)
 		{
-			uint32_t instruction = fetch_instruction(ip);
+			uint32_t instruction = *ip++;
 			uint8_t opcode = instruction >> 24;
 
 			switch (opcode)

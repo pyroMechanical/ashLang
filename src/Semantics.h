@@ -113,6 +113,7 @@ namespace ash
 		bool hasReturnPath(ParseNode* node, std::shared_ptr<ScopeNode> currentScope, Token returnType);
 		Token expressionTypeInfo(ExpressionNode* node, std::shared_ptr<ScopeNode> currentScope, Token expected = {});
 		Token pushError(std::string msg, int line);
+		Token newTemp(int line);
 
 		std::shared_ptr<DeclarationNode> linearizeAST(ParseNode* node, std::vector<std::shared_ptr<DeclarationNode>>& currentBlock, std::shared_ptr<ScopeNode> currentScope);
 		std::shared_ptr<ExpressionNode> pruneBinaryExpressions(ExpressionNode* node, std::vector<std::shared_ptr<DeclarationNode>>& currentBlock, std::shared_ptr<ScopeNode> currentScope);
