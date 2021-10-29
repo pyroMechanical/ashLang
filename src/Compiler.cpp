@@ -139,6 +139,8 @@ namespace ash
 			if (ast->hadError) return false;
 		}
 
+		//ast->print(0);
+
 		{
 			Semantics analyzer;
 
@@ -603,7 +605,6 @@ namespace ash
 									if (binaryNode->leftType.string.compare(expressionType.string) == 0)
 									{
 										binaryInstruction->A = leftTemp;
-										
 									}
 									else
 									{
@@ -616,7 +617,7 @@ namespace ash
 										binaryInstruction->A = tempToken;
 									}
 									Token rightTemp = newTemp(binaryNode->right->line());
-									auto rightChunk = compileNode((ParseNode*)binaryNode->right.get(), &leftTemp);
+									auto rightChunk = compileNode((ParseNode*)binaryNode->right.get(), &rightTemp);
 									chunk.insert(chunk.end(), rightChunk.begin(), rightChunk.end());
 									if (binaryNode->leftType.string.compare(expressionType.string) == 0)
 									{
@@ -1151,17 +1152,16 @@ namespace ash
 
 						std::vector<std::shared_ptr<assembly>> chunk;
 						Token tempToken = newTemp(fieldNode->field.line);
-						auto var = fieldNode->resolve().substr(0, fieldNode->resolve().find("."));
-						auto substr = fieldNode->resolve();
-						std::string remainder = util::renameByScope({ TokenType::IDENTIFIER, fieldNode->resolve().substr(0, fieldNode->resolve().find(".")), 0 }, currentScope).string;
-						substr = substr.substr(substr.find(".") + 1);
+						auto leftChunk = compileNode(fieldNode->left.get(), &tempToken);
+						chunk.insert(chunk.end(), leftChunk.begin(), leftChunk.end());
+						std::string lastType = fieldNode->left->typeToken().string;
 						auto scope = currentScope;
-						std::string currentType;
+						std::vector<parameter> params;
 						while (scope != nullptr)
 						{
-							if (scope->symbols.find(var) != scope->symbols.end())
+							if (scope->symbols.find(lastType) != scope->symbols.end())
 							{
-								currentType = scope->symbols.at(var).type.string;
+								params = scope->typeParameters.at(lastType);
 								scope = nullptr;
 							}
 							else
@@ -1169,63 +1169,26 @@ namespace ash
 								scope = scope->parentScope;
 							}
 						}
-						Token lastTempToken = {};
-						while (substr.length() > 0)
+
+						for (size_t i = 0; i < params.size(); i++)
 						{
-							size_t offset = substr.find(".");
-							std::string last = remainder;
-							remainder = substr.substr(0, offset);
-							substr = substr.substr(offset + 1);
-							if (offset == std::string::npos)
+							if (fieldNode->field.string.compare(params[i].identifier.string) == 0)
 							{
-								substr = std::string("");
-							}
-							auto scope = currentScope;
-							std::vector<parameter> params;
-							while (scope != nullptr)
-							{
-								if (scope->typeParameters.find(currentType) != scope->typeParameters.end())
+								fieldNode->fieldType = params[i].type;
+								auto load = std::make_shared<threeAddress>();
+								load->op = OP_LOAD_OFFSET;
+								
+								if (!result)
 								{
-									params = scope->typeParameters.at(currentType);
-									scope = nullptr;
+									load->A = newTemp(fieldNode->line());
 								}
 								else
 								{
-									scope = scope->parentScope;
+									load->A = *result;
 								}
-							}
-							for (size_t i = 0; i < params.size(); i++)
-							{
-								if (remainder.compare(params[i].identifier.string) == 0)
-								{
-									currentType = params[i].type.string;
-									auto load = std::make_shared<threeAddress>();
-									load->op = OP_LOAD_OFFSET;
-									Token newTempToken = newTemp(fieldNode->line());
-									if (substr.size() || !result)
-									{
-										load->A = newTempToken;
-									}
-									else
-									{
-										load->A = *result;
-									}
-									if (lastTempToken.type == TokenType::ERROR)
-									{
-										load->B = { TokenType::IDENTIFIER, last , fieldNode->line() };
-									}
-									else
-									{
-										load->B = lastTempToken;
-									}
-									load->result = { TokenType::INT, std::to_string(i), fieldNode->line() };
-									chunk.push_back(load);
-									lastTempToken = newTempToken;
-								}
-								else
-								{
-									
-								}
+								load->B = tempToken;
+								load->result = { TokenType::INT, std::to_string(i), fieldNode->line() };
+								chunk.push_back(load);
 							}
 						}
 						return chunk;

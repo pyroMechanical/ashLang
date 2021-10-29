@@ -11,6 +11,8 @@ namespace ash
 	{
 		exp = powerOfTwo;
 		begin = malloc((size_t)1 << exp);
+		if (begin == nullptr) exit(2);
+		else memset(begin, 0, (size_t)1 << exp);
 		if (begin == nullptr)
 		{
 			std::cerr << "Malloc failed! size: " << ((size_t)1 << exp ) << std::endl;
@@ -100,7 +102,7 @@ namespace ash
 			newStructs++;
 		}
 		block.allocationStructs += count;
-		std::cout << block.allocationStructs << std::endl;
+		//std::cout << block.allocationStructs << std::endl;
 	}
 
 	Allocation* Memory::allocate(uint8_t exp)

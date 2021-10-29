@@ -169,7 +169,6 @@ namespace ash
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					if (rFlags[B] & REGISTER_HOLDS_POINTER) refDecrement(reinterpret_cast<Allocation*>(R[B]));
-					setRegister(B, R[A]);
 					if (rFlags[A] & REGISTER_HOLDS_SIGNED)
 					{
 						setRegister(B, static_cast<int64_t>(R[A]));
@@ -343,7 +342,6 @@ namespace ash
 					if ((rFlags[B] & REGISTER_HOLDS_POINTER) == 0) return error("register not a memory address!");
 					
 					auto alloc = reinterpret_cast<Allocation*>(R[B]);
-					auto spacing = *(alloc->memory);
 					TypeMetadata* metadata = alloc->typeInfo;
 					if (R[C] >= metadata->fields.size()) return error("field out of bounds!");
 					size_t offset = metadata->fields[R[C]].offset;
@@ -1082,22 +1080,23 @@ namespace ash
 					#endif
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
+					auto offset = R[A];
 
-					if (stack.size() <= (R[FRAME_REGISTER] + R[A])) return error("value is beyond stack size!");
-					auto temp = stack[R[FRAME_REGISTER] + R[A]];
-					if (stackFlags[R[FRAME_REGISTER] + R[A]] & REGISTER_HOLDS_SIGNED)
+					if (stack.size() <= (R[FRAME_REGISTER] + offset)) return error("value is beyond stack size!");
+					auto temp = stack[R[FRAME_REGISTER] + offset];
+					if (stackFlags[R[FRAME_REGISTER] + offset] & REGISTER_HOLDS_SIGNED)
 					{
 						setRegister(B, static_cast<int64_t>(temp));
 					}
-					else if (stackFlags[R[FRAME_REGISTER] + R[A]] & REGISTER_HOLDS_FLOAT)
+					else if (stackFlags[R[FRAME_REGISTER] + offset] & REGISTER_HOLDS_FLOAT)
 					{
 						setRegister(B, *reinterpret_cast<float*>(&temp));
 					}
-					else if (stackFlags[R[FRAME_REGISTER] + R[A]] & REGISTER_HOLDS_DOUBLE)
+					else if (stackFlags[R[FRAME_REGISTER] + offset] & REGISTER_HOLDS_DOUBLE)
 					{
 						setRegister(B, *reinterpret_cast<double*>(&temp));
 					}
-					else if (stackFlags[R[FRAME_REGISTER] + R[A]] & REGISTER_HOLDS_POINTER)
+					else if (stackFlags[R[FRAME_REGISTER] + offset] & REGISTER_HOLDS_POINTER)
 					{
 						setRegister(B, reinterpret_cast<Allocation*>(temp));
 					}
@@ -1105,7 +1104,7 @@ namespace ash
 					{
 						setRegister(B, temp);
 					}
-					rFlags[B] = stackFlags[R[FRAME_REGISTER] + R[A]];
+					rFlags[B] = stackFlags[R[FRAME_REGISTER] + offset];
 					break;
 				}
 				case OP_RETURN:
@@ -1160,7 +1159,6 @@ namespace ash
 		uint8_t exp;
 		exp = util::ilog2(size) + 1;
 		Allocation* result = Memory::allocate(exp);
-		memset(result->memory, 0, (size_t)1<<exp);
 		result->refCount = 0;
 		result->right = allocationList;
 		result->typeInfo = typeInfo;
