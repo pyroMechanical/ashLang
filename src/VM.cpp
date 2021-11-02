@@ -168,27 +168,8 @@ namespace ash
 					#endif
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
-					if (rFlags[B] & REGISTER_HOLDS_POINTER) refDecrement(reinterpret_cast<Allocation*>(R[B]));
-					if (rFlags[A] & REGISTER_HOLDS_SIGNED)
-					{
-						setRegister(B, static_cast<int64_t>(R[A]));
-					}
-					else if (rFlags[A] & REGISTER_HOLDS_FLOAT)
-					{
-						setRegister(B, *reinterpret_cast<float*>(&R[A]));
-					}
-					else if (rFlags[A] & REGISTER_HOLDS_DOUBLE)
-					{
-						setRegister(B, *reinterpret_cast<double*>(&R[A]));
-					}
-					else if (rFlags[A] & REGISTER_HOLDS_POINTER)
-					{
-						setRegister(B, reinterpret_cast<Allocation*>(R[A]));
-					}
-					else
-					{
-						setRegister(B, R[A]);
-					}
+					R[B] = R[A];
+					rFlags[B] = rFlags[A];
 					break;
 				}
 				case OP_NEW_STACK_FRAME:
@@ -244,7 +225,7 @@ namespace ash
 					#endif
 					uint8_t A = RegisterA(instruction);
 					uint64_t value = Value(instruction) | 0xFFFFFFFFFFFF0000;
-					setRegister(A, value);
+					setRegister(A, static_cast<int64_t>(value));
 				}
 				case OP_CONST_MID_LOW:
 				{
@@ -546,7 +527,6 @@ namespace ash
 					if ((rFlags[A] & REGISTER_HOLDS_POINTER) != 0)
 					{
 						stackPointers.push_back(stack.size() - 1);
-						refIncrement(*reinterpret_cast<Allocation**>(&R[A]));
 					}
 					break;
 				}
@@ -556,12 +536,11 @@ namespace ash
 					Timer t = { "OP_POP" };
 					#endif
 					uint8_t A = RegisterA(instruction);
-					R[A] =  stack.back(); //TODO: clean up possible memory leak; overwriting register without setRegister();
+					R[A] =  stack.back();
 					rFlags[A] = stackFlags.back();
 					if (stackPointers.size() && stackPointers.back() == stack.size() - 1)
 					{
 						stackPointers.pop_back();
-						//no need to decrement: register holds value, no net change in refcount
 					}
 					stack.pop_back();
 					stackFlags.pop_back();
@@ -1117,8 +1096,17 @@ namespace ash
 					//else if ((rFlags[RETURN_REGISTER] & REGISTER_HOLDS_FLOAT) != 0) std::cout << r_cast<double>(&R[RETURN_REGISTER]) << std::endl;
 					//else std::cout << R[RETURN_REGISTER] << std::endl;
 					auto addr = stack.back();
+					auto resizePoint = R[FRAME_REGISTER];
 					stack.resize(R[FRAME_REGISTER]);
 					stackFlags.resize(R[FRAME_REGISTER]);
+					for(size_t i = 0; i < stackPointers.size(); i++)
+					{
+						if (stackPointers[i] > stack.size())
+						{
+							stackPointers.resize(i - 1);
+							break;
+						}
+					}
 					ip = chunk->code() + addr;
 					break;
 				}
@@ -1138,6 +1126,7 @@ namespace ash
 					stackFlags.clear();
 					stackPointers.clear();
 					types.clear();
+					zeroList.clear();
 					comparisonRegister = false;
 					freeAllocations();
 					return InterpretResult::INTERPRET_OK;
@@ -1151,7 +1140,20 @@ namespace ash
 #ifdef STRESSTEST_GC
 			collectGarbage();
 #else
-			//TODO: find a heuristic for calling the garbage collector
+			//TODO: find a quality heuristic for calling the garbage collector
+#define GROWTH_FACTOR 10 //percentage of growth over time
+		//static auto lastSize = 0;
+		//auto size1 = zeroList.size();
+		//if(size1 > lastSize + GROWTH_FACTOR)
+		//{
+		//	auto t1 = std::chrono::high_resolution_clock::now();
+		//	freeZeroList();
+		//	auto t2 = std::chrono::high_resolution_clock::now();
+		//	auto size2 = zeroList.size();
+		//	std::cout << "freeing the zero list of size " << size1 << " took " << ((double)(std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count())) / 1000000.0 << "milliseconds and freed " << size1 - size2 << "allocations.\n";
+		//
+		//	lastSize = size2;
+		//}
 #endif
 		TypeMetadata* typeInfo = types[typeID].get();
 		
@@ -1166,6 +1168,7 @@ namespace ash
 		if (allocationList) allocationList->left = result;
 		result->exp = (exp >= Memory::minExponentSize) ? exp : Memory::minExponentSize;
 		allocationList = result;
+		zeroList.insert(result);
 		return result;
 	}
 
@@ -1205,7 +1208,6 @@ namespace ash
 		return pointer;
 	}
 
-
 	void VM::freeAllocation(Allocation* alloc)
 	{
 		switch (alloc->type())
@@ -1244,10 +1246,22 @@ namespace ash
 				//}
 			}
 		}
+
+		if (allocationList == alloc)
+		{
+			allocationList = alloc->right;
+			if (alloc->right) alloc->right->left = nullptr;
+		}
+		else
+		{
+			if (alloc->left)	alloc->left->right = alloc->right;
+			if (alloc->right) alloc->right->left = alloc->left;
+		}
 		Memory::free(alloc);
 	}
 
-	void VM::freeAllocations()
+
+	inline void VM::freeAllocations()
 	{
 		Allocation* allocation = allocationList;
 
@@ -1260,7 +1274,45 @@ namespace ash
 		allocationList = nullptr;
 	}
 
-	void VM::collectGarbage()
+	inline void VM::freeZeroList()
+	{
+		std::set<Allocation*> inRegisters;
+		std::for_each(stackPointers.begin(), stackPointers.end(), [&inRegisters](uint64_t val)
+			{
+				inRegisters.insert(reinterpret_cast<Allocation*>(val));
+			});
+		size_t i = 0;
+		std::for_each(R.begin(), R.end(), [&](uint64_t val)
+			{
+				if ((rFlags[i] & REGISTER_HOLDS_POINTER) != 0)
+				{
+					inRegisters.insert(reinterpret_cast<Allocation*>(val));
+				}
+				i++;
+			});
+		if (inRegisters.size())
+		{
+			std::vector<Allocation*> toFree;
+			std::set_difference(zeroList.begin(), zeroList.end(), inRegisters.begin(), inRegisters.end(), std::back_inserter(toFree));
+			std::for_each(toFree.begin(), toFree.end(), [this](Allocation* alloc)
+				{
+					freeAllocation(alloc);
+				});
+			std::set<Allocation*> newZeroSet;
+			std::set_intersection(zeroList.begin(), zeroList.end(), inRegisters.begin(), inRegisters.end(), std::inserter(newZeroSet, newZeroSet.begin()));
+			zeroList = std::move(newZeroSet);
+		}
+		else
+		{
+			std::for_each(zeroList.begin(), zeroList.end(), [&](Allocation* alloc)
+				{
+					freeAllocation(alloc);
+				});
+			zeroList.clear();
+		}
+	}
+
+	inline void VM::collectGarbage()
 	{
 #ifdef LOG_GC
 		std::cout << "> begin gc" << std::endl;
@@ -1394,66 +1446,40 @@ namespace ash
 #endif
 	}
 
-	void VM::setRegister(uint8_t _register, bool value)
+	inline void VM::setRegister(uint8_t _register, bool value)
 	{
 		setRegister(_register, static_cast<uint64_t>(value));
 	}
 
-	void VM::setRegister(uint8_t _register, uint64_t value)
+	inline void VM::setRegister(uint8_t _register, uint64_t value)
 	{
-		if (rFlags[_register] & (REGISTER_HOLDS_POINTER))
-		{
-			refDecrement(*reinterpret_cast<Allocation**>(&R[_register]));
-		}
-
 		rFlags[_register] &= REGISTER_HIGH_BITS;
 		R[_register] = value;
 	}
 
-	void VM::setRegister(uint8_t _register, int64_t value)
+	inline void VM::setRegister(uint8_t _register, int64_t value)
 	{
-		if (rFlags[_register] & (REGISTER_HOLDS_POINTER))
-		{
-			refDecrement(*reinterpret_cast<Allocation**>(&R[_register]));
-		}
-
 		rFlags[_register] &= REGISTER_HIGH_BITS;
 		rFlags[_register] |= ((REGISTER_HOLDS_SIGNED) * (value < 0));
 		R[_register] = value;
 	}
 
-	void VM::setRegister(uint8_t _register, float value)
+	inline void VM::setRegister(uint8_t _register, float value)
 	{
-		if (rFlags[_register] & (REGISTER_HOLDS_POINTER))
-		{
-			refDecrement(*reinterpret_cast<Allocation**>(&R[_register]));
-		}
-
 		rFlags[_register] &= REGISTER_HIGH_BITS;
 		rFlags[_register] |= REGISTER_HOLDS_FLOAT;
 		R[_register] = *reinterpret_cast<uint64_t*>(&value);
 	}
 			
-	void VM::setRegister(uint8_t _register, double value)
+	inline void VM::setRegister(uint8_t _register, double value)
 	{
-		if (rFlags[_register] & (REGISTER_HOLDS_POINTER))
-		{
-			refDecrement(*reinterpret_cast<Allocation**>(&R[_register]));
-		}
-
 		rFlags[_register] &= REGISTER_HIGH_BITS;
 		rFlags[_register] |= REGISTER_HOLDS_DOUBLE;
 		R[_register] = *reinterpret_cast<uint64_t*>(&value);
 	}
 
-	void VM::setRegister(uint8_t _register, Allocation* value)
+	inline void VM::setRegister(uint8_t _register, Allocation* value)
 	{
-		refIncrement(value);
-		if (rFlags[_register] & (REGISTER_HOLDS_POINTER))
-		{
-			auto oldRef = *reinterpret_cast<Allocation**>(&R[_register]);
-			refDecrement(oldRef);
-		}
 
 		rFlags[_register] &= REGISTER_HIGH_BITS;
 		rFlags[_register] |= REGISTER_HOLDS_POINTER;
@@ -1464,16 +1490,17 @@ namespace ash
 		R[_register] = *reinterpret_cast<uint64_t*>(&value);
 	}
 
-	void VM::refIncrement(Allocation* ref)
+	inline void VM::refIncrement(Allocation* ref)
 	{
 #ifdef LOG_GC
 		std::cout << "Incrementing " << static_cast<void*>(ref);
 		std::cout << " to " << (ref->refCount) + 1 << std::endl;
 #endif
 		ref->refCount++;
+		zeroList.erase(ref);
 	}
 
-	void VM::refDecrement(Allocation* ref)
+	inline void VM::refDecrement(Allocation* ref)
 	{
 #ifdef LOG_GC
 		std::cout << "Decrementing " << static_cast<void*>(ref);
@@ -1482,17 +1509,7 @@ namespace ash
 		if (ref->refCount == 0 || ref->refCount == 1)
 		{
 			ref->refCount = 0;
-			if (allocationList == ref)
-			{
-				allocationList = ref->right;
-				if(ref->right) ref->right->left = nullptr;
-			}
-			else
-			{
-				if(ref->left)	ref->left->right = ref->right;
-				if(ref->right) ref->right->left = ref->left;
-			}
-			freeAllocation(ref);
+			zeroList.insert(ref);
 			return;
 		}
 		ref->refCount--;

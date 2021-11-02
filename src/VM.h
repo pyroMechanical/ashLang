@@ -4,6 +4,7 @@
 
 #include <array>
 #include <list>
+#include <set>
 #include <unordered_map>
 #include <memory>
 
@@ -37,6 +38,7 @@ namespace ash
 		std::vector<size_t> stackPointers;
 		std::vector<std::shared_ptr<TypeMetadata>> types;
 		Allocation* allocationList = nullptr;
+		std::set<Allocation*> zeroList;
 		friend class Memory;
 
 		Chunk* chunk = nullptr;
@@ -58,6 +60,8 @@ namespace ash
 		Allocation* allocateArray(Allocation* pointer, size_t oldCount, size_t newCount, uint64_t typeID);
 
 		void freeAllocation(Allocation* alloc);
+
+		void freeZeroList();
 
 		void freeAllocations();
 
