@@ -267,7 +267,7 @@ namespace ash
 					uint8_t C = RegisterC(instruction);
 					if ((rFlags[B] & REGISTER_HOLDS_POINTER) == 0) return error("register not a memory address!");
 
-					auto alloc = reinterpret_cast<Allocation*>(R[B]);
+					auto alloc = *reinterpret_cast<Allocation**>(&R[B]);
 					TypeMetadata* metadata = alloc->typeInfo;
 					if (R[C] >= metadata->fields.size()) return error("field out of bounds!");
 					size_t offset = metadata->fields[R[C]].offset;
@@ -1160,13 +1160,13 @@ namespace ash
 		size_t size = typeInfo->fields.back().offset + util::fieldSize(typeInfo->fields.back().type);
 		uint8_t exp;
 		exp = util::ilog2(size) + 1;
+		if (exp < Memory::minExponentSize) exp = Memory::minExponentSize;
 		Allocation* result = Memory::allocate(exp);
 		result->refCount = 0;
 		result->right = allocationList;
 		result->typeInfo = typeInfo;
 		result->allocationType = AllocationType::Type;
 		if (allocationList) allocationList->left = result;
-		result->exp = (exp >= Memory::minExponentSize) ? exp : Memory::minExponentSize;
 		allocationList = result;
 		zeroList.insert(result);
 		return result;
@@ -1246,6 +1246,14 @@ namespace ash
 				//}
 			}
 		}
+		if (alloc->right && alloc->right->exp != alloc->exp)
+		{
+			std::cout << "look here!" << std::endl;
+		}
+		if (alloc->left && alloc->left->exp != alloc->exp)
+		{
+			std::cout << "look here!" << std::endl;
+		}
 
 		if (allocationList == alloc)
 		{
@@ -1254,10 +1262,10 @@ namespace ash
 		}
 		else
 		{
-			if (alloc->left)	alloc->left->right = alloc->right;
+			if (alloc->left) alloc->left->right = alloc->right;
 			if (alloc->right) alloc->right->left = alloc->left;
 		}
-		Memory::free(alloc);
+		Memory::freeAllocation(alloc);
 	}
 
 
@@ -1268,7 +1276,7 @@ namespace ash
 		while (allocation != nullptr)
 		{
 			Allocation* next = allocation->right;
-			Memory::free(allocation);
+			Memory::freeAllocation(allocation);
 			allocation = next;
 		}
 		allocationList = nullptr;
@@ -1276,7 +1284,7 @@ namespace ash
 
 	inline void VM::freeZeroList()
 	{
-		std::set<Allocation*> inRegisters;
+		std::unordered_set<Allocation*> inRegisters;
 		std::for_each(stackPointers.begin(), stackPointers.end(), [this, &inRegisters](uint64_t val)
 			{
 				inRegisters.insert(reinterpret_cast<Allocation*>(stack[val]));
@@ -1293,20 +1301,25 @@ namespace ash
 		if (inRegisters.size())
 		{
 			std::vector<Allocation*> toFree;
-			std::set_difference(zeroList.begin(), zeroList.end(), inRegisters.begin(), inRegisters.end(), std::back_inserter(toFree));
-
-			std::set<Allocation*> newZeroSet;
-			std::set_intersection(zeroList.begin(), zeroList.end(), inRegisters.begin(), inRegisters.end(), std::inserter(newZeroSet, newZeroSet.begin()));
-			zeroList = std::move(newZeroSet);
-			std::for_each(toFree.begin(), toFree.end(), [this](Allocation* alloc)
+			toFree.reserve(zeroList.size());
+			for (auto it = zeroList.begin(); it != zeroList.end(); it++)
+			{
+				if (inRegisters.find(*it) == inRegisters.end())
 				{
-					freeAllocation(alloc);
-				});
+					toFree.push_back(*it);
+				}
+			}
+			std::for_each(toFree.begin(), toFree.end(), [this](Allocation* alloc)
+			{
+				freeAllocation(alloc);
+			});
+			zeroList = std::move(inRegisters);
 		}
 		else
 		{
 			std::for_each(zeroList.begin(), zeroList.end(), [&](Allocation* alloc)
 				{
+					std::cout << "size: " << 1 << alloc->exp << ", address: " << alloc->memory << std::endl;
 					freeAllocation(alloc);
 				});
 			zeroList.clear();
@@ -1491,17 +1504,18 @@ namespace ash
 		R[_register] = *reinterpret_cast<uint64_t*>(&value);
 	}
 
-	inline void VM::refIncrement(Allocation* ref)
+	void VM::refIncrement(Allocation* ref)
 	{
 #ifdef LOG_GC
 		std::cout << "Incrementing " << static_cast<void*>(ref);
 		std::cout << " to " << (ref->refCount) + 1 << std::endl;
 #endif
 		ref->refCount++;
-		zeroList.erase(ref);
+		if(ref->refCount == 1)
+			zeroList.erase(ref);
 	}
 
-	inline void VM::refDecrement(Allocation* ref)
+	void VM::refDecrement(Allocation* ref)
 	{
 #ifdef LOG_GC
 		std::cout << "Decrementing " << static_cast<void*>(ref);

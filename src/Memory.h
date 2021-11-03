@@ -113,7 +113,7 @@ namespace ash
 		const static uint8_t minExponentSize = 4;
 		static Allocation* allocate(uint8_t powerOfTwo);
 		static void allocateList(uint8_t count);
-		static void free(Allocation* ptr);
+		static void freeAllocation(Allocation* ptr);
 
 		static void printAllocation(Allocation* node);
 

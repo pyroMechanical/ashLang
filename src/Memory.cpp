@@ -5,7 +5,7 @@
 namespace ash
 {
 	Allocation* Memory::freeStructList = nullptr;
-	MemBlock Memory::block{20};
+	MemBlock Memory::block{12};
 
 	MemBlock::MemBlock(uint8_t powerOfTwo)
 	{
@@ -108,15 +108,21 @@ namespace ash
 	Allocation* Memory::allocate(uint8_t exp)
 	{
 		if (exp < minExponentSize) exp = minExponentSize;
-
+		
 		Allocation* result = searchNode(block.root, exp);
-
+		
 		if (result == nullptr)
 		{
 			printAllocation(block.root);
 			std::cerr << "Malloc failed! size: " << ((size_t)1 << exp) << std::endl;
 			std::cerr << "Allocation structs: " << block.allocationStructs << std::endl;
 			exit(1);
+		}
+		result->left = nullptr;
+		result->right = nullptr;
+		if(result->isSplit)
+		{
+			std::cout << "look here!" << std::endl;
 		}
 		return result;
 	}
@@ -149,7 +155,7 @@ namespace ash
 		return nullptr;
 	}
 
-	void Memory::free(Allocation* ptr)
+	void Memory::freeAllocation(Allocation* ptr)
 	{
 		ptr->left = nullptr;
 		ptr->right = nullptr;
@@ -158,6 +164,12 @@ namespace ash
 
 	void Memory::returnNode(Allocation* node, Allocation* freed)
 	{
+		if(!node)
+		{
+			printMemoryTree();
+			std::cout << "Error: not a legal node!" << std::endl;
+			exit(4);
+		}
 		if(freed->exp >= node->exp)
 		{
 			std::cout << "Error: memory returned to wrong node!" << std::endl;

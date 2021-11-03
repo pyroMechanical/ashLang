@@ -4,7 +4,7 @@
 
 #include <array>
 #include <list>
-#include <set>
+#include <unordered_set>
 #include <unordered_map>
 #include <memory>
 
@@ -38,7 +38,7 @@ namespace ash
 		std::vector<size_t> stackPointers;
 		std::vector<std::shared_ptr<TypeMetadata>> types;
 		Allocation* allocationList = nullptr;
-		std::set<Allocation*> zeroList;
+		std::unordered_set<Allocation*> zeroList;
 		friend class Memory;
 
 		Chunk* chunk = nullptr;
