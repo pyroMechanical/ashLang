@@ -1101,7 +1101,7 @@ namespace ash
 					stackFlags.resize(R[FRAME_REGISTER]);
 					for(size_t i = 0; i < stackPointers.size(); i++)
 					{
-						if (stackPointers[i] > stack.size())
+						if (stackPointers[i] >= stack.size())
 						{
 							stackPointers.resize(i - 1);
 							break;
@@ -1142,18 +1142,18 @@ namespace ash
 #else
 			//TODO: find a quality heuristic for calling the garbage collector
 #define GROWTH_FACTOR 10 //percentage of growth over time
-		//static auto lastSize = 0;
-		//auto size1 = zeroList.size();
-		//if(size1 > lastSize + GROWTH_FACTOR)
-		//{
-		//	auto t1 = std::chrono::high_resolution_clock::now();
-		//	freeZeroList();
-		//	auto t2 = std::chrono::high_resolution_clock::now();
-		//	auto size2 = zeroList.size();
-		//	std::cout << "freeing the zero list of size " << size1 << " took " << ((double)(std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count())) / 1000000.0 << "milliseconds and freed " << size1 - size2 << "allocations.\n";
-		//
-		//	lastSize = size2;
-		//}
+		static auto lastSize = 0;
+		auto size1 = zeroList.size();
+		if(size1 > 50 && size1  >= lastSize)
+		{
+			//auto t1 = std::chrono::high_resolution_clock::now();
+			freeZeroList();
+			//auto t2 = std::chrono::high_resolution_clock::now();
+			auto size2 = zeroList.size();
+			//std::cout << "freeing the zero list of size " << size1 << " took " << ((double)(std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count())) / 1000000.0 << "milliseconds and freed " << size1 - size2 << "allocations.\n";
+		
+			lastSize = size2 << 1;
+		}
 #endif
 		TypeMetadata* typeInfo = types[typeID].get();
 		
@@ -1277,12 +1277,12 @@ namespace ash
 	inline void VM::freeZeroList()
 	{
 		std::set<Allocation*> inRegisters;
-		std::for_each(stackPointers.begin(), stackPointers.end(), [&inRegisters](uint64_t val)
+		std::for_each(stackPointers.begin(), stackPointers.end(), [this, &inRegisters](uint64_t val)
 			{
-				inRegisters.insert(reinterpret_cast<Allocation*>(val));
+				inRegisters.insert(reinterpret_cast<Allocation*>(stack[val]));
 			});
 		size_t i = 0;
-		std::for_each(R.begin(), R.end(), [&](uint64_t val)
+		std::for_each(R.begin(), R.end(), [this, &i, &inRegisters](uint64_t val)
 			{
 				if ((rFlags[i] & REGISTER_HOLDS_POINTER) != 0)
 				{
@@ -1294,13 +1294,14 @@ namespace ash
 		{
 			std::vector<Allocation*> toFree;
 			std::set_difference(zeroList.begin(), zeroList.end(), inRegisters.begin(), inRegisters.end(), std::back_inserter(toFree));
+
+			std::set<Allocation*> newZeroSet;
+			std::set_intersection(zeroList.begin(), zeroList.end(), inRegisters.begin(), inRegisters.end(), std::inserter(newZeroSet, newZeroSet.begin()));
+			zeroList = std::move(newZeroSet);
 			std::for_each(toFree.begin(), toFree.end(), [this](Allocation* alloc)
 				{
 					freeAllocation(alloc);
 				});
-			std::set<Allocation*> newZeroSet;
-			std::set_intersection(zeroList.begin(), zeroList.end(), inRegisters.begin(), inRegisters.end(), std::inserter(newZeroSet, newZeroSet.begin()));
-			zeroList = std::move(newZeroSet);
 		}
 		else
 		{
