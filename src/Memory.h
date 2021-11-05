@@ -2,8 +2,9 @@
 
 #include <stdlib.h>
 #include <vector>
-#include <map>
+#include <multimap>
 #include <memory>
+
 namespace ash
 {
 	enum class FieldType : uint8_t
@@ -49,76 +50,28 @@ namespace ash
 		}
 	}
 
-
-	struct FieldMetadata
-	{
-		FieldType type;
-		size_t offset = 0;
-		int64_t typeID = 0; //location within the typemetadata array
-	};
-
-	struct TypeMetadata
-	{
-		TypeMetadata* parent;
-		std::vector<FieldMetadata> fields;
-	};
-
-	enum class AllocationType : uint8_t
-	{
-		Basic, Type, Array
-	};
-
-	struct Allocation
-	{
-		Allocation() = default;
-		uint8_t exp = 0;
-		bool isSplit = false;
-		AllocationType allocationType = AllocationType::Basic;
-		uint32_t refCount = 0;
-		char* memory;
-		Allocation* left;
-		Allocation* right;
-		TypeMetadata* typeInfo;
-
-		AllocationType type() { return allocationType; };
-		size_t size() { return (size_t)1 << exp; }
-		bool free() { return refCount == 0; }
-		void split();
-		void merge();
-	};
-
 	class MemBlock
 	{
+		//TODO: support blocks for allocations larger than 256 bytes
 	private:
-		uint8_t exp = 20; //size is 1<<exp
-		
-	public:
+		uint8_t exp; //individual allocation size is 2 ^ exp
+		//currently, capacity is 4096/(1<<exp) bytes
 		void* begin;
-		Allocation* root = nullptr;
-		size_t allocationStructs = 0;
-		size_t size() { return (size_t)1 << exp; }
-
+		std::vector<void*> freeList;
+	public:
 		MemBlock(uint8_t powerOfTwo);
 		~MemBlock();
-
+		void const* const getBegin() { return begin; }
 	};
 
 	class Memory
 	{
 	private:
-		static MemBlock block;
-		static Allocation* searchNode(Allocation* node, uint8_t exp);
-		static void returnNode(Allocation* node, Allocation* freed);
+		static std::multimap<uint8_t, MemBlock> memBlocks;
 	public:
 		const static uint8_t minExponentSize = 4;
-		static Allocation* allocate(uint8_t powerOfTwo);
+		static void* allocate(uint8_t powerOfTwo);
 		static void allocateList(uint8_t count);
-		static void freeAllocation(Allocation* ptr);
-
-		static void printAllocation(Allocation* node);
-
-		static void printMemoryTree() { printAllocation(block.root); }
-
-		static Allocation* freeStructList;
+		static void freeAllocation(void* ptr);
 	};
 }
