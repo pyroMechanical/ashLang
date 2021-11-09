@@ -63,10 +63,13 @@ namespace ash
 	public:
 		MemBlock(uint8_t powerOfTwo);
 		~MemBlock();
-		char const* const firstAddress() { return (char*)begin; }
+		void const* const firstAddress() { return (char*)begin; }
 		const size_t size() { return (1 << exp) * count; }
 		const uint8_t exponent() { return exp; }
-		void* alloc() { auto addr = freeList.back(); freeList.pop_back(); return addr; }
+		void* alloc() 
+		{
+			auto addr = freeList.back(); freeList.pop_back(); return addr;
+		}
 		void free(void* ptr) { freeList.push_back(ptr); }
 		bool notFull() { return freeList.size() > 0; }
 		bool isEmpty() { return freeList.size() == count; }
@@ -91,6 +94,7 @@ namespace ash
 		~Memory();
 		const static uint8_t minExponentSize = 4;
 		static void* allocate(uint8_t powerOfTwo);
+		static void* allocate(uint8_t powerOfTwo, std::vector<uint8_t>& bitFlags);
 		static void freeAllocation(void* ptr);
 	};
 }

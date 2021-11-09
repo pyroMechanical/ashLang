@@ -58,7 +58,7 @@ namespace ash
 		memBlockLists.emplace(8, eight);
 	}
 
-	void* Memory::allocate(uint8_t powerOfTwo)
+	void* Memory::allocate(uint8_t powerOfTwo, std::vector<uint8_t>& bitFlags)
 	{
 		if (memBlockLists.find(powerOfTwo) != memBlockLists.end())
 		{
@@ -67,7 +67,15 @@ namespace ash
 			{
 				if (it->notFull())
 				{
-					auto addr = it->alloc();
+					auto& block = *it;
+					auto addr = block.alloc();
+					if (bitFlags.size())
+					{
+						size_t diff = (size_t*)addr - (size_t*)block.firstAddress();
+						char* flagsBegin = (char*)block.firstAddress() + (diff / sizeof(void*));
+						uint8_t offset = diff % sizeof(void*);
+
+					}
 					if (addr)
 					{
 						return addr;
