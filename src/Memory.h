@@ -2,7 +2,8 @@
 
 #include <stdlib.h>
 #include <vector>
-#include <multimap>
+#include <map>
+#include <unordered_map>
 #include <memory>
 
 namespace ash
@@ -56,22 +57,40 @@ namespace ash
 	private:
 		uint8_t exp; //individual allocation size is 2 ^ exp
 		//currently, capacity is 4096/(1<<exp) bytes
+		uint32_t count;
 		void* begin;
 		std::vector<void*> freeList;
 	public:
 		MemBlock(uint8_t powerOfTwo);
 		~MemBlock();
-		void const* const getBegin() { return begin; }
+		char const* const firstAddress() { return (char*)begin; }
+		const size_t size() { return (1 << exp) * count; }
+		const uint8_t exponent() { return exp; }
+		void* alloc() { auto addr = freeList.back(); freeList.pop_back(); return addr; }
+		void free(void* ptr) { freeList.push_back(ptr); }
+		bool notFull() { return freeList.size() > 0; }
+		bool isEmpty() { return freeList.size() == count; }
+		bool operator== (MemBlock& other)
+		{
+			return (other.begin == begin &&
+				other.exp == exp);
+		}
+		bool operator!= (MemBlock& other)
+		{
+			return !(*this == other);
+		}
 	};
 
 	class Memory
 	{
 	private:
-		static std::multimap<uint8_t, MemBlock> memBlocks;
+		static std::unordered_map<uint8_t, std::vector<MemBlock>> memBlockLists;
+		static std::map<void*, MemBlock&> memBlocks;
 	public:
+		Memory();
+		~Memory();
 		const static uint8_t minExponentSize = 4;
 		static void* allocate(uint8_t powerOfTwo);
-		static void allocateList(uint8_t count);
 		static void freeAllocation(void* ptr);
 	};
 }
