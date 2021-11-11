@@ -95,14 +95,15 @@ namespace ash
 
 	void Memory::freeAllocation(void* ptr)
 	{
-		char* diffptr = (char*)ptr;
-		for (auto it = memBlocks.begin(); it != memBlocks.end(); it++)
+		uint64_t begin = (uint64_t)ptr & 0xFFFFF000;
+		if (memBlocks.find((void*)begin) != memBlocks.end())
 		{
-			ptrdiff_t offset = diffptr - it->second.firstAddress();
-			if (diffptr >= it->second.firstAddress() && offset < it->second.size())
-			{
-				it->second.free(ptr);
-			}
+			memBlocks.at((void*)begin).free(ptr);
+		}
+		else
+		{
+			std::cerr << "block not found!" << std::endl;
+			exit(6);
 		}
 	}
 }

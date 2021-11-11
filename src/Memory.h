@@ -88,7 +88,7 @@ namespace ash
 	{
 	private:
 		static std::unordered_map<uint8_t, std::vector<MemBlock>> memBlockLists;
-		static std::map<void*, MemBlock&> memBlocks;
+		static std::unordered_map<void*, MemBlock&> memBlocks;
 	public:
 		Memory();
 		~Memory();

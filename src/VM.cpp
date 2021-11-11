@@ -190,7 +190,7 @@ namespace ash
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint64_t typeID = R[A];
-					Allocation* alloc = allocate(typeID);
+					void* alloc = allocate(typeID);
 					setRegister(B, alloc);
 					break;
 				}
@@ -204,7 +204,7 @@ namespace ash
 					uint8_t C = RegisterC(instruction);
 					size_t count = R[A];
 					uint8_t span = static_cast<uint8_t>(R[B]);
-					Allocation* alloc = allocateArray(nullptr, 0, count, span);
+					void* alloc = allocateArray(nullptr, 0, count, span);
 					setRegister(C, alloc);
 					break;
 				}
@@ -267,45 +267,32 @@ namespace ash
 					uint8_t C = RegisterC(instruction);
 					if ((rFlags[B] & REGISTER_HOLDS_POINTER) == 0) return error("register not a memory address!");
 
-					auto alloc = *reinterpret_cast<Allocation**>(&R[B]);
-					TypeMetadata* metadata = alloc->typeInfo;
-					if (R[C] >= metadata->fields.size()) return error("field out of bounds!");
+					auto alloc = reinterpret_cast<void*>(R[B]);
 					size_t offset = metadata->fields[R[C]].offset;
 					FieldType type = metadata->fields[R[C]].type;
-					if (rFlags[A] & REGISTER_HOLDS_POINTER)
-					{
-						Allocation* ref = *reinterpret_cast<Allocation**>(&R[A]);
-						refIncrement(ref);
-					}
-					if (type == FieldType::Array || type == FieldType::Struct)
-					{
-						Allocation* ref = *reinterpret_cast<Allocation**>(alloc->memory + offset);
-						if(ref)
-							refDecrement(ref);
-					}
 					switch (fieldSize(type))
 					{
 						case 1:
 						{
-							auto addr = reinterpret_cast<uint8_t*>(alloc->memory + offset);
+							auto addr = reinterpret_cast<uint8_t*>((char*)alloc + offset);
 							*addr = static_cast<uint8_t>(R[A]);
 							break;
 						}
 						case 2:
 						{
-							auto addr = reinterpret_cast<uint16_t*>(alloc->memory + offset);
+							auto addr = reinterpret_cast<uint16_t*>((char*)alloc + offset);
 							*addr = static_cast<uint16_t>(R[A]);
 							break;
 						}
 						case 4:
 						{
-							auto addr = reinterpret_cast<uint32_t*>(alloc->memory + offset);
+							auto addr = reinterpret_cast<uint32_t*>((char*)alloc + offset);
 							*addr = static_cast<uint32_t>(R[A]);
 							break;
 						}
 						case 8:
 						{
-							auto addr = reinterpret_cast<uint64_t*>(alloc->memory + offset);
+							auto addr = reinterpret_cast<uint64_t*>((char*)alloc + offset);
 							*addr = static_cast<uint64_t>(R[A]);
 							break;
 						}
@@ -322,9 +309,7 @@ namespace ash
 					uint8_t C = RegisterC(instruction);
 					if ((rFlags[B] & REGISTER_HOLDS_POINTER) == 0) return error("register not a memory address!");
 					
-					auto alloc = reinterpret_cast<Allocation*>(R[B]);
-					TypeMetadata* metadata = alloc->typeInfo;
-					if (R[C] >= metadata->fields.size()) return error("field out of bounds!");
+					auto alloc = reinterpret_cast<void*>(R[B]);
 					size_t offset = metadata->fields[R[C]].offset;
 					FieldType type = metadata->fields[R[C]].type;
 					switch (type)
@@ -332,68 +317,68 @@ namespace ash
 						case FieldType::Bool:
 						case FieldType::UByte:
 						{
-							auto addr = reinterpret_cast<uint8_t*>(alloc->memory + offset);
+							auto addr = reinterpret_cast<uint8_t*>((char*)alloc + offset);
 							setRegister(A, (uint64_t)*addr);
 							break;
 						}
 						case FieldType::UShort:
 						{
-							auto addr = reinterpret_cast<uint16_t*>(alloc->memory + offset);
+							auto addr = reinterpret_cast<uint16_t*>((char*)alloc + offset);
 							setRegister(A, (uint64_t)*addr);
 							break;
 						}
 
 						case FieldType::UInt:
 						{
-							auto addr = reinterpret_cast<uint32_t*>(alloc->memory + offset);
+							auto addr = reinterpret_cast<uint32_t*>((char*)alloc + offset);
 							setRegister(A, (uint64_t)*addr);
 							break;
 						}
 						case FieldType::ULong:
 						{
-							auto addr = reinterpret_cast<uint64_t*>(alloc->memory + offset);
+							auto addr = reinterpret_cast<uint64_t*>((char*)alloc + offset);
 							setRegister(A, *addr);
 							break;
 						}
 						case FieldType::Byte:
 						{
-							auto addr = reinterpret_cast<int8_t*>(alloc->memory + offset);
+							auto addr = reinterpret_cast<int8_t*>((char*)alloc + offset);
 							setRegister(A, (int64_t)*addr);
 							break;
 						}
 						case FieldType::Short:
 						{
-							auto addr = reinterpret_cast<int16_t*>(alloc->memory + offset);
+							auto addr = reinterpret_cast<int16_t*>((char*)alloc + offset);
 							setRegister(A, (int64_t)*addr);
 							break;
 						}
 						case FieldType::Int:
 						{
-							auto addr = reinterpret_cast<int32_t*>(alloc->memory + offset);
+							auto addr = reinterpret_cast<int32_t*>((char*)alloc + offset);
 							setRegister(A, (int64_t)*addr);
 							break;
 						}
 						case FieldType::Long:
 						{
-							auto addr = reinterpret_cast<int64_t*>(alloc->memory + offset);
+							auto addr = reinterpret_cast<int64_t*>((char*)alloc + offset);
 							setRegister(A, *addr);
 							break;
 						}
 						case FieldType::Float:
 						{
-							auto addr = reinterpret_cast<float*>(alloc->memory + offset);
+							auto addr = reinterpret_cast<float*>((char*)alloc + offset);
 							setRegister(A, *addr);
 							break;
 						}
 						case FieldType::Double:
 						{
-							auto addr = reinterpret_cast<double*>(alloc->memory + offset);
+							auto addr = reinterpret_cast<double*>((char*)alloc + offset);
 							setRegister(A, *addr);
 							break;
 						}
 						case FieldType::Array:
 						{
-							auto addr = reinterpret_cast<Allocation**>(alloc->memory + offset);
+							auto addr = reinterpret_cast<void**>((char*)alloc + offset);
 							setRegister(A, *addr);
 							rFlags[A] &= REGISTER_HIGH_BITS;
 							rFlags[A] |= REGISTER_HOLDS_POINTER | REGISTER_HOLDS_ARRAY;
@@ -401,7 +386,7 @@ namespace ash
 						}
 						case FieldType::Struct:
 						{
-							auto addr = reinterpret_cast<Allocation**>(alloc->memory + offset);
+							auto addr = reinterpret_cast<void**>((char*)alloc + offset);
 							setRegister(A, *addr);
 							rFlags[A] &= REGISTER_HIGH_BITS;
 							rFlags[A] |= REGISTER_HOLDS_POINTER;
@@ -421,35 +406,33 @@ namespace ash
 					if ((rFlags[B] & REGISTER_HOLDS_POINTER) == 0) return error("register not a memory address!");
 					if ((rFlags[B] & REGISTER_HOLDS_ARRAY) == 0) return error("pointer held in register is not an array!");
 
-					auto alloc = reinterpret_cast<Allocation*>(R[B]);
-					uint8_t span = (*((char*)alloc->memory)) & 0x7F;
-					uint8_t spacing = (span - 2) * ((span - 2) > 0);
-					uint64_t arrayCount = *reinterpret_cast<uint64_t*>(alloc->memory);
+					auto alloc = reinterpret_cast<void*>(R[B]);
+					//resolve array indexing/type calculations?
 					if (R[C] >= arrayCount) return error("array index out of bounds!");
 					uint64_t offset = span * R[C];
 					switch (span)
 					{
 						case 1:
 						{
-							auto addr = reinterpret_cast<uint8_t*>(alloc->memory + spacing + offset);
+							auto addr = reinterpret_cast<uint8_t*>((char*)alloc + offset);
 							*addr = static_cast<uint8_t>(R[A]);
 							break;
 						}
 						case 2:
 						{
-							auto addr = reinterpret_cast<uint16_t*>(alloc->memory + spacing + offset);
+							auto addr = reinterpret_cast<uint16_t*>((char*)alloc + offset);
 							*addr = static_cast<uint16_t>(R[A]);
 							break;
 						}
 						case 4:
 						{
-							auto addr = reinterpret_cast<uint32_t*>(alloc->memory + spacing + offset);
+							auto addr = reinterpret_cast<uint32_t*>((char*)alloc + offset);
 							*addr = static_cast<uint32_t>(R[A]);
 							break;
 						}
 						case 8:
 						{
-							auto addr = reinterpret_cast<uint64_t*>(alloc->memory + spacing + offset);
+							auto addr = reinterpret_cast<uint64_t*>((char*)alloc + offset);
 							*addr = R[A];
 							break;
 						}
@@ -466,53 +449,36 @@ namespace ash
 					uint8_t C = RegisterC(instruction);
 					if ((rFlags[B] & REGISTER_HOLDS_POINTER) == 0) return error("register not a memory address!");
 					if ((rFlags[B] & REGISTER_HOLDS_ARRAY) == 0) return error("pointer held in register is not an array!");
-					if (rFlags[A] & REGISTER_HOLDS_POINTER) refDecrement(reinterpret_cast<Allocation*>(R[A]));
-					auto alloc = reinterpret_cast<Allocation*>(R[B]);
-					uint8_t span = (*((char*)alloc->memory)) & 0x7F;
-					uint8_t spacing = (span - 2) * ((span - 2) > 0);
-					bool isPtr = (*((char*)alloc->memory)) & 0x80;
-					uint64_t arrayCount = *reinterpret_cast<uint64_t*>(alloc->memory);
+					auto alloc = reinterpret_cast<void*>(R[B]);
+					//resolve array indexing/type calculations?
 					if (R[C] >= arrayCount) return error("array index out of bounds!");
 					uint64_t offset = span * R[C];
 					switch (span)
 					{
 						case 1:
 						{
-							auto addr = reinterpret_cast<uint8_t*>(alloc->memory + spacing + offset);
+							auto addr = reinterpret_cast<uint8_t*>((char*)alloc + offset);
 							R[A] = *addr;
 							break;
 						}
 						case 2:
 						{
-							auto addr = reinterpret_cast<uint16_t*>(alloc->memory + spacing + offset);
+							auto addr = reinterpret_cast<uint16_t*>((char*)alloc + offset);
 							R[A] = *addr;
 							break;
 						}
 						case 4:
 						{
-							auto addr = reinterpret_cast<uint32_t*>(alloc->memory + spacing + offset);
+							auto addr = reinterpret_cast<uint32_t*>((char*)alloc + offset);
 							R[A] = *addr;
 							break;
 						}
 						case 8:
 						{
-							auto addr = reinterpret_cast<uint64_t*>(alloc->memory + spacing + offset);
+							auto addr = reinterpret_cast<uint64_t*>((char*)alloc + offset);
 							R[A] = *addr;
 							break;
 						}
-					}
-					if (isPtr)
-					{
-						auto objectAddress = reinterpret_cast<Allocation*>(R[A]);
-						rFlags[A] &= REGISTER_HIGH_BITS;
-						switch (objectAddress->type())
-						{
-						case AllocationType::Array:
-							rFlags[A] |= REGISTER_HOLDS_ARRAY;
-						case AllocationType::Type:
-							rFlags[A] |= REGISTER_HOLDS_POINTER;
-						}
-						refIncrement(objectAddress);
 					}
 					break;
 				}
@@ -1077,7 +1043,7 @@ namespace ash
 					}
 					else if (stackFlags[R[FRAME_REGISTER] + offset] & REGISTER_HOLDS_POINTER)
 					{
-						setRegister(B, reinterpret_cast<Allocation*>(temp));
+						setRegister(B, reinterpret_cast<void*>(temp));
 					}
 					else
 					{
@@ -1126,7 +1092,6 @@ namespace ash
 					stackFlags.clear();
 					stackPointers.clear();
 					types.clear();
-					zeroList.clear();
 					comparisonRegister = false;
 					freeAllocations();
 					return InterpretResult::INTERPRET_OK;
@@ -1135,25 +1100,12 @@ namespace ash
 		}
 	}
 
-	Allocation* VM::allocate(uint64_t typeID)
+	void* VM::allocate(uint64_t typeID)
 	{
 #ifdef STRESSTEST_GC
 			collectGarbage();
 #else
-			//TODO: find a quality heuristic for calling the garbage collector
-#define GROWTH_FACTOR 10 //percentage of growth over time
-		static auto lastSize = 0;
-		auto size1 = zeroList.size();
-		if(size1 > 50 && size1  >= lastSize)
-		{
-			//auto t1 = std::chrono::high_resolution_clock::now();
-			freeZeroList();
-			//auto t2 = std::chrono::high_resolution_clock::now();
-			auto size2 = zeroList.size();
-			//std::cout << "freeing the zero list of size " << size1 << " took " << ((double)(std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count())) / 1000000.0 << "milliseconds and freed " << size1 - size2 << "allocations.\n";
 		
-			lastSize = size2 << 1;
-		}
 #endif
 		TypeMetadata* typeInfo = types[typeID].get();
 		
@@ -1161,372 +1113,149 @@ namespace ash
 		uint8_t exp;
 		exp = util::ilog2(size) + 1;
 		if (exp < Memory::minExponentSize) exp = Memory::minExponentSize;
-		Allocation* result = Memory::allocate(exp);
-		result->refCount = 0;
-		result->right = allocationList;
-		result->typeInfo = typeInfo;
-		result->allocationType = AllocationType::Type;
-		if (allocationList) allocationList->left = result;
-		allocationList = result;
-		zeroList.insert(result);
+		void* result = Memory::allocate(exp);
+		allocationList.insert(result);
 		return result;
 	}
 
-	Allocation* VM::allocateArray(Allocation* pointer, size_t oldCount, size_t newCount, uint64_t typeID)
+	void* VM::allocateArray(void* pointer, size_t oldCount, size_t newCount, uint64_t typeID)
 	{
-		/*if (newCount > oldCount)
-		{
-#ifdef STRESSTEST_GC
-			collectGarbage();
-#else
-			if (false) collectGarbage();
-#endif
-		}
-		size_t oldSize = 0;
-		if (pointer)
-		{
-			oldSize = (oldCount * (fieldType & 0x7F)); //8 bytes for capacity, 1 byte for span, 1 byte for refcount
-		}
-		size_t newSize = (newCount * (fieldType & 0x7F)); // 8 bytes for capacity, 1 byte for span, 1 byte for refcount
 		
-		uint8_t exp = util::ilog2(newSize) + 1;
-		Allocation* result = Memory::allocate(exp);
-		memset((void*)(((char*)result->memory) + oldSize), 0, (1<<exp) - oldSize);
-		uint64_t* count = reinterpret_cast<uint64_t*>(result->memory);
-		*count = newCount;
-		uint8_t* arraySpan = ((uint8_t*)result) + 8;
-
-		result->refCount = 1;
-		Allocation* allocation = new Allocation();
-		allocation->memory = (char*)result;
-		allocation->right = allocationList;
-		if(allocationList) allocationList->left = allocation;
-		allocation->exp = exp;
-		allocationList = allocation;
-		return allocation;
-		*/
 		return pointer;
 	}
 
-	void VM::freeAllocation(Allocation* alloc)
+	void VM::freeAllocation(void* alloc)
 	{
-		switch (alloc->type())
-		{
-			case AllocationType::Type:
-			{
-				char* mem = alloc->memory;
-				TypeMetadata* metadata = alloc->typeInfo;
-				size_t currentOffset = 0;
-				for (const auto& field : metadata->fields)
-				{
-					currentOffset = field.offset;
-					if (field.type == FieldType::Struct || field.type == FieldType::Array)
-					{
-						Allocation* fieldObject = *(Allocation**)(mem + currentOffset);
-						if (fieldObject != nullptr)
-							refDecrement(fieldObject);
-					}
-				}
-				break;
-			}
-			case AllocationType::Array:
-			{
-				//uint8_t span = (*(arrayAlloc->memory + ARRAY_TYPE_OFFSET) & 0x7F);
-				//uint8_t spacing = (span - 2) * (span - 2 > 0);
-				//char* indexZero = arrayAlloc->memory + OBJECT_BEGIN_OFFSET;
-				//bool nonbasic = (*(arrayAlloc->memory + ARRAY_TYPE_OFFSET) & 0x80);
-				//if (nonbasic)
-				//{
-				//	for (size_t i = 0; i < *(size_t*)arrayAlloc->memory; i++)
-				//	{
-				//		Allocation* ref = *(Allocation**)(indexZero + (span * i));
-				//		if (ref != nullptr)
-				//			refDecrement(ref);
-				//	}
-				//}
-			}
-		}
-		if (alloc->right && alloc->right->exp != alloc->exp)
-		{
-			std::cout << "look here!" << std::endl;
-		}
-		if (alloc->left && alloc->left->exp != alloc->exp)
-		{
-			std::cout << "look here!" << std::endl;
-		}
-
-		if (allocationList == alloc)
-		{
-			allocationList = alloc->right;
-			if (alloc->right) alloc->right->left = nullptr;
-		}
-		else
-		{
-			if (alloc->left) alloc->left->right = alloc->right;
-			if (alloc->right) alloc->right->left = alloc->left;
-		}
+		allocationList.erase(alloc);
 		Memory::freeAllocation(alloc);
 	}
 
 
 	inline void VM::freeAllocations()
 	{
-		Allocation* allocation = allocationList;
-
-		while (allocation != nullptr)
-		{
-			Allocation* next = allocation->right;
-			Memory::freeAllocation(allocation);
-			allocation = next;
-		}
-		allocationList = nullptr;
+		std::for_each(allocationList.begin(), allocationList.end(), [](void* alloc) {Memory::freeAllocation(alloc); });
+		allocationList.clear();
 	}
 
-	inline void VM::freeZeroList()
-	{
-		std::unordered_set<Allocation*> inRegisters;
-		std::for_each(stackPointers.begin(), stackPointers.end(), [this, &inRegisters](uint64_t val)
-			{
-				inRegisters.insert(reinterpret_cast<Allocation*>(stack[val]));
-			});
-		size_t i = 0;
-		std::for_each(R.begin(), R.end(), [this, &i, &inRegisters](uint64_t val)
-			{
-				if ((rFlags[i] & REGISTER_HOLDS_POINTER) != 0)
-				{
-					inRegisters.insert(reinterpret_cast<Allocation*>(val));
-				}
-				i++;
-			});
-		if (inRegisters.size())
-		{
-			std::vector<Allocation*> toFree;
-			toFree.reserve(zeroList.size());
-			for (auto it = zeroList.begin(); it != zeroList.end(); it++)
-			{
-				if (inRegisters.find(*it) == inRegisters.end())
-				{
-					toFree.push_back(*it);
-				}
-			}
-			std::for_each(toFree.begin(), toFree.end(), [this](Allocation* alloc)
-			{
-				freeAllocation(alloc);
-			});
-			zeroList = std::move(inRegisters);
-		}
-		else
-		{
-			std::for_each(zeroList.begin(), zeroList.end(), [&](Allocation* alloc)
-				{
-					std::cout << "size: " << 1 << alloc->exp << ", address: " << alloc->memory << std::endl;
-					freeAllocation(alloc);
-				});
-			zeroList.clear();
-		}
-	}
+//	inline void VM::collectGarbage()
+//	{
+//#ifdef LOG_GC
+//		std::cout << "> begin gc" << std::endl;
+//#endif
+//
+//#ifdef LOG_GC
+//		std::cout << "> marking registers" << std::endl;
+//#endif
+//		std::queue<void*> greyset;
+//		for (int i = 0; i < R.size(); i++)
+//		{
+//			if ((rFlags[i] & REGISTER_HOLDS_POINTER) != 0)
+//			{
+//				auto alloc = reinterpret_cast<void*>(R[i]);
+//#ifdef LOG_GC
+//				std::cout << "adding " << static_cast<void*>(alloc) << " to greyset" << std::endl;
+//#endif
+//				greyset.push(alloc);
+//			}
+//		}
+//#ifdef LOG_GC
+//		std::cout << "> marking stack" << std::endl;
+//#endif
+//		for (int i = 0; i < stackPointers.size(); i++)
+//		{
+//			auto alloc = reinterpret_cast<void*>(stack[stackPointers[i]]);
+//#ifdef LOG_GC
+//			std::cout << "adding " << static_cast<void*>(alloc) << " to greyset" << std::endl;
+//#endif
+//			greyset.push(alloc);
+//		}
+//#ifdef LOG_GC
+//		std::cout << "> marking from roots" << std::endl;
+//#endif
+//		while(greyset.size())
+//		{
+//			auto current = greyset.front();
+//			
+//			case AllocationType::Type:
+//			{
+//				TypeMetadata* metadata = *(TypeMetadata**)current->memory;
+//				if (metadata == nullptr)
+//				{
+//					throw std::runtime_error("Invalid type object!");
+//				}
+//				size_t offset = 0;
+//				uint8_t spacing = *(uint8_t*)(current->memory);
+//				auto mem = current->memory;
+//				for (const auto& field : metadata->fields)
+//				{
+//					offset = field.offset;
+//					if (field.type == FieldType::Struct || field.type == FieldType::Array)
+//					{
+//						Allocation* ptr = *(Allocation**)(mem + offset);
+//						if (ptr)
+//						{
+//#ifdef LOG_GC
+//							std::cout << "adding " << static_cast<void*>(ptr) << " to greyset" << std::endl;
+//#endif
+//							greyset.push(ptr);
+//						}
+//					}
+//				}
+//				break;
+//			}
+//			greyset.pop();
+//		}
+//
+//#ifdef LOG_GC
+//		std::cout << "> begin sweep" << std::endl;
+//#endif
+//
+//
+//#ifdef LOG_GC
+//		std::cout << "> end sweep" << std::endl;
+//#endif
+//
+//#ifdef LOG_GC
+//		std::cout << "> end gc" << std::endl;
+//#endif
+//	}
 
-	inline void VM::collectGarbage()
-	{
-#ifdef LOG_GC
-		std::cout << "> begin gc" << std::endl;
-#endif
-		Allocation* ptr = allocationList;
-		while (ptr)
-		{
-			uint32_t* refCount = &ptr->refCount;
-			*refCount = 0;
-			ptr = ptr->right;
-		}
-
-#ifdef LOG_GC
-		std::cout << "> marking registers" << std::endl;
-#endif
-		std::queue<Allocation*> greyset;
-		for (int i = 0; i < R.size(); i++)
-		{
-			if ((rFlags[i] & REGISTER_HOLDS_POINTER) != 0)
-			{
-				auto alloc = reinterpret_cast<Allocation*>(R[i]);
-#ifdef LOG_GC
-				std::cout << "adding " << static_cast<void*>(alloc) << " to greyset" << std::endl;
-#endif
-				refIncrement(alloc);
-				greyset.push(alloc);
-			}
-		}
-#ifdef LOG_GC
-		std::cout << "> marking stack" << std::endl;
-#endif
-		for (int i = 0; i < stackPointers.size(); i++)
-		{
-			auto alloc = reinterpret_cast<Allocation*>(stack[stackPointers[i]]);
-#ifdef LOG_GC
-			std::cout << "adding " << static_cast<void*>(alloc) << " to greyset" << std::endl;
-#endif
-			refIncrement(alloc);
-			greyset.push(alloc);
-		}
-#ifdef LOG_GC
-		std::cout << "> marking from roots" << std::endl;
-#endif
-		while(greyset.size())
-		{
-			auto current = greyset.front();
-			switch (current->type())
-			{
-				case AllocationType::Array:
-				{
-					uint8_t span = *(uint8_t*)(current->memory);
-					if (span & 0x80)
-					{
-						size_t size = *(uint64_t*)current->memory;
-						uint8_t spacing = sizeof(Allocation*) - 2;
-						auto mem = current->memory + spacing;
-						for (int i = 0; i < size; i++)
-						{
-							Allocation* ptr = *(Allocation**)(mem + sizeof(Allocation*) * i);
-							if (ptr)
-							{
-								refIncrement(ptr);
-								greyset.push(ptr);
-							}
-						}
-					}
-					break;
-				}
-				case AllocationType::Type:
-				{
-					TypeMetadata* metadata = *(TypeMetadata**)current->memory;
-					if (metadata == nullptr)
-					{
-						throw std::runtime_error("Invalid type object!");
-					}
-					size_t offset = 0;
-					uint8_t spacing = *(uint8_t*)(current->memory);
-					auto mem = current->memory;
-					for (const auto& field : metadata->fields)
-					{
-						offset = field.offset;
-						if (field.type == FieldType::Struct || field.type == FieldType::Array)
-						{
-							Allocation* ptr = *(Allocation**)(mem + offset);
-							if (ptr)
-							{
-#ifdef LOG_GC
-								std::cout << "adding " << static_cast<void*>(ptr) << " to greyset" << std::endl;
-#endif
-								refIncrement(ptr);
-								greyset.push(ptr);
-							}
-						}
-					}
-					break;
-				}
-			}
-			greyset.pop();
-		}
-
-#ifdef LOG_GC
-		std::cout << "> begin sweep" << std::endl;
-#endif
-		Allocation* alloc = allocationList;
-		while (alloc != nullptr)
-		{
-			if(alloc->refCount == 0)
-			{
-				auto white = alloc;
-				alloc = alloc->right;
-				if (alloc) alloc->left = white->left;
-				if (white->left == nullptr)
-				{
-					allocationList = alloc;
-				}
-				else
-				{
-					white->left->right = alloc;
-				}
-				freeAllocation(white);
-			}
-			else alloc = alloc->right;
-		}
-
-#ifdef LOG_GC
-		std::cout << "> end sweep" << std::endl;
-#endif
-
-#ifdef LOG_GC
-		std::cout << "> end gc" << std::endl;
-#endif
-	}
-
-	inline void VM::setRegister(uint8_t _register, bool value)
+	void VM::setRegister(uint8_t _register, bool value)
 	{
 		setRegister(_register, static_cast<uint64_t>(value));
 	}
 
-	inline void VM::setRegister(uint8_t _register, uint64_t value)
+	void VM::setRegister(uint8_t _register, uint64_t value)
 	{
 		rFlags[_register] &= REGISTER_HIGH_BITS;
 		R[_register] = value;
 	}
 
-	inline void VM::setRegister(uint8_t _register, int64_t value)
+	void VM::setRegister(uint8_t _register, int64_t value)
 	{
 		rFlags[_register] &= REGISTER_HIGH_BITS;
 		rFlags[_register] |= ((REGISTER_HOLDS_SIGNED) * (value < 0));
 		R[_register] = value;
 	}
 
-	inline void VM::setRegister(uint8_t _register, float value)
+	void VM::setRegister(uint8_t _register, float value)
 	{
 		rFlags[_register] &= REGISTER_HIGH_BITS;
 		rFlags[_register] |= REGISTER_HOLDS_FLOAT;
 		R[_register] = *reinterpret_cast<uint64_t*>(&value);
 	}
-			
-	inline void VM::setRegister(uint8_t _register, double value)
+
+	void VM::setRegister(uint8_t _register, double value)
 	{
 		rFlags[_register] &= REGISTER_HIGH_BITS;
 		rFlags[_register] |= REGISTER_HOLDS_DOUBLE;
 		R[_register] = *reinterpret_cast<uint64_t*>(&value);
 	}
 
-	inline void VM::setRegister(uint8_t _register, Allocation* value)
+	void VM::setRegister(uint8_t _register, void* value)
 	{
-
 		rFlags[_register] &= REGISTER_HIGH_BITS;
 		rFlags[_register] |= REGISTER_HOLDS_POINTER;
-		if (((Allocation*)value)->type() == AllocationType::Array)
-		{
-			rFlags[_register] |= REGISTER_HOLDS_ARRAY;
-		}
 		R[_register] = *reinterpret_cast<uint64_t*>(&value);
-	}
-
-	void VM::refIncrement(Allocation* ref)
-	{
-#ifdef LOG_GC
-		std::cout << "Incrementing " << static_cast<void*>(ref);
-		std::cout << " to " << (ref->refCount) + 1 << std::endl;
-#endif
-		ref->refCount++;
-		if(ref->refCount == 1)
-			zeroList.erase(ref);
-	}
-
-	void VM::refDecrement(Allocation* ref)
-	{
-#ifdef LOG_GC
-		std::cout << "Decrementing " << static_cast<void*>(ref);
-		std::cout << " to " << (ref->refCount) - 1 << std::endl;
-#endif
-		if (ref->refCount == 0 || ref->refCount == 1)
-		{
-			ref->refCount = 0;
-			zeroList.insert(ref);
-			return;
-		}
-		ref->refCount--;
 	}
 }

@@ -37,8 +37,7 @@ namespace ash
 		std::vector<uint8_t> stackFlags;
 		std::vector<size_t> stackPointers;
 		std::vector<std::shared_ptr<TypeMetadata>> types;
-		Allocation* allocationList = nullptr;
-		std::unordered_set<Allocation*> zeroList;
+		std::unordered_set<void*> allocationList;
 		friend class Memory;
 
 		Chunk* chunk = nullptr;
@@ -55,11 +54,11 @@ namespace ash
 
 		InterpretResult error(const char* msg);
 
-		Allocation* allocate(uint64_t typeID);
+		void* allocate(uint64_t typeID);
 
-		Allocation* allocateArray(Allocation* pointer, size_t oldCount, size_t newCount, uint64_t typeID);
+		void* allocateArray(void* pointer, size_t oldCount, size_t newCount, uint64_t typeID);
 
-		void freeAllocation(Allocation* alloc);
+		void freeAllocation(void* alloc);
 
 		void freeZeroList();
 
@@ -67,17 +66,12 @@ namespace ash
 
 		void collectGarbage();
 
-		void refIncrement(Allocation* ref);
-
-		void refDecrement(Allocation* ref);
-
 		void setRegister(uint8_t _register, bool value);
 		void setRegister(uint8_t _register, uint64_t value);
 		void setRegister(uint8_t _register, int64_t value);
 		void setRegister(uint8_t _register, float value);
 		void setRegister(uint8_t _register, double value);
-		void setRegister(uint8_t _register, Allocation* value);
-
+		void setRegister(uint8_t _register, void* value);
 
 		bool isTruthy(uint8_t _register);
 	};
