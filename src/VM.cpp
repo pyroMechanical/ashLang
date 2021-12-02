@@ -308,10 +308,8 @@ namespace ash
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
 					if ((rFlags[B] & REGISTER_HOLDS_POINTER) == 0) return error("register not a memory address!");
-					
+					//todo: split into 4 instructions: i8 load, i16 load, i32 load, i64 load
 					auto alloc = reinterpret_cast<void*>(R[B]);
-					size_t offset = metadata->fields[R[C]].offset;
-					FieldType type = metadata->fields[R[C]].type;
 					switch (type)
 					{
 						case FieldType::Bool:
