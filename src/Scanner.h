@@ -13,6 +13,7 @@ namespace ash
 		BANG, BANG_EQUAL, EQUAL_EQUAL,
 		LESS, LESS_EQUAL,
 		GREATER, GREATER_EQUAL,
+		WEAK, REFERENCE, 
 		TYPE, //not used in the scanner; the parser will use lookahead to resolve types from identifier tokens
 		AUTO, ANY, MULTI,
 		IDENTIFIER, DEF,

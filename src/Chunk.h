@@ -63,8 +63,14 @@ namespace ash
 		OP_CONST_HIGH, // A, writes to highest two bytes
 		OP_MOVE_FROM_STACK_FRAME, // A, B; R[B] = stack[R[FRAME_REGISTER] + R[A]]
 			//three-register instructions: 8-bit opcode | 8-bit register A | 8-bit register B | 8-bit register C
-		OP_STORE_OFFSET,  // A, B, C; store value from R[A] in memory address R[B] + R[C]
-		OP_LOAD_OFFSET,  // A, B, C; load value from address R[B] + R[C] to R[A]
+		OP_STORE_OFFSET8,  // A, B, C; store value from R[A] in memory address R[B] + R[C]
+		OP_STORE_OFFSET16,  // A, B, C; store value from R[A] in memory address R[B] + R[C]
+		OP_STORE_OFFSET32,  // A, B, C; store value from R[A] in memory address R[B] + R[C]
+		OP_STORE_OFFSET64,  // A, B, C; store value from R[A] in memory address R[B] + R[C]
+		OP_LOAD_OFFSET8,  // A, B, C; load value from address R[B] + R[C] to R[A]
+		OP_LOAD_OFFSET16,  // A, B, C; load value from address R[B] + R[C] to R[A]
+		OP_LOAD_OFFSET32,  // A, B, C; load value from address R[B] + R[C] to R[A]
+		OP_LOAD_OFFSET64,  // A, B, C; load value from address R[B] + R[C] to R[A]
 		OP_ALLOC_ARRAY, //A, B, C; allocate array with length R[A] and span R[B] and store pointer in R[C]
 		OP_ARRAY_STORE, //A, B, C; write value from R[A] in array R[B] with index R[C]
 		OP_ARRAY_LOAD, //A, B, C; load value from array R[B] with index R[C] to R[A]

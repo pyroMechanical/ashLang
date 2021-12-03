@@ -1,41 +1,69 @@
-<program> ::= <library> {<imports>}* {<declaration>}* "EOF_"
+<program> ::= <whitespace>? (<library> <terminal>)? <whitespace>? (<imports> <terminal>)? <whitespace>? <declarations>? <whitespace>?
 
-<library> ::= "library" <identifier> ";"
+<library> ::= "library" <whitespace> <identifier>
 
-<imports> ::= "using" <identifier>
-            | "using" <identifierlist> "from" <identifier>
+<imports> ::= <import>
+			| <import> <nonterminal_whitespace>? <terminal> <whitespace>? <imports>
+
+<import> ::= "using" <whitespace> <identifier>
+            | "using" <whitespace> <identifierlist> <whitespace> "from" <whitespace> <identifier> ( "." <identifier> )*
 
 <identifierlist> ::= <identifier> 
-                   | <identifier> "," <identifierlist>
+                   | <identifier> <whitespace>? "," <whitespace>? <identifierlist>
 
-<declaration> ::= <typeDecl>
-                | <funcDecl>
-			    | <varDecl>
+<declarations> ::= <declaration>
+				 | <declaration> <whitespace>? <declarations>
+
+<declaration> ::= <type_decl>
+                | <function_decl>
+			    | <variable_decl>
 			    | <statement>
 
-<typeDecl> ::= "def" <type> "{" <parameters> "}" ";"
+<type_decl> ::= "def" <whitespace> <type> <whitespace>? "{" <whitespace>? <type_parameters> <whitespace>? "}" <nonterminal_whitespace>* <terminal>
 
-<funcDecl> ::= <type> <identifier> "(" <parameters> ")" <block> ";"
+<type_parameters> ::= <parameter>
+				  | <parameter> <whitespace>? <terminal> (<whitespace>? <type_parameters>)?
 
-<varDecl> ::= <type> <identifier> ":" <expression> ";"
+<function_decl> ::= <type> <whitespace> <function_identifier> <whitespace>? "(" <whitespace>? <parameters>? <whitespace>? ")" <whitespace>? <block>
 
-<type> ::= <basicType>
-         | "unsigned" <type>
-		 | <user-defined type>
+<function_identifier> ::= <identifier> (<whitespace>? "!")?
+
+<variable_decl> ::= <variable_qualifier> <whitespace> <type> <reference>? <whitespace> <identifier> (<whitespace>? "=" <whitespace>? <expression> <nonterminal_whitespace>*)? <terminal>
+
+<variable_qualifier> ::= "mutable"
+
+<type> ::= (<value_type> | <function_type>) ("[" (<whitespace>? <number>* <whitespace>?)? "]" )?
 		 
-<basicType> ::= "bool"
+<value_type> ::= ( <basic_type> | <user_defined_type>)
+
+<reference> ::= <whitespace> "ref"
+		 
+<user_defined_type> ::= <identifier>
+		 
+<function_type> ::= "(" <whitespace>? <type_list> <whitespace>? ")" <whitespace>? <left_arrow> <whitespace>? ( <value_type> | "(" <whitespace>? <type> <whitespace>? ")" )
+
+<type_list> ::= <type> | <type> <whitespace>? "," <whitespace>? <type_list>
+<left_arrow> ::= "->"
+		 
+<basic_type> ::= "bool"
 			  | "byte"
 			  | "short"
 			  | "int"
 			  | "long"
+			  | "ubyte"
+			  | "ushort"
+			  | "uint"
+			  | "ulong"
 			  | "char"
 			  | "float"
 			  | "double"
 		 
-<parameters> ::= <type> <identifier>
-               | <type> <identifier> "," <parameters>
+<parameters> ::= <parameter>
+               | <parameter> <whitespace>? "," (<whitespace>? <parameters>)?
+			   
+<parameter> ::= <type> <reference>? <whitespace> <identifier>
 
-<arguments> ::= <expression> | <expression> "," <arguments>
+<arguments> ::= <expression> | <expression> <whitespace>? "," <whitespace>? <arguments>
 
 <statement> ::= <expressionStatement>
               | <forStatement>
@@ -44,36 +72,74 @@
 			  | <whileStatement>
 			  | <block>
 
-<expressionStatement> ::= <expression> ";"
+<expressionStatement> ::= <expression> <nonterminal_whitespace>* <terminal>
 
-<forStatement> ::= "for" "(" (<varDecl> | <expression> | ";") {<expression>}? ";" {<expression>}? ")" <statement>
+<forStatement> ::= "for" <whitespace>? "(" <whitespace>? (<variable_decl> | <expression>)? <whitespace>? <terminal> <whitespace>? <expression>? <whitespace>? <terminal> <whitespace>? <expression>? <whitespace>? ")" <whitespace>? <statement>
 
-<ifStatement> ::= "if" "(" <expression> ")" <statement> {"else" <statement>}?
+<ifStatement> ::= "if" <whitespace>? "(" <whitespace>? <expression> <whitespace>? ")" <whitespace>? <statement> <whitespace>? ("else" <whitespace> <statement>)?
 
-<returnStatement> ::= "return" {<expression>}? ";"
+<returnStatement> ::= "return" <whitespace> <expression>? <nonterminal_whitespace>* <terminal>
 
-<whileStatement> ::= "while" "(" <expression> ")" <statement>
+<whileStatement> ::= "while" <whitespace>? "(" <whitespace>? <expression> <whitespace>? ")" <whitespace>? <statement>
 
-<block> ::= "{" {<declaration>}* "}";
+<block> ::= "{" <whitespace>? <declarations>? <whitespace>? "}" <nonterminal_whitespace>*
 
 <expression> ::= <assignment>
 
-<assignment> ::= { <call> "." }? <identifier> ":" assignment | <logic_or>
+<assignment> ::=  <logic_or> | ( <call> <whitespace>? "." <whitespace>?)* <whitespace>? <identifier> <whitespace>? "=" <whitespace>? (<assignment> | <logic_or>)
 
-<logic_or> ::= <logic_and> { "||" <logic_and> }*
+<logic_or> ::= <logic_and> <whitespace>? ("||" <whitespace>? <logic_or> <whitespace>?)?
 
-<logic_and> ::= <equality> { "&&" <equality> }*
+<logic_and> ::= <equality> <whitespace>? ("&&" <whitespace>? <logic_and> <whitespace>?)?
 
-<equality> ::= <comparison> { ("!=" | "=" ) <comparison> }*
+<equality> ::= <comparison> <whitespace>? (( "!=" | "==" ) <whitespace>? <equality> <whitespace>?)?
 
-<comparison> ::= <term> { (">" | ">=" | "<" | "<=" ) <term> }*
+<comparison> ::= <term> <whitespace>? ((">" | ">=" | "<" | "<=" ) <whitespace>? <comparison> <whitespace>?)?
 
-<term> ::= <factor> { ( "-" | "+" ) <factor> }*
+<term> ::= <factor> <nonterminal_whitespace>? ( ( "-" | "+" ) <whitespace>? <term> <whitespace>?)?
 
-<factor> ::= <unary> { ( "/" | "*" ) <unary> )*
+<factor> ::= <unary> (( "/" | "*" ) <whitespace>? <factor> <whitespace>?)?
 
-<unary> ::= ( "!" | "-" ) <unary> | <call>
+<unary> ::= ( "!" <whitespace>? | "-" <whitespace>? ) <unary> | <call>
 
-<call> ::= <primary> ( "(" <arguments> ")" | "." <identifier> )*
+<call> ::= <primary> <whitespace>? ("(" <whitespace>? <arguments>? <whitespace>? ")" | "." <whitespace>? <identifier> <whitespace>? | "[" <whitespace>? <expression> <whitespace>? "]")*
 
 <primary> ::= <identifier> | <literal>
+
+<identifier> ::= (<letter> | "_") (<alphanumeric>)*
+
+<alphanumeric> ::= <letter> | <number>
+
+<letter> ::= ([a-z] | [A-Z])
+
+<number> ::= [0-9]
+
+<terminal> ::= (";")
+
+<literal> ::= <bool_literal>
+			| <int_literal>
+			| <float_literal>
+			| <double_literal>
+			| <char_literal>
+			| <string_literal>
+			| "(" <whitespace>? <expression> <whitespace>? ")"
+			
+<bool_literal> ::= "true" | "false"
+
+<int_literal> ::= <number>+
+
+<double_literal> ::= <number>* "." <number>+
+
+<float_literal> ::= <double_literal> "f"
+
+<char_literal> ::= "'" <chars> "'"
+
+<string_literal> ::= "\"" <chars>* "\""
+
+<chars> ::= <letter> | <number> | <whitespace_chars> | "\\" ( <letter> | <number>+ | "\"" | "\\" ) | "\n" | "!" | ","
+
+<whitespace> ::= <whitespace_chars>+
+
+<whitespace_chars> ::= ( <nonterminal_whitespace> | "\n" )
+
+<nonterminal_whitespace> ::= " "

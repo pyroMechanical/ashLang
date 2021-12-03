@@ -257,7 +257,7 @@ namespace ash
 					setRegister(A,(R[A] & 0x0000FFFFFFFFFFFF) + (((uint64_t)value) << 48));
 					break;
 				}
-				case OP_STORE_OFFSET:
+				case OP_STORE_OFFSET8:
 				{
 					#ifdef LOG_TIMES
 					Timer t = { "OP_STORE_OFFSET" };
@@ -268,38 +268,56 @@ namespace ash
 					if ((rFlags[B] & REGISTER_HOLDS_POINTER) == 0) return error("register not a memory address!");
 
 					auto alloc = reinterpret_cast<void*>(R[B]);
-					size_t offset = metadata->fields[R[C]].offset;
-					FieldType type = metadata->fields[R[C]].type;
-					switch (fieldSize(type))
-					{
-						case 1:
-						{
-							auto addr = reinterpret_cast<uint8_t*>((char*)alloc + offset);
-							*addr = static_cast<uint8_t>(R[A]);
-							break;
-						}
-						case 2:
-						{
-							auto addr = reinterpret_cast<uint16_t*>((char*)alloc + offset);
-							*addr = static_cast<uint16_t>(R[A]);
-							break;
-						}
-						case 4:
-						{
-							auto addr = reinterpret_cast<uint32_t*>((char*)alloc + offset);
-							*addr = static_cast<uint32_t>(R[A]);
-							break;
-						}
-						case 8:
-						{
-							auto addr = reinterpret_cast<uint64_t*>((char*)alloc + offset);
-							*addr = static_cast<uint64_t>(R[A]);
-							break;
-						}
-					}
+					uint8_t* result = (uint8_t*)alloc + R[C];
+					*result = (uint8_t)R[A];
 					break;
 				}
-				case OP_LOAD_OFFSET:
+				case OP_STORE_OFFSET16:
+				{
+#ifdef LOG_TIMES
+					Timer t = { "OP_STORE_OFFSET" };
+#endif
+					uint8_t A = RegisterA(instruction);
+					uint8_t B = RegisterB(instruction);
+					uint8_t C = RegisterC(instruction);
+					if ((rFlags[B] & REGISTER_HOLDS_POINTER) == 0) return error("register not a memory address!");
+
+					auto alloc = reinterpret_cast<void*>(R[B]);
+					uint16_t* result = (uint16_t*)alloc + R[C];
+					*result = (uint16_t)R[A];
+					break;
+				}
+				case OP_STORE_OFFSET32:
+				{
+#ifdef LOG_TIMES
+					Timer t = { "OP_STORE_OFFSET" };
+#endif
+					uint8_t A = RegisterA(instruction);
+					uint8_t B = RegisterB(instruction);
+					uint8_t C = RegisterC(instruction);
+					if ((rFlags[B] & REGISTER_HOLDS_POINTER) == 0) return error("register not a memory address!");
+
+					auto alloc = reinterpret_cast<void*>(R[B]);
+					uint32_t* result = (uint32_t*)alloc + R[C];
+					*result = (uint32_t)R[A];
+					break;
+				}
+				case OP_STORE_OFFSET64:
+				{
+#ifdef LOG_TIMES
+					Timer t = { "OP_STORE_OFFSET" };
+#endif
+					uint8_t A = RegisterA(instruction);
+					uint8_t B = RegisterB(instruction);
+					uint8_t C = RegisterC(instruction);
+					if ((rFlags[B] & REGISTER_HOLDS_POINTER) == 0) return error("register not a memory address!");
+
+					auto alloc = reinterpret_cast<void*>(R[B]);
+					uint64_t* result = (uint64_t*)alloc + R[C];
+					*result = R[A];
+					break;
+				}
+				case OP_LOAD_OFFSET8:
 				{
 					#ifdef LOG_TIMES
 					Timer t = { "OP_LOAD_OFFSET" };
@@ -310,176 +328,49 @@ namespace ash
 					if ((rFlags[B] & REGISTER_HOLDS_POINTER) == 0) return error("register not a memory address!");
 					
 					auto alloc = reinterpret_cast<void*>(R[B]);
-					size_t offset = metadata->fields[R[C]].offset;
-					FieldType type = metadata->fields[R[C]].type;
-					switch (type)
-					{
-						case FieldType::Bool:
-						case FieldType::UByte:
-						{
-							auto addr = reinterpret_cast<uint8_t*>((char*)alloc + offset);
-							setRegister(A, (uint64_t)*addr);
-							break;
-						}
-						case FieldType::UShort:
-						{
-							auto addr = reinterpret_cast<uint16_t*>((char*)alloc + offset);
-							setRegister(A, (uint64_t)*addr);
-							break;
-						}
-
-						case FieldType::UInt:
-						{
-							auto addr = reinterpret_cast<uint32_t*>((char*)alloc + offset);
-							setRegister(A, (uint64_t)*addr);
-							break;
-						}
-						case FieldType::ULong:
-						{
-							auto addr = reinterpret_cast<uint64_t*>((char*)alloc + offset);
-							setRegister(A, *addr);
-							break;
-						}
-						case FieldType::Byte:
-						{
-							auto addr = reinterpret_cast<int8_t*>((char*)alloc + offset);
-							setRegister(A, (int64_t)*addr);
-							break;
-						}
-						case FieldType::Short:
-						{
-							auto addr = reinterpret_cast<int16_t*>((char*)alloc + offset);
-							setRegister(A, (int64_t)*addr);
-							break;
-						}
-						case FieldType::Int:
-						{
-							auto addr = reinterpret_cast<int32_t*>((char*)alloc + offset);
-							setRegister(A, (int64_t)*addr);
-							break;
-						}
-						case FieldType::Long:
-						{
-							auto addr = reinterpret_cast<int64_t*>((char*)alloc + offset);
-							setRegister(A, *addr);
-							break;
-						}
-						case FieldType::Float:
-						{
-							auto addr = reinterpret_cast<float*>((char*)alloc + offset);
-							setRegister(A, *addr);
-							break;
-						}
-						case FieldType::Double:
-						{
-							auto addr = reinterpret_cast<double*>((char*)alloc + offset);
-							setRegister(A, *addr);
-							break;
-						}
-						case FieldType::Array:
-						{
-							auto addr = reinterpret_cast<void**>((char*)alloc + offset);
-							setRegister(A, *addr);
-							rFlags[A] &= REGISTER_HIGH_BITS;
-							rFlags[A] |= REGISTER_HOLDS_POINTER | REGISTER_HOLDS_ARRAY;
-							break;
-						}
-						case FieldType::Struct:
-						{
-							auto addr = reinterpret_cast<void**>((char*)alloc + offset);
-							setRegister(A, *addr);
-							rFlags[A] &= REGISTER_HIGH_BITS;
-							rFlags[A] |= REGISTER_HOLDS_POINTER;
-							break;
-						}
-					}
+					setRegister(A, (uint8_t*)alloc + R[C]);
 					break;
 				}
-				case OP_ARRAY_STORE:
-					{
-					#ifdef LOG_TIMES
-					Timer t = { "OP_ARRAY_STORE" };
-					#endif
-					uint8_t A = RegisterA(instruction);
-					uint8_t B = RegisterB(instruction);
-					uint8_t C = RegisterC(instruction);
-					if ((rFlags[B] & REGISTER_HOLDS_POINTER) == 0) return error("register not a memory address!");
-					if ((rFlags[B] & REGISTER_HOLDS_ARRAY) == 0) return error("pointer held in register is not an array!");
-
-					auto alloc = reinterpret_cast<void*>(R[B]);
-					//resolve array indexing/type calculations?
-					if (R[C] >= arrayCount) return error("array index out of bounds!");
-					uint64_t offset = span * R[C];
-					switch (span)
-					{
-						case 1:
-						{
-							auto addr = reinterpret_cast<uint8_t*>((char*)alloc + offset);
-							*addr = static_cast<uint8_t>(R[A]);
-							break;
-						}
-						case 2:
-						{
-							auto addr = reinterpret_cast<uint16_t*>((char*)alloc + offset);
-							*addr = static_cast<uint16_t>(R[A]);
-							break;
-						}
-						case 4:
-						{
-							auto addr = reinterpret_cast<uint32_t*>((char*)alloc + offset);
-							*addr = static_cast<uint32_t>(R[A]);
-							break;
-						}
-						case 8:
-						{
-							auto addr = reinterpret_cast<uint64_t*>((char*)alloc + offset);
-							*addr = R[A];
-							break;
-						}
-					}
-					break;
-				}
-				case OP_ARRAY_LOAD:
+				case OP_LOAD_OFFSET16:
 				{
-					#ifdef LOG_TIMES
-					Timer t = { "OP_ARRAY_LOAD" };
-					#endif
+#ifdef LOG_TIMES
+					Timer t = { "OP_LOAD_OFFSET" };
+#endif
 					uint8_t A = RegisterA(instruction);
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
 					if ((rFlags[B] & REGISTER_HOLDS_POINTER) == 0) return error("register not a memory address!");
-					if ((rFlags[B] & REGISTER_HOLDS_ARRAY) == 0) return error("pointer held in register is not an array!");
+
 					auto alloc = reinterpret_cast<void*>(R[B]);
-					//resolve array indexing/type calculations?
-					if (R[C] >= arrayCount) return error("array index out of bounds!");
-					uint64_t offset = span * R[C];
-					switch (span)
-					{
-						case 1:
-						{
-							auto addr = reinterpret_cast<uint8_t*>((char*)alloc + offset);
-							R[A] = *addr;
-							break;
-						}
-						case 2:
-						{
-							auto addr = reinterpret_cast<uint16_t*>((char*)alloc + offset);
-							R[A] = *addr;
-							break;
-						}
-						case 4:
-						{
-							auto addr = reinterpret_cast<uint32_t*>((char*)alloc + offset);
-							R[A] = *addr;
-							break;
-						}
-						case 8:
-						{
-							auto addr = reinterpret_cast<uint64_t*>((char*)alloc + offset);
-							R[A] = *addr;
-							break;
-						}
-					}
+					setRegister(A, (uint16_t*)alloc + R[C]);
+					break;
+				}
+				case OP_LOAD_OFFSET32:
+				{
+#ifdef LOG_TIMES
+					Timer t = { "OP_LOAD_OFFSET" };
+#endif
+					uint8_t A = RegisterA(instruction);
+					uint8_t B = RegisterB(instruction);
+					uint8_t C = RegisterC(instruction);
+					if ((rFlags[B] & REGISTER_HOLDS_POINTER) == 0) return error("register not a memory address!");
+
+					auto alloc = reinterpret_cast<void*>(R[B]);
+					setRegister(A, (uint32_t*)alloc + R[C]);
+					break;
+				}
+				case OP_LOAD_OFFSET64:
+				{
+#ifdef LOG_TIMES
+					Timer t = { "OP_LOAD_OFFSET" };
+#endif
+					uint8_t A = RegisterA(instruction);
+					uint8_t B = RegisterB(instruction);
+					uint8_t C = RegisterC(instruction);
+					if ((rFlags[B] & REGISTER_HOLDS_POINTER) == 0) return error("register not a memory address!");
+
+					auto alloc = reinterpret_cast<void*>(R[B]);
+					setRegister(A, (uint64_t*)alloc + R[C]);
 					break;
 				}
 				case OP_PUSH:

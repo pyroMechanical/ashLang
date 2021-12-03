@@ -215,8 +215,8 @@ namespace ash
 					{
 						switch (start[2])
 						{
-						case 'd': return TokenType::AND;
-						case 'y': return TokenType::ANY;
+						case 'd': return checkKeyword(1, 2, "nd", TokenType::AND);
+						case 'y': return checkKeyword(1, 2, "ny", TokenType::ANY);
 						}
 					}
 					break;
@@ -238,9 +238,25 @@ namespace ash
 		case 'i': return checkKeyword(1, 1, "f", TokenType::IF);
 		case 'n': return checkKeyword(1, 2, "ot", TokenType::NOT);
 		case 'o': return checkKeyword(1, 1, "r", TokenType::OR);
-		case 'r': return checkKeyword(1, 5, "eturn", TokenType::RETURN);
+		case 'r':
+			if (current - start > 2)
+			{
+				switch (start[2])
+				{
+					case 'f': return checkKeyword(2, 2, "f", TokenType::REFERENCE);
+					case 't': return checkKeyword(2, 5, "turn", TokenType::RETURN);
+				}
+			}
+			break;
 		case 't': return checkKeyword(1, 3, "rue", TokenType::TRUE);
-		case 'w': return checkKeyword(1, 4, "hile", TokenType::WHILE);
+		case 'w': 
+			if(current - start > 1)
+			{
+				switch (start[1])
+				{
+					case 'h': return checkKeyword(1, 4, "hile", TokenType::WHILE);
+					case 'e': return checkKeyword(1, 3, "eak", TokenType::WEAK);
+				}
 		}
 		return TokenType::IDENTIFIER;
 	}

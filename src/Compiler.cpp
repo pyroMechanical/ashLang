@@ -1417,23 +1417,33 @@ namespace ash
 				case Asm::ThreeAddr:
 				{
 					auto instruction = std::dynamic_pointer_cast<threeAddress>(i);
-					if (instruction->op == OP_LOAD_OFFSET ||
-						instruction->op == OP_STORE_OFFSET ||
-						instruction->op == OP_ARRAY_LOAD ||
-						instruction->op == OP_ARRAY_STORE)
+					switch (instruction->op)
 					{
-						Token tempToken = newTemp(instruction->result.line);
-						auto constant = std::make_shared<twoAddress>();
-						constant->op = OP_CONST_LOW;
-						constant->A = instruction->result;
-						constant->result = tempToken;
-						instruction->result = tempToken;
-						result.code.push_back(constant);
+						case OP_LOAD_OFFSET8:
+						case OP_LOAD_OFFSET16:
+						case OP_LOAD_OFFSET32:
+						case OP_LOAD_OFFSET64:
+						case OP_STORE_OFFSET8:
+						case OP_STORE_OFFSET16:
+						case OP_STORE_OFFSET32:
+						case OP_STORE_OFFSET64:
+						case OP_ARRAY_LOAD:
+						case OP_ARRAY_STORE:
+						{
+							Token tempToken = newTemp(instruction->result.line);
+							auto constant = std::make_shared<twoAddress>();
+							constant->op = OP_CONST_LOW;
+							constant->A = instruction->result;
+							constant->result = tempToken;
+							instruction->result = tempToken;
+							result.code.push_back(constant);
+							result.code.push_back(instruction);
+							break;
+						}
+					default:
+					{
 						result.code.push_back(instruction);
 					}
-					else
-					{
-						result.code.push_back(instruction);
 					}
 					break;
 				}
@@ -1982,7 +1992,10 @@ namespace ash
 					auto threeAddr = std::dynamic_pointer_cast<threeAddress>(instruction);
 					switch(threeAddr->op)
 					{
-						case OP_STORE_OFFSET:
+					case OP_STORE_OFFSET8:
+					case OP_STORE_OFFSET16:
+					case OP_STORE_OFFSET32:
+					case OP_STORE_OFFSET64:
 						case OP_ARRAY_STORE:
 						{
 							liveNodes.insert(threeAddr->A.string);
@@ -1991,7 +2004,10 @@ namespace ash
 							livePoints.push_back(liveNodes);
 							break;
 						}
-						case OP_LOAD_OFFSET:
+						case OP_LOAD_OFFSET8:
+						case OP_LOAD_OFFSET16:
+						case OP_LOAD_OFFSET32:
+						case OP_LOAD_OFFSET64:
 						case OP_ARRAY_LOAD:
 						{
 							if (liveNodes.find(threeAddr->A.string) == liveNodes.end())
