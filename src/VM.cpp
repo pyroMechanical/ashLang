@@ -326,7 +326,7 @@ namespace ash
 					uint8_t B = RegisterB(instruction);
 					uint8_t C = RegisterC(instruction);
 					if ((rFlags[B] & REGISTER_HOLDS_POINTER) == 0) return error("register not a memory address!");
-					
+					//todo: split into 4 instructions: i8 load, i16 load, i32 load, i64 load
 					auto alloc = reinterpret_cast<void*>(R[B]);
 					setRegister(A, (uint8_t*)alloc + R[C]);
 					break;
